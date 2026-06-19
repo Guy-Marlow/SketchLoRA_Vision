@@ -1,0 +1,11 @@
+# Versions verified working in our environment (conda env "treelora").
+# Upstream PILOT README pins torch 2.0.1 / torchvision 0.15.2 / timm 0.6.12;
+# our runs use the slightly older timm 0.6.7 below without issue. timm version
+# matters: pretrained weight keys/URLs differ across versions.
+torch==2.4.1
+torchvision==0.19.1
+timm==0.6.7
+numpy
+scipy
+tqdm
+gdown            # dataset download (scripts/data_prep.py)
