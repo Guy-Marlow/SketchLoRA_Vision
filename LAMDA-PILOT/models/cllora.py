@@ -75,6 +75,36 @@ class Learner(BaseLearner):
         self._network.freeze()
         self._network.backbone.add_adapter_to_list()
 
+    def persistent_state(self):
+        net = self._network.module if hasattr(self._network, "module") else self._network
+        backbone = net.backbone
+        # backbone.adapter_list is a plain python list (not a Module container, mirrors
+        # models/ease.py's identical blind spot), so named_parameters() can't see the
+        # frozen past-task adapter banks it holds -- count it explicitly.
+        adapter_bytes = sum(p.numel() * p.element_size()
+                             for task_adapters in backbone.adapter_list
+                             for a in task_adapters for p in a.parameters())
+        adapter_bytes += sum(p.numel() * p.element_size() for p in backbone.cur_adapter.parameters())
+        # VPT deep-prompt tokens (one nn.Parameter per tuned block) and the MSA
+        # block-weighting vector -- both real nn.Parameters, but named here for an
+        # explicit breakdown rather than folding them into the generic heuristic.
+        vpt_bytes = sum(p.numel() * p.element_size() for p in backbone.embeddings) \
+            if hasattr(backbone, "embeddings") else 0
+        block_weight_bytes = (backbone.block_weight.numel() * backbone.block_weight.element_size()
+                              if hasattr(backbone, "block_weight") else 0)
+        fc_bytes = sum(p.numel() * p.element_size() for p in net.fc.parameters()) if net.fc is not None else 0
+        total_bytes = adapter_bytes + vpt_bytes + block_weight_bytes + fc_bytes
+        return {"params": int(total_bytes // 4), "bytes": int(total_bytes),
+                "breakdown": {"adapters": adapter_bytes, "vpt_prompts": vpt_bytes,
+                             "block_weight": block_weight_bytes, "fc": fc_bytes}}
+
+    @torch.no_grad()
+    def _deployed_forward(self, inputs):
+        """The actual deployed CIL forward (_eval_cnn calls this exact form), for
+        metrics_logger.py's inference-cost/FLOPs measurement."""
+        net = self._network.module if hasattr(self._network, "module") else self._network
+        return net.forward(inputs, test=True)
+
     def get_cls_range(self, task_id):
         if task_id == 0:
             start_cls = 0

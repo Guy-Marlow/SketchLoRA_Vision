@@ -1,25 +1,24 @@
 {
-  "dataset": "imagenetr",
+  "dataset": "food101",
   "memory_size": 0,
   "memory_per_class": 0,
   "fixed_memory": false,
   "shuffle": true,
-  "init_cls": 10,
-  "increment": 10,
+  "init_cls": 6,
+  "increment": 5,
   "seed": [
     1993
   ],
   "scenario": "cil",
-  "stop_after_tasks": 5,
   "pretrained": true,
   "print_forget": true,
   "final_metrics": true,
   "backbone_type": "vit_base_patch16_224_in21k_cllora",
   "init_epochs": 30,
-  "init_lr": 0.03,
+  "init_lr": 0.0003,
   "later_epochs": 30,
-  "later_lr": 0.03,
-  "batch_size": 64,
+  "later_lr": 0.0003,
+  "batch_size": 48,
   "weight_decay": 0.0001,
   "min_lr": 0,
   "optimizer": "adamw",
@@ -62,7 +61,7 @@
     11
   ],
   "device": [
-    "4"
+    "0"
   ],
-  "prefix": "review_imr5t_cllora"
+  "prefix": "final_vision_food101_cllora_s1993"
 }
