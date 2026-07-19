@@ -35,9 +35,18 @@
 # (e.g. an accidental double-submission) -- two instances racing on the same
 # config would double-launch a run and corrupt its metrics JSON/output file.
 #
-# >>> PRE-SUBMIT (run once, on a node with internet access) <<<
-#   bash scripts/setup_cluster.sh                    # datasets + timm PTM weights
-#   python scripts/gen_final_vision_configs.py        # writes exps/final_vision/*.json
+# SELF-CONTAINED: dataset prep (scripts/setup_cluster.sh, which also prefetches
+# the 2 timm PTM checkpoints) and config generation both run automatically at
+# the start of THIS job, below -- no manual pre-submit step needed, just
+# `sbatch` this file. Safe to do unconditionally because this is now a single
+# sequential job (not a SLURM array): the original reason setup was kept
+# manual/separate was that 108 concurrent array tasks would race on the same
+# download; with only one process ever running, that race can't happen. Both
+# scripts are already idempotent (skip anything already present), so re-
+# submitting this script after a wall-kill doesn't redo finished downloads --
+# CIFAR-100 in particular can be SLOW (cs.toronto.edu is a single-connection,
+# unaccelerated academic host, ~40min/169MB observed) -- expect this step to
+# take a while on first run, near-instant on any resubmission.
 #
 # >>> CLUSTER-SPECIFIC: conda env name -- adjust CONDA_ENV_NAME if not "treelora" <<<
 
@@ -73,6 +82,11 @@ if ! python -c "import torch, timm; assert torch.cuda.is_available()" 2>/tmp/fin
   exit 1
 fi
 rm -f /tmp/final_vision_preflight_$$.err
+
+echo "==== data prep + config generation start $(date) ===="
+bash scripts/setup_cluster.sh
+python scripts/gen_final_vision_configs.py
+echo "==== data prep + config generation done $(date) ===="
 
 METHODS=(seqlora sketchlora olora inflora treelora cllora rainbowprompt ease tuna progprompt)
 DATASETS=(cifar224 imagenetr food101 sun397)
