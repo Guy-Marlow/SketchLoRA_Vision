@@ -22,18 +22,24 @@
 # from inside the job (matches configs' "device": ["0"] from gen_final_vision_
 # configs.py -- do not change that field for this launch path).
 #
-# Dataset setup + config generation are NOT run automatically by this script
-# (a SLURM array launches 108 independent tasks in parallel -- doing idempotent
-# setup 108 times concurrently invites a race on the same files). Run once,
-# BEFORE submitting:
-#   bash scripts/data_prep_all.sh                    # or the 4 data_prep.py calls directly
+# Dataset setup + config generation + PTM checkpoint prefetch are NOT run
+# automatically by this script (a SLURM array launches 108 independent tasks
+# in parallel -- doing idempotent setup 108 times concurrently invites a race
+# on the same files, and compute nodes often lack internet access anyway).
+# Run once, BEFORE submitting, on a node with internet access:
+#   bash scripts/setup_cluster.sh                    # datasets + timm PTM weights
 #   python scripts/gen_final_vision_configs.py
+#
+# >>> CLUSTER-SPECIFIC: conda env name/activation -- adjust for your cluster <<<
+# Set CONDA_ENV_NAME if your env isn't named "treelora"; uses `conda shell.bash
+# hook` (not a hardcoded install path) so it works regardless of where conda
+# is installed, as long as `conda` is on PATH (e.g. via `module load`).
 
 set -uo pipefail
 cd "$(dirname "$0")/.."   # repo root (LAMDA-PILOT/)
 
-source /home/gmar762/anaconda3/etc/profile.d/conda.sh
-conda activate treelora
+eval "$(conda shell.bash hook)"
+conda activate "${CONDA_ENV_NAME:-treelora}"
 export CUDA_DEVICE_ORDER=PCI_BUS_ID
 
 mkdir -p run_logs/final_vision
