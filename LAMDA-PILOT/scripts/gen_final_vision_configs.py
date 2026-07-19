@@ -1,5 +1,5 @@
 """Generate the final headline vision-experiment configs: 10 methods x 4 datasets
-x 3 seeds, full (non-truncated) 50-task splits, pure task-boundary training
+x 3 seeds, full (non-truncated) 20-task splits, pure task-boundary training
 (NOT the memory-increment streaming design -- that's a separate track).
 
 HP convention (user-confirmed 2026-07-19, live-validated via two 36-run 3-task
@@ -52,20 +52,17 @@ EPOCH_OVERRIDES = {
     "progprompt": {"tuned_epoch": 15},
 }
 
-# 50-task splits (bumped from 20, user decision 2026-07-20 -- more numerous/smaller
-# tasks makes CIL more punishing and lets SketchLoRA's compression advantage show
-# through, matching the precedent already set by the earlier sketchlora_{cifar224,
-# imagenetr}_50t_ab* ablations). init_cls absorbs whatever remainder is left after
-# 49 tasks of a clean `increment` (same style as the old 20-task convention):
-#   cifar224:  100 classes = 2 + 49*2   (evenly divisible, no remainder)
-#   imagenetr: 200 classes = 4 + 49*4   (evenly divisible, no remainder)
-#   food101:   101 classes = 3 + 49*2
-#   sun397:    397 classes = 5 + 49*8
+# Full 20-task splits (established convention, see BOUNDARY_AGNOSTIC_IMPLEMENTATION_LOG.md
+# and the plan doc's task-split discussion -- sun397/food101 don't divide evenly into 20
+# equal tasks, so init_cls absorbs the remainder). Briefly bumped to 50-task splits
+# 2026-07-20 to stress-test SketchLoRA harder, then reverted back to 20 the same day
+# after the streaming-scheme confound investigation below made a longer-horizon,
+# apples-to-apples comparison the higher priority.
 DATASET_CFG = {
-    "cifar224": dict(init_cls=2, increment=2),
-    "imagenetr": dict(init_cls=4, increment=4),
-    "food101": dict(init_cls=3, increment=2),
-    "sun397": dict(init_cls=5, increment=8),
+    "cifar224": dict(init_cls=5, increment=5),
+    "imagenetr": dict(init_cls=10, increment=10),
+    "food101": dict(init_cls=6, increment=5),
+    "sun397": dict(init_cls=17, increment=20),
 }
 
 BATCH_SIZE = 48

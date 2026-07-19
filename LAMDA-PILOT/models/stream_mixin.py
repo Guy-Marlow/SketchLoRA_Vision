@@ -289,6 +289,113 @@ class StreamMixin:
         self._stream_results = results
         return results
 
+    # ---- legacy epoch-clock reconstruction (2026-07-20) ----
+    def legacy_epoch_clock_run(self, data_manager, args):
+        """Reconstruction of the ORIGINAL epoch-count-clock streaming design
+        (boundary_mode="sample" + "boundary_mult", used for the 2026-07-03
+        SVDLoRA/O-LoRA/InfLoRA/SeqLoRA comparison on cifar224 20t -- see
+        run_logs/svdlora_cifar20t_sample_s1993.out). That implementation was
+        superseded twice since (first by a sample-count clock, then by
+        stream_run()'s unique-image-budget design above) and no longer exists
+        in the codebase in its original form -- NOT a verified byte-exact
+        restoration. Reconstructed from the one surviving log line
+        ("[stream] adapter event every N global epochs (C=<mult> x <epochs>
+        epochs)") plus BOUNDARY_AGNOSTIC_IMPLEMENTATION_LOG.md's design recap.
+        Specific mechanics that could NOT be confirmed and are therefore best-
+        effort choices, not restorations: whether the threshold check could
+        fire mid-epoch/mid-batch (implemented here as end-of-epoch only, the
+        one granularity rule the log explicitly documents, albeit for the
+        LATER sample-count redesign, not confirmed for this exact version);
+        tail-of-run handling once the final task's epochs are mid-flight.
+
+        Structurally the OPPOSITE of stream_run() above: TASK-MAJOR, not
+        chunk-major. Real tasks train strictly in order, each with its own
+        ordinary, single-task-only epoch loop and standard CIL class range --
+        no image from two different tasks is EVER in the same batch, unlike
+        stream_run()'s chunk-major design. The ONLY thing decoupled from real
+        task boundaries is WHEN each method's own adapter bookkeeping
+        (_stream_begin_chunk/_stream_end_chunk, unchanged, reused as-is) fires:
+        instead of firing at every task boundary, it fires when a cumulative
+        counter crosses multiples of a fixed threshold (derived from
+        stream_budget_mb purely to give this historical clock a size in the
+        same MB units as the current design, for direct comparison) -- and
+        that counter uses EPOCH-REPEATED counting (an epoch trained over a
+        task's N images adds N every time, so re-running epochs over the same
+        task DOES inflate the counter) -- this is the exact "epoch-repeat"
+        behavior stream_run()'s 2026-07-19 redesign was built to replace, so
+        reconstructing it here is deliberate, not a regression.
+        """
+        epochs = self.epochs
+        nb_tasks = data_manager.nb_tasks
+        _n_run = args.get("stop_after_tasks") or nb_tasks
+        _n_run = min(_n_run, nb_tasks)
+        if _n_run < nb_tasks:
+            logging.info("[legacy] stop_after_tasks={} (of {} total)".format(_n_run, nb_tasks))
+        stream_budget_mb = float(args["stream_budget_mb"])
+        budget_images = max(1, round(stream_budget_mb * 1024 * 1024 / BYTES_PER_IMAGE))
+
+        self.data_manager = data_manager
+        self._task_ranges = []
+        known = 0
+        for t in range(_n_run):
+            task_size = data_manager.get_task_size(t)
+            self._task_ranges.append((known, known + task_size))
+            known += task_size
+
+        self._known_classes = 0
+        self._total_classes = 0
+        self._cur_task = -1
+        self._stream_chunk = -1
+        self._stream_task_to_chunk = {}
+        self._stream_init()
+
+        logging.info("[legacy] adapter event every {} epoch-repeated samples ({}MB-equivalent)".format(
+            budget_images, stream_budget_mb))
+
+        cumulative_samples = 0
+        folds_fired = 0
+        results = []
+        slot_opened = False
+
+        for t in range(_n_run):
+            lo, hi = self._task_ranges[t]
+            if hi > self._total_classes:
+                self._total_classes = hi
+                self._network.update_fc(self._total_classes)
+            task_data, task_targets, _ = data_manager.get_dataset(
+                np.arange(lo, hi), source="train", mode="train", ret_data=True)
+            train_set = data_manager.get_dataset(
+                [], source="train", mode="train", appendent=(task_data, task_targets))
+            loader = DataLoader(train_set, batch_size=self.batch_size, shuffle=True,
+                                num_workers=num_workers)
+            self._network.to(self._device)
+
+            if not slot_opened:
+                self._stream_begin_chunk(loader)
+                slot_opened = True
+
+            for ep in range(epochs):
+                self._stream_train_epoch(loader, lo, hi)
+                cumulative_samples += len(task_data)   # epoch-repeated counting (reconstructed)
+                new_folds = cumulative_samples // budget_images
+                while new_folds > folds_fired:
+                    folds_fired += 1
+                    self._stream_end_chunk(loader)
+                    # "completed" = real tasks whose OWN epochs have fully finished by now
+                    completed = t if ep < epochs - 1 else t + 1
+                    self._stream_begin_chunk(loader)
+                    if completed > 0:
+                        self._stream_task_to_chunk[completed - 1] = self._stream_slot()
+                        results.append(self._stream_eval(completed))
+
+            self._stream_end_task(t)
+
+        if not results or results[-1]["completed"] != _n_run:
+            results.append(self._stream_eval(_n_run))
+
+        self._stream_results = results
+        return results
+
     # ---- streaming evaluation: completed tasks only, folded adapter ----
     @torch.no_grad()
     def _stream_eval(self, completed):

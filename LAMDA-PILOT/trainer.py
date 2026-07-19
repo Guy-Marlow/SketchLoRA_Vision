@@ -95,6 +95,18 @@ def _train(args):
         _run_stream(model, data_manager, args)
         return
 
+    # Reconstruction (2026-07-20) of the ORIGINAL epoch-count-clock streaming design
+    # (boundary_mode="sample" + "boundary_mult", used for the 2026-07-03 SVDLoRA/
+    # O-LoRA/InfLoRA/SeqLoRA comparison) -- see models/stream_mixin.py::
+    # legacy_epoch_clock_run() for the full docstring on what's reconstructed vs
+    # best-effort. TASK-MAJOR (unlike "sample" above): real tasks train strictly in
+    # order with ordinary single-task batches; only the adapter bookkeeping timing
+    # is decoupled, via an epoch-repeated sample counter (not stream_run()'s
+    # unique-image counter).
+    if args.get("boundary_mode") == "sample_legacy":
+        _run_stream(model, data_manager, args, method_name="legacy_epoch_clock_run", tag="legacy")
+        return
+
     cnn_curve, nme_curve = {"top1": [], "top5": []}, {"top1": [], "top5": []}
     cnn_matrix, nme_matrix, til_matrix = [], [], []
 
@@ -231,30 +243,33 @@ def _train(args):
             logging.info('Forgetting (TIL): {}'.format(til_forgetting))
 
 
-def _run_stream(model, data_manager, args):
+def _run_stream(model, data_manager, args, method_name="stream_run", tag="stream"):
     """Drive the sample-boundary streaming run and report CIL/TIL curves over the
-    completed-task checkpoints (the model's adapter events are on the sample clock)."""
-    results = model.stream_run(data_manager, args)
+    completed-task checkpoints (the model's adapter events are on the sample clock).
+    method_name/tag let this same reporting logic serve both stream_run() (current
+    unique-image-budget design) and legacy_epoch_clock_run() (reconstructed old
+    epoch-count-clock design, boundary_mode="sample_legacy") without duplication."""
+    results = getattr(model, method_name)(data_manager, args)
     comp = [r["completed"] for r in results]
     cil = [r["cil"] for r in results]
     til = [r["til"] for r in results]   # None entries unless "stream_til": true
-    logging.info("[stream] completed-task checkpoints: {}".format(comp))
-    logging.info("[stream] CIL curve: {}".format(cil))
-    print("[stream] checkpoints (completed tasks):", comp)
-    print("[stream] CIL:", cil)
+    logging.info("[{}] completed-task checkpoints: {}".format(tag, comp))
+    logging.info("[{}] CIL curve: {}".format(tag, cil))
+    print("[{}] checkpoints (completed tasks):".format(tag), comp)
+    print("[{}] CIL:".format(tag), cil)
     if til[-1] is not None:
-        logging.info("[stream] TIL curve: {}".format(til))
-        logging.info("[stream] FINAL  CIL {:.2f} | TIL {:.2f}  (over {} tasks)".format(
-            cil[-1], til[-1], comp[-1]))
-        print("[stream] TIL:", til)
-        print("[stream] FINAL CIL {:.2f} | TIL {:.2f}".format(cil[-1], til[-1]))
+        logging.info("[{}] TIL curve: {}".format(tag, til))
+        logging.info("[{}] FINAL  CIL {:.2f} | TIL {:.2f}  (over {} tasks)".format(
+            tag, cil[-1], til[-1], comp[-1]))
+        print("[{}] TIL:".format(tag), til)
+        print("[{}] FINAL CIL {:.2f} | TIL {:.2f}".format(tag, cil[-1], til[-1]))
     else:
-        logging.info("[stream] FINAL  CIL {:.2f}  (over {} tasks) -- TIL not computed "
-                      "(meaningless in the memory-increment setup)".format(cil[-1], comp[-1]))
-        print("[stream] FINAL CIL {:.2f}".format(cil[-1]))
+        logging.info("[{}] FINAL  CIL {:.2f}  (over {} tasks) -- TIL not computed "
+                      "(meaningless in the memory-increment setup)".format(tag, cil[-1], comp[-1]))
+        print("[{}] FINAL CIL {:.2f}".format(tag, cil[-1]))
     # persist the per-checkpoint records (incl. per-task TIL) next to the log
-    out = "run_logs/stream_{}_{}_s{}.json".format(
-        args["model_name"], args.get("prefix", "run"), args["seed"])
+    out = "run_logs/{}_{}_{}_s{}.json".format(
+        tag, args["model_name"], args.get("prefix", "run"), args["seed"])
     os.makedirs("run_logs", exist_ok=True)
     with open(out, "w") as f:
         import json as _json
@@ -262,7 +277,7 @@ def _run_stream(model, data_manager, args):
                     ("model_name", "dataset", "init_cls", "increment", "stream_budget_mb",
                      "n_lora_blocks", "init_lr", "svd_energy_target", "lamda_1", "lamb", "lame")},
                     "results": results}, f, indent=2)
-    print("[stream] wrote", out)
+    print("[{}] wrote".format(tag), out)
 
 
 def _set_device(args):
