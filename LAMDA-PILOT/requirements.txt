@@ -2,10 +2,18 @@
 # Upstream PILOT README pins torch 2.0.1 / torchvision 0.15.2 / timm 0.6.12;
 # our runs use the slightly older timm 0.6.7 below without issue. timm version
 # matters: pretrained weight keys/URLs differ across versions.
-torch==2.4.1
-torchvision==0.19.1
+# torch/torchvision updated 2026-07-20 to match what's actually installed and
+# validated in the working env (previously listed 2.4.1/0.19.1, stale).
+torch==2.5.1
+torchvision==0.20.1
 timm==0.6.7
 numpy
 scipy
 tqdm
-gdown            # dataset download (scripts/data_prep.py)
+Pillow           # image loading (utils/data_manager.py); usually pulled in
+                 # transitively by torchvision, listed explicitly for clarity
+gdown            # dataset download (scripts/data_prep.py, Google-Drive-hosted
+                 # PILOT distributions e.g. ImageNet-R)
+datasets         # HF `datasets` library (scripts/data_prep.py: SUN397/Food101
+                 # via HF_IMAGEFOLDER)
+huggingface_hub  # scripts/data_prep.py: cache scanning / HfFileSystem
