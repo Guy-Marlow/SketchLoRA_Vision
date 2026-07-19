@@ -200,6 +200,13 @@ class StreamMixin:
             logging.info("[stream] stop_after_tasks={} (of {} total)".format(_n_run, nb_tasks))
         stream_budget_mb = float(args["stream_budget_mb"])   # required, no silent default
         budget_images = max(1, round(stream_budget_mb * 1024 * 1024 / BYTES_PER_IMAGE))
+        # Opt-in (default off, preserves existing per-completed-task eval behavior for
+        # any caller relying on the full accuracy-vs-chunk curve): skip the CIL eval that
+        # would otherwise fire every time a chunk completes one or more real tasks, and
+        # only evaluate once at the very end, over however many tasks actually completed.
+        # Does NOT change _stream_end_task's per-task bookkeeping (bank/slot growth etc.)
+        # -- only the accuracy-computation eval call is deferred.
+        eval_only_final = bool(args.get("stream_eval_final_only", False))
 
         seed_arg = args.get("seed", 1993)
         seed0 = seed_arg[0] if isinstance(seed_arg, (list, tuple)) else seed_arg
@@ -273,7 +280,11 @@ class StreamMixin:
                 self._stream_end_task(t)
             if newly_completed:
                 last_task_ended = newly_completed[-1]
-                results.append(self._stream_eval(last_task_ended + 1))
+                if not eval_only_final:
+                    results.append(self._stream_eval(last_task_ended + 1))
+
+        if eval_only_final and last_task_ended >= 0:
+            results.append(self._stream_eval(last_task_ended + 1))
 
         self._stream_results = results
         return results
