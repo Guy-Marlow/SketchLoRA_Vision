@@ -1,0 +1,50 @@
+{
+  "dataset": "cifar224",
+  "memory_size": 0,
+  "memory_per_class": 0,
+  "fixed_memory": false,
+  "shuffle": true,
+  "init_cls": 5,
+  "increment": 5,
+  "seed": [
+    1993
+  ],
+  "scenario": "cil",
+  "stop_after_tasks": 3,
+  "pretrained": true,
+  "print_forget": true,
+  "final_metrics": true,
+  "backbone_type": "vit_base_patch16_224_in21k_tuna",
+  "tuned_epoch": 10,
+  "init_lr": 3e-05,
+  "batch_size": 48,
+  "weight_decay": 0.0005,
+  "min_lr": 0,
+  "optimizer": "adamw",
+  "scheduler": "cosine",
+  "reinit_optimizer": true,
+  "init_milestones": [
+    10
+  ],
+  "init_lr_decay": 0.1,
+  "model_name": "tuna",
+  "reg": 0.001,
+  "use_orth": true,
+  "crct_epochs": 30,
+  "ca_lr": 0.005,
+  "ca_storage_efficient_method": "covariance",
+  "ca_storage_efficient_method_choices": [
+    "covariance",
+    "variance"
+  ],
+  "decay": true,
+  "drop": 0.0,
+  "drop_path": 0.0,
+  "r": 8,
+  "scale": 20.0,
+  "m": 0.0,
+  "device": [
+    "0"
+  ],
+  "prefix": "three_task_check_bs48lr3e5_cifar224_tuna"
+}

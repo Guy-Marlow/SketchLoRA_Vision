@@ -45,7 +45,29 @@ class Learner(BaseLearner):
         self._known_classes = self._total_classes
         self._network.freeze()
         self._network.backbone.add_adapter_to_list()
-    
+
+    def persistent_state(self):
+        net = self._network.module if hasattr(self._network, "module") else self._network
+        backbone = net.backbone
+        # backbone.adapter_list is a plain python list (not a Module container), so its
+        # contents are invisible to named_parameters() -- the metrics logger's generic
+        # heuristic would silently undercount every frozen past-task adapter bank.
+        adapter_bytes = sum(p.numel() * p.element_size()
+                             for task_adapters in backbone.adapter_list
+                             for a in task_adapters for p in a.parameters())
+        adapter_bytes += sum(p.numel() * p.element_size() for p in backbone.cur_adapter.parameters())
+        fc_bytes = sum(p.numel() * p.element_size() for p in net.fc.parameters()) if net.fc is not None else 0
+        total_bytes = adapter_bytes + fc_bytes
+        return {"params": int(total_bytes // 4), "bytes": int(total_bytes),
+                "breakdown": {"adapters": adapter_bytes, "fc": fc_bytes}}
+
+    @torch.no_grad()
+    def _deployed_forward(self, inputs):
+        """The actual deployed CIL forward (_eval_cnn/_compute_accuracy both call
+        this exact form), for metrics_logger.py's inference-cost/FLOPs measurement."""
+        net = self._network.module if hasattr(self._network, "module") else self._network
+        return net.forward(inputs, test=True)
+
     def get_cls_range(self, task_id):
         if task_id == 0:
             start_cls = 0
@@ -228,6 +250,23 @@ class Learner(BaseLearner):
     def incremental_train(self, data_manager):
         self._cur_task += 1
         self._total_classes = self._known_classes + data_manager.get_task_size(self._cur_task)
+        if self.args.get("boundary_mode") == "budget":
+            # proxy_fc (the task-local head trained on THIS chunk) is normally sized
+            # from the config's fixed init_cls/increment -- under budget mode the actual
+            # number of NEW classes varies per chunk (byte-budget driven, not a fixed
+            # class count), so override with the chunk's real NEW-class count before
+            # EaseNet.update_fc builds proxy_fc from self.init_cls/self.inc. This is
+            # total-known (NOT ce_range()'s hi-lo): proxy_fc is a discrete per-task head
+            # slot, not a dense growing head indexed by raw class id -- it only ever
+            # covers the classes THIS chunk newly introduces; any carryover-tail class
+            # in the chunk's raw data belongs to an earlier, already-existing slot and
+            # must be excluded from this loss (see _init_train's ignore_index masking
+            # below), not folded into this slot's width.
+            new_class_count = self._total_classes - self._known_classes
+            if self._cur_task == 0:
+                self._network.init_cls = new_class_count
+            else:
+                self._network.inc = new_class_count
         self._network.update_fc(self._total_classes)
         logging.info("Learning on {}-{}".format(self._known_classes, self._total_classes))
         # self._network.show_trainable_params()
@@ -322,17 +361,27 @@ class Learner(BaseLearner):
             for i, (_, inputs, targets) in enumerate(train_loader):
                 inputs, targets = inputs.to(self._device), targets.to(self._device)
 
+                # proxy_fc is a discrete per-task head slot (not a dense global head),
+                # so this must stay known/total-based (NOT _ce_slice()'s budget-mode
+                # ce_range()): under budget mode a carryover-tail sample's raw label is
+                # below known_classes, and it belongs to an EARLIER, already-existing
+                # slot, not this one -- so it's excluded (-1) here, not remapped.
+                lo, hi = self._known_classes, self._total_classes
                 aux_targets = targets.clone()
                 aux_targets = torch.where(
-                    aux_targets - self._known_classes >= 0,
-                    aux_targets - self._known_classes,
+                    (aux_targets >= lo) & (aux_targets < hi),
+                    aux_targets - lo,
                     -1,
                 )
-                
+
                 output = self._network(inputs, test=False)
                 logits = output["logits"]
 
-                loss = F.cross_entropy(logits, aux_targets)
+                # ignore_index=-1 matches the masking sentinel above -- without it,
+                # F.cross_entropy's default ignore_index (-100) doesn't match, so any
+                # masked (carryover-tail, budget mode only) sample crashes with an
+                # invalid-target error instead of being skipped.
+                loss = F.cross_entropy(logits, aux_targets, ignore_index=-1)
 
                 optimizer.zero_grad()
                 loss.backward()
@@ -380,16 +429,22 @@ class Learner(BaseLearner):
             
         self._network.eval()
         y_pred, y_true = [], []
+        # cap k to classes-seen-so-far (see models/base.py::_eval_cnn) -- needed for
+        # the 50-task sensitivity/ablation splits (init_cls < 5).
+        k = min(self.topk, self._total_classes)
         for _, (_, inputs, targets) in enumerate(loader):
             inputs = inputs.to(self._device)
 
             with torch.no_grad():
                 outputs = self._network.forward(inputs, test=True)["logits"]
             predicts = torch.topk(
-                outputs, k=self.topk, dim=1, largest=True, sorted=True
+                outputs, k=k, dim=1, largest=True, sorted=True
             )[
                 1
-            ]  # [bs, topk]
+            ]  # [bs, k]
+            if k < self.topk:
+                pad = predicts[:, -1:].expand(-1, self.topk - k)
+                predicts = torch.cat([predicts, pad], dim=1)
             y_pred.append(predicts.cpu().numpy())
             y_true.append(targets.cpu().numpy())
             

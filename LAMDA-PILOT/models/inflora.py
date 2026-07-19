@@ -33,6 +33,10 @@ num_workers = 8
 class Learner(LoRALearner):
     def __init__(self, args):
         super().__init__(args)
+        # InfLoRA's frozen slots are never modified once trained (A is set once
+        # analytically, B is trained once, neither touched again) -- safe to fold
+        # into a dense delta for O(1) merged forward (plan doc §6 item 2).
+        self._network.enable_frozen_folding()
         self.rank = args.get("lora_rank", 10)
         self.lamb = args.get("lamb", 0.95)        # DualGPM threshold lower bound
         self.lame = args.get("lame", 1.0)         # DualGPM threshold upper bound
@@ -50,6 +54,37 @@ class Learner(LoRALearner):
     def _forward_task(self, inputs, task):
         net = self._network.module if hasattr(self._network, "module") else self._network
         return net(inputs, task=self._cur_task, merge=True)
+
+    # -- sample-boundary streaming hooks (reuse _init_lora_A / _update_dualgpm) --
+    # One DualGPM slot per CHUNK; at each chunk start A is set analytically from the
+    # input covariance of the CURRENTLY-available data (the in-progress class-task),
+    # projected to remove past chunks' subspace. Because chunk edges straddle real
+    # class-groups, that covariance mixes class-groups -> the subspace the method
+    # carves is "messy" relative to the true tasks. With lamb=lame the DualGPM
+    # threshold is constant (no per-task annealing).
+    def _stream_init(self):
+        self._stream_chunk = -1
+        self._stream_train_a = False             # InfLoRA: A analytic+frozen, train only B
+
+    def _stream_slot(self):
+        return self._stream_chunk
+
+    def _stream_begin_chunk(self, loader):
+        self._stream_chunk += 1
+        if self._stream_chunk > 0:
+            # slot count is not generically bounded by nb_tasks under this clock --
+            # see BOUNDARY_AGNOSTIC_IMPLEMENTATION_LOG.md's "BLOCKING ARCHITECTURAL GAP"
+            self._network.add_task_slot()
+        self._cur_task = self._stream_chunk      # _init_lora_A / DualGPM read _cur_task as slot
+        self._network.freeze_to_task(self._stream_chunk, train_a=False)
+        for p in self._network.fc.parameters():
+            p.requires_grad = True
+        self._network.to(self._device)
+        self._init_lora_A(loader)                # analytic, DualGPM-projected A for this chunk
+        self._stream_new_optimizer()
+
+    def _stream_end_chunk(self, loader):
+        self._update_dualgpm(loader)             # grow DualGPM feature memory
 
     # -- task loop ------------------------------------------------------
     def incremental_train(self, data_manager):
@@ -122,37 +157,43 @@ class Learner(LoRALearner):
             net(inputs.to(self._device), task=self._cur_task, merge=True)
         net.set_collect(False)
 
-        mat_list = [attn.cur_matrix.clone().cpu().numpy() for attn in net.attn_modules()]
+        mat_list = [attn.cur_matrix.clone() for attn in net.attn_modules()]
         for attn in net.attn_modules():
             attn.reset_cur_matrix()
         self.update_DualGPM(mat_list)
 
         self.feature_mat = []
         for p in range(len(self.feature_list)):
-            Uf = torch.Tensor(np.dot(self.feature_list[p], self.feature_list[p].transpose()))
+            Uf = self.feature_list[p] @ self.feature_list[p].t()
             self.feature_mat.append(Uf)
 
-    # -- DualGPM (verbatim port from InfLoRA/methods/inflora.py) --------
+    # -- DualGPM (torch/GPU port of InfLoRA/methods/inflora.py::update_DualGPM --
+    # verbatim algorithm, same SVD-throughout structure as the reference (no eigh
+    # substitution -- the reference never uses eigh even for the symmetric
+    # covariance case, so torch.linalg.svd is the faithful match). Only the
+    # tensor backend changes: np.linalg.svd/CPU-float64 -> torch.linalg.svd/GPU,
+    # mirroring cur_matrix's own device (see vit_lora.py's Attention_LoRA, which
+    # used to force cur_matrix onto CPU on every accumulation step -- a device
+    # placement bug independent of this numpy->torch port, fixed alongside it).
     def update_DualGPM(self, mat_list):
         threshold = (self.lame - self.lamb) * self._cur_task / self.total_sessions + self.lamb
         logging.info("[InfLoRA] DualGPM threshold: {:.4f}".format(threshold))
         if len(self.feature_list) == 0:
             for activation in mat_list:
-                U, S, Vh = np.linalg.svd(activation, full_matrices=False)
+                U, S, Vh = torch.linalg.svd(activation, full_matrices=False)
                 sval_total = (S ** 2).sum()
                 sval_ratio = (S ** 2) / sval_total
-                r = np.sum(np.cumsum(sval_ratio) < threshold)
+                r = int(torch.sum(torch.cumsum(sval_ratio, 0) < threshold).item())
                 self.feature_list.append(U[:, 0:max(r, 1)])
                 self.project_type.append('remove' if r < (activation.shape[0] / 2) else 'retain')
         else:
             for i in range(len(mat_list)):
                 activation = mat_list[i]
                 if self.project_type[i] == 'remove':
-                    U1, S1, Vh1 = np.linalg.svd(activation, full_matrices=False)
+                    U1, S1, Vh1 = torch.linalg.svd(activation, full_matrices=False)
                     sval_total = (S1 ** 2).sum()
-                    act_hat = activation - np.dot(
-                        np.dot(self.feature_list[i], self.feature_list[i].transpose()), activation)
-                    U, S, Vh = np.linalg.svd(act_hat, full_matrices=False)
+                    act_hat = activation - self.feature_list[i] @ (self.feature_list[i].t() @ activation)
+                    U, S, Vh = torch.linalg.svd(act_hat, full_matrices=False)
                     sval_hat = (S ** 2).sum()
                     sval_ratio = (S ** 2) / sval_total
                     accumulated_sval = (sval_total - sval_hat) / sval_total
@@ -165,15 +206,14 @@ class Learner(LoRALearner):
                             break
                     if r == 0:
                         continue
-                    Ui = np.hstack((self.feature_list[i], U[:, 0:r]))
+                    Ui = torch.cat([self.feature_list[i], U[:, 0:r]], dim=1)
                     self.feature_list[i] = Ui[:, 0:Ui.shape[0]] if Ui.shape[1] > Ui.shape[0] else Ui
                 else:
                     assert self.project_type[i] == 'retain'
-                    U1, S1, Vh1 = np.linalg.svd(activation, full_matrices=False)
+                    U1, S1, Vh1 = torch.linalg.svd(activation, full_matrices=False)
                     sval_total = (S1 ** 2).sum()
-                    act_hat = np.dot(
-                        np.dot(self.feature_list[i], self.feature_list[i].transpose()), activation)
-                    U, S, Vh = np.linalg.svd(act_hat, full_matrices=False)
+                    act_hat = self.feature_list[i] @ (self.feature_list[i].t() @ activation)
+                    U, S, Vh = torch.linalg.svd(act_hat, full_matrices=False)
                     sval_hat = (S ** 2).sum()
                     sval_ratio = (S ** 2) / sval_total
                     accumulated_sval = sval_hat / sval_total
@@ -186,9 +226,8 @@ class Learner(LoRALearner):
                             break
                     if r == 0:
                         continue
-                    act_feature = self.feature_list[i] - np.dot(
-                        np.dot(U[:, 0:r], U[:, 0:r].transpose()), self.feature_list[i])
-                    Ui, Si, Vi = np.linalg.svd(act_feature)
+                    act_feature = self.feature_list[i] - U[:, 0:r] @ (U[:, 0:r].t() @ self.feature_list[i])
+                    Ui, Si, Vi = torch.linalg.svd(act_feature, full_matrices=True)
                     self.feature_list[i] = Ui[:, :self.feature_list[i].shape[1] - r]
 
         # convert any over-grown 'remove' layer to its 'retain' complement
@@ -196,7 +235,7 @@ class Learner(LoRALearner):
             if self.project_type[i] == 'remove' and \
                     (self.feature_list[i].shape[1] > (self.feature_list[i].shape[0] / 2)):
                 feature = self.feature_list[i]
-                U, S, V = np.linalg.svd(feature)
+                U, S, V = torch.linalg.svd(feature, full_matrices=True)
                 self.feature_list[i] = U[:, feature.shape[1]:]
                 self.project_type[i] = 'retain'
             elif self.project_type[i] == 'retain':

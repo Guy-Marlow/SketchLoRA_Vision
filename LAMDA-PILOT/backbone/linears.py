@@ -304,3 +304,58 @@ class TunaLinear(nn.Module):
             out.append(1*(F.linear(F.normalize(fc_inp, p=2, dim=1),F.normalize(self.heads[ti][0].weight, p=2, dim=1))))
         out = {'logits': torch.cat(out, dim=1)}
         return out
+
+
+class CosineLinearFeature(nn.Module):
+    """Ported verbatim from CL-LoRA/backbone/linears.py -- the growing multi-adapter
+    concatenated-feature classifier CL-LoRA's OurNet uses (models/cllora.py). Not the
+    same class as CosineLinear above (that one is EASE's; this one omits EASE's
+    forward_reweight in favor of forward_diagonal, CL-LoRA's own reweighting)."""
+    def __init__(self, in_features, out_features, nb_proxy=1, to_reduce=False, sigma=True):
+        super(CosineLinearFeature, self).__init__()
+        self.in_features = in_features
+        self.out_features = out_features * nb_proxy
+        self.nb_proxy = nb_proxy
+        self.to_reduce = to_reduce
+        self.weight = nn.Parameter(torch.Tensor(self.out_features, in_features))
+        if sigma:
+            self.sigma = nn.Parameter(torch.Tensor(1))
+        else:
+            self.register_parameter('sigma', None)
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        stdv = 1. / math.sqrt(self.weight.size(1))
+        self.weight.data.uniform_(-stdv, stdv)
+        if self.sigma is not None:
+            self.sigma.data.fill_(1)
+
+    def reset_parameters_to_zero(self):
+        self.weight.data.fill_(0)
+
+    def forward(self, input):
+        out = F.linear(F.normalize(input, p=2, dim=1), F.normalize(self.weight, p=2, dim=1))
+        if self.to_reduce:
+            out = reduce_proxies(out, self.nb_proxy)
+        if self.sigma is not None:
+            out = self.sigma * out
+        return {'logits': out}
+
+    def forward_diagonal(self, input, cur_task, alpha=0., beta=0.0, init_cls=10, inc=10, out_dim=768, use_init_ptm=False):
+        for i in range(cur_task + 1):
+            if i == 0:
+                start_cls = 0
+                end_cls = init_cls
+            else:
+                start_cls = init_cls + (i - 1) * inc
+                end_cls = start_cls + inc
+            input1 = F.normalize(input[:, i * out_dim:(i + 1) * out_dim], p=2, dim=1)
+            weight1 = F.normalize(self.weight[start_cls:end_cls, i * out_dim:(i + 1) * out_dim], p=2, dim=1)
+            out = F.linear(input1, weight1)
+            out_all = out if i == 0 else torch.cat((out_all, out), dim=1)
+
+        if self.to_reduce:
+            out_all = reduce_proxies(out_all, self.nb_proxy)
+        if self.sigma is not None:
+            out_all = self.sigma * out_all
+        return {'logits': out_all}

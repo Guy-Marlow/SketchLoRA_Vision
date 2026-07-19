@@ -1,0 +1,35 @@
+{
+  "dataset": "sun397",
+  "memory_size": 0,
+  "memory_per_class": 0,
+  "fixed_memory": false,
+  "shuffle": true,
+  "init_cls": 17,
+  "increment": 20,
+  "seed": [
+    1993
+  ],
+  "scenario": "cil",
+  "pretrained": true,
+  "print_forget": true,
+  "final_metrics": true,
+  "backbone_type": "vit_base_patch16_224_lora",
+  "lora_rank": 8,
+  "lora_alpha": 32,
+  "tuned_epoch": 10,
+  "init_lr": 0.0005,
+  "batch_size": 128,
+  "weight_decay": 0.0005,
+  "min_lr": 0.0,
+  "model_name": "olora",
+  "lora_merge": true,
+  "lamda_1": 0.5,
+  "lamda_2": 0.0,
+  "device": [
+    "4"
+  ],
+  "prefix": "stream_smoke_sun397_250mb_olora",
+  "boundary_mode": "sample",
+  "stream_budget_mb": 250,
+  "stop_after_tasks": 5
+}

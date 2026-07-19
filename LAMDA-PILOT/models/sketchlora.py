@@ -53,6 +53,7 @@ from models.lora import Learner as LoRALearner
 
 # trusted randomized-SVD implementation (vendored into utils/ for self-containment)
 from utils.randsvd import rand_svd
+from utils.countsketch import countsketch_compress
 
 # fixed-slot convention: 0 = frozen sketch, 1 = trainable residual
 SKETCH = 0
@@ -64,16 +65,67 @@ class Learner(LoRALearner):
         super().__init__(args)
         # P = 1.  r̂ (sketch rank) may differ from the residual/adapter rank.
         self.lora_rank = args.get("lora_rank", 10)        # per-task residual rank r
-        self.svd_rank = args.get("svd_rank", self.lora_rank)   # sketch target rank r̂
+        self.svd_rank = args.get("svd_rank", self.lora_rank)   # sketch target rank r̂ (fixed mode)
+        # adaptive-rank mode: if set (e.g. 0.005), each compress keeps the SMALLEST
+        # rank retaining (1 - svd_energy_target) of the accumulated delta's energy,
+        # resizing the sketch slot.  None => the fixed-rank-r̂ path (untouched).
+        self.energy_target = args.get("svd_energy_target", None)
         self.oversampling = args.get("svd_oversampling", 10)
         # optional depth restriction: LoRA only on the first n blocks (else all)
         self.n_lora_blocks = args.get("n_lora_blocks", None)
-        # train on sketch(0)+residual(1); both eval paths reduce to the sketch
+        # Fixed target-sketch-rank sensitivity (Experiments_Timeline.pdf sec 1.b.ii.3):
+        # rather than compressing every task (P=1), train P separate rank-`lora_rank`
+        # residuals (slots 1..P) over the frozen sketch before folding all of them in
+        # at once -- i.e. R = P * lora_rank is the achieved pre-compression rank for a
+        # fixed target R (e.g. R=32, lora_rank=8 -> P=4). Slot count must be
+        # provisioned via config ("lora_n_slots": P+1); P=1 (default) is the original,
+        # unmodified single-residual behaviour -- every formula below reduces to it
+        # exactly when svd_period=1.
+        self.svd_period = args.get("svd_period", 1)
+        assert self.svd_period >= 1
+        # Ablation (Experiments_Timeline.pdf sec 1.b.iii, plan doc §5.3): swap the compression
+        # algorithm at each boundary while leaving the surrounding slot/routing machinery (period,
+        # residual reset, diagnostics) untouched. "randsvd" (default) is the original, unmodified
+        # behaviour above.
+        self.merge_op = args.get("merge_op", "randsvd")
+        assert self.merge_op in ("randsvd", "exactsvd", "countsketch", "naive_sum", "nocompress")
+        self.cs_rank = args.get("cs_rank", self.svd_rank)
+        self.cs_seed = args.get("cs_seed", args["seed"] if not isinstance(args.get("seed"), list)
+                                 else args["seed"][0])
+        if self.merge_op == "naive_sum":
+            assert self.svd_rank == self.lora_rank, \
+                "naive_sum keeps rank fixed at the residual rank (no SVD) -- svd_rank must equal " \
+                "lora_rank, per Experiments_Timeline.pdf sec 1.b.iii.3"
+        if self.merge_op == "nocompress":
+            # numerical-rank threshold for "keep everything" (Experiments_Timeline.pdf sec
+            # 1.b.iii.4): sigma_i kept iff sigma_i > max(dim) * eps * sigma_1, the standard
+            # numerical-rank convention (same one torch/numpy matrix_rank uses internally).
+            self.nocompress_eps = args.get("nocompress_eps", 1e-7)
+        # last-task detection for _train's compress gate: mirrors trainer.py's own
+        # `_n_run = min(stop_after_tasks or nb_tasks, nb_tasks)` exactly, so a forced
+        # final compress fires on whichever task index the run loop actually ends on
+        # (needed when total tasks isn't a clean multiple of P -- e.g. 50 tasks, P=4
+        # leaves a trailing partial period; without this, that tail's residuals never
+        # fold and the deployed SKETCH-only TIL eval silently misses them).
+        self._n_run_effective = min(args.get("stop_after_tasks") or args["nb_tasks"], args["nb_tasks"])
+        # train on sketch(0)+residuals(1..P); both eval paths reduce to the sketch
         self.train_merge = True
         self._network.merge = True
         # if r̂ != r, the sketch slot must hold a rank-r̂ factorisation
         if self.svd_rank != self.lora_rank:
             self._resize_sketch_slot()
+        else:
+            # _resize_sketch_slot (above) explicitly zeroes BOTH A and B for slot 0; when
+            # svd_rank == lora_rank it's skipped and slot 0 keeps the shared scaffold's own
+            # per-slot default (vit_lora.py: B zero-init, A KAIMING-init -- true for every
+            # slot, sketch included). B=0 makes the PRODUCT B_s@A_s correctly zero regardless
+            # of A_s (randsvd/exactsvd, and countsketch's zero-norm-column filter, only ever
+            # read that product or are norm-gated), but naive_sum reads A_s directly and would
+            # silently sum in this untrained random garbage at task 0 -- zero it explicitly so
+            # every merge_op sees the same "no history yet" sketch state.
+            for attn in self._all_attns():
+                for A_list in (attn.lora_A_q, attn.lora_A_v):
+                    nn.init.zeros_(A_list[SKETCH].weight)
         # -- compression diagnostics (test Corollary 3's structural assumption) --
         # records, per compression event, the singular spectrum of the
         # accumulated delta_W so we can read sigma_{r̂+1} and the retained-energy
@@ -81,7 +133,13 @@ class Learner(LoRALearner):
         self.sketch_diag = bool(args.get("sketch_diag", True))
         self._diag_records = []
         seed = args["seed"] if not isinstance(args.get("seed"), list) else args["seed"][0]
-        tag = "r{}_b{}".format(self.svd_rank, self.n_lora_blocks or "all")
+        # include the task split (init_cls/increment) so 10-task vs 20-task runs
+        # write distinct diagnostic files instead of clobbering each other
+        split = "ic{}i{}".format(args.get("init_cls"), args.get("increment"))
+        if self.energy_target is not None:
+            tag = "adapt{}_b{}_{}".format(self.energy_target, self.n_lora_blocks or "all", split)
+        else:
+            tag = "r{}_b{}_{}".format(self.svd_rank, self.n_lora_blocks or "all", split)
         self._diag_path = os.path.join(
             os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
             "run_logs", "sketchlora_diag_{}_seed{}.json".format(tag, seed))
@@ -114,57 +172,210 @@ class Learner(LoRALearner):
                 A_list[SKETCH] = newA
                 B_list[SKETCH] = newB
 
+    def _residual_slots(self):
+        """Slot indices 1..P (P = svd_period); {RESIDUAL} when P=1 (unchanged)."""
+        return list(range(RESIDUAL, RESIDUAL + self.svd_period))
+
     def _freeze_inactive_blocks(self):
-        """When depth-restricted, keep the residual frozen on blocks >= n so the
-        optimiser never touches them (they stay zero -> no contribution)."""
+        """When depth-restricted, keep every residual slot frozen on blocks >= n so
+        the optimiser never touches them (they stay zero -> no contribution)."""
         if self.n_lora_blocks is None:
             return
         for attn in self._all_attns()[self.n_lora_blocks:]:
             for mlist in (attn.lora_A_q, attn.lora_B_q, attn.lora_A_v, attn.lora_B_v):
-                for p in mlist[RESIDUAL].parameters():
-                    p.requires_grad = False
+                for slot in self._residual_slots():
+                    for p in mlist[slot].parameters():
+                        p.requires_grad = False
+
+    # -- sample-boundary streaming hooks (reuse _compress) --------------
+    # Each chunk trains the residual (slot 1) over the frozen sketch (slot 0); the
+    # boundary folds (sketch (+) residual) -> sketch via randomized SVD and resets the
+    # residual, exactly like the per-task path but fired on the sample clock so eval
+    # always sees the folded sketch. NOT period-aware (always pins slot 1) -- the
+    # fixed-target-rank sensitivity sweep (svd_period > 1) is task-boundary-only
+    # (Experiments_Timeline.pdf sec 1.b.ii); guarded below rather than silently wrong.
+    def _stream_init(self):
+        assert self.svd_period == 1, \
+            "sketchlora stream/budget mode does not support svd_period > 1 (period is " \
+            "defined over TASK boundaries; combine with sample/budget boundaries by " \
+            "extending _stream_slot to be period-aware first, or run task-boundary only)"
+        self._cur_task = -1                       # diagnostic chunk id used by _compress
+
+    def _stream_slot(self):
+        return RESIDUAL
+
+    def _stream_begin_chunk(self, loader):
+        self._freeze_inactive_blocks()
+        super()._stream_begin_chunk(loader)       # freeze_to_task(1) + fresh optimizer
+
+    def _stream_end_chunk(self, loader):
+        self._cur_task += 1
+        self._freeze_inactive_blocks()
+        self._compress()                          # fold -> sketch, reset residual (folded)
 
     # -- adapter routing (override the lora.Learner indirection) --------
     def _train_adapter(self):
-        return RESIDUAL          # train the residual on top of the frozen sketch
+        # slot 1 on task 0, slot 2 on task 1, ..., slot P on task P-1, then back to
+        # slot 1 -- merge=True sums slots 0..this inclusive (models/lora.py's
+        # _lora_delta), which is exactly "sketch + every residual filled so far this
+        # period" since slots are visited in strictly increasing order within a period
+        # and all reset to zero at the period's compress event (see _compress).
+        return RESIDUAL + (self._cur_task % self.svd_period)
 
     def _eval_adapter(self, task):
         return SKETCH            # TIL routes to the single compressed sketch
 
-    # -- train then compress (eval runs before after_task) --------------
+    # -- train then compress, but ONLY at a period boundary (or the run's last task)
+    # -- eval runs before after_task) --------------
     def _train(self, train_loader):
         self._freeze_inactive_blocks()   # re-freeze before the optimiser is built
         super()._train(train_loader)
-        self._compress()
+        at_period_boundary = (self._cur_task + 1) % self.svd_period == 0
+        at_last_task = (self._cur_task + 1) >= self._n_run_effective
+        if at_period_boundary or at_last_task:
+            self._compress()
 
     @torch.no_grad()
     def _compress(self):
-        """RandSVD-compress (sketch ⊕ residual) -> sketch, per layer & proj."""
-        retained, sigma_next, fro = [], [], []   # per (layer, proj) diagnostics
+        """Compress (sketch ⊕ residuals 1..P) -> sketch, per layer & proj. The compression
+        ALGORITHM is selected by ``self.merge_op`` (Experiments_Timeline.pdf sec 1.b.iii, plan
+        doc §5.3); everything else below (period/residual-reset/diagnostics machinery) is shared
+        across every merge_op:
+
+        - ``randsvd`` (default): randomized SVD via ``utils.randsvd.rand_svd``.
+        - ``exactsvd``: full ``torch.linalg.svd`` + truncate (same rank-selection logic as
+          randsvd, exact instead of approximate reconstruction).
+        - ``countsketch``: ``utils.countsketch.countsketch_compress`` -- hashes the concatenated
+          factors' rank dimension down to ``cs_rank`` buckets; does NOT form an optimal
+          low-rank projection (a random signed merge of components instead).
+        - ``naive_sum``: no SVD at all, literal running sum of the raw B/A factor matrices
+          (requires ``svd_rank == lora_rank``) -- does not preserve delta_W, deliberately.
+        - ``nocompress``: keep every singular direction above the numerical-rank threshold
+          (grows the sketch's rank every boundary; the sketch slot is variable-width like
+          adaptive mode).
+
+        Rank selection: fixed mode (``energy_target`` unset) truncates to ``svd_rank`` (the
+        fixed-rank sensitivity sweep sets this to the FULL target rank R; with P residuals of
+        rank ``lora_rank`` each, the accumulated pre-compression rank is P*lora_rank -- e.g.
+        R=32, lora_rank=8 -> P=4 -- per Experiments_Timeline.pdf sec 1.b.ii.3). Adaptive mode
+        (``svd_energy_target`` set, P always 1 -- doesn't combine with the fixed-period sweep):
+        keep the smallest rank retaining (1 - ε) of the energy, resizing the sketch slot
+        (variable-width) so memory tracks the intrinsic rank. ``nocompress``/``naive_sum``
+        override rank selection with their own rule regardless of ``energy_target``.
+
+        Diagnostics (``retained``/``sigma_next``/``fro``/``rhat``) are always measured from the
+        ACTUAL reconstruction (B_hat @ A_hat vs. the true delta_W), not assumed from the
+        idealized truncated-SVD value -- naive_sum/countsketch don't achieve the optimal
+        projection at their nominal rank, so this must be measured to stay comparable across
+        merge_op ablations."""
+        retained, sigma_next, fro, rhat = [], [], [], []   # per (layer,proj) diagnostics
+        residual_slots = self._residual_slots()
+        full_svd_needed = self.merge_op in ("exactsvd", "nocompress")
+        need_svdvals = (not full_svd_needed) and (self.sketch_diag or self.energy_target is not None)
+        module_idx = 0     # unique per (layer,proj) -- seeds countsketch's hash/sign draw
         for attn in self._active_attns():
             for A_list, B_list in ((attn.lora_A_q, attn.lora_B_q),
                                    (attn.lora_A_v, attn.lora_B_v)):
                 A_s, B_s = A_list[SKETCH].weight, B_list[SKETCH].weight     # [r,d],[d,r]
-                A_r, B_r = A_list[RESIDUAL].weight, B_list[RESIDUAL].weight
-                delta_W = B_s @ A_s + B_r @ A_r                            # [d, d], unscaled
-                if self.sketch_diag:
+                dev, dt = B_s.device, B_s.dtype
+                delta_W = B_s @ A_s                                        # [d, d], unscaled
+                for slot in residual_slots:
+                    A_r, B_r = A_list[slot].weight, B_list[slot].weight
+                    delta_W = delta_W + B_r @ A_r
+                S = None
+                if full_svd_needed:
+                    U, S, Vh = torch.linalg.svd(delta_W.float())          # reused for diag + recon
+                elif need_svdvals:
                     S = torch.linalg.svdvals(delta_W.float())             # full spectrum, desc
-                    energy = S.pow(2)
-                    total = energy.sum()
-                    r = self.svd_rank
-                    retained.append((energy[:r].sum() / total).item() if total > 0 else 1.0)
-                    sigma_next.append(S[r].item() if S.numel() > r else 0.0)
-                    fro.append(total.sqrt().item())
-                B_hat, A_hat = rand_svd(delta_W, self.svd_rank, self.oversampling)
-                B_s.data.copy_(B_hat.to(B_s.device, B_s.dtype))
-                A_s.data.copy_(A_hat.to(A_s.device, A_s.dtype))
-                # reset the residual: kaiming A, zero B -> clean + eval no-op
-                nn.init.kaiming_uniform_(A_r, a=math.sqrt(5))
-                nn.init.zeros_(B_r)
-        if self.sketch_diag:
-            self._record_diag(retained, sigma_next, fro)
 
-    def _record_diag(self, retained, sigma_next, fro):
+                # -- choose the target rank for this compression --
+                if self.merge_op == "naive_sum":
+                    r_hat_t = self.svd_rank                                # == lora_rank (asserted)
+                elif self.merge_op == "nocompress":
+                    # numerical rank of delta_W (Experiments_Timeline.pdf sec 1.b.iii.4): keep
+                    # EVERY singular direction above the standard numerical-rank threshold --
+                    # this is "no compression" in the sense that nothing informative is dropped,
+                    # not literally infinite rank.
+                    thresh = max(delta_W.shape) * self.nocompress_eps * (S[0].item() if S.numel() else 0.0)
+                    r_hat_t = max(1, int((S > thresh).sum().item()))
+                elif self.energy_target is not None:
+                    total = S.pow(2).sum()
+                    if total > 0:
+                        cum = torch.cumsum(S.pow(2), 0) / total
+                        r_hat_t = int((cum < (1.0 - self.energy_target)).sum().item()) + 1
+                    else:
+                        r_hat_t = 1
+                    r_hat_t = max(1, min(r_hat_t, delta_W.shape[0]))
+                elif self.merge_op == "countsketch":
+                    r_hat_t = self.cs_rank
+                else:
+                    r_hat_t = self.svd_rank
+
+                # -- compute the merged (B_hat, A_hat) factor pair per the chosen algorithm --
+                if self.merge_op == "naive_sum":
+                    # no SVD at all: literal running sum of the raw factor matrices
+                    # (Experiments_Timeline.pdf sec 1.b.iii.3) -- does NOT preserve
+                    # delta_W = B_hat @ A_hat in general; that is the deliberate point of this
+                    # ablation, not a bug.
+                    B_hat, A_hat = B_s.clone(), A_s.clone()
+                    for slot in residual_slots:
+                        B_hat = B_hat + B_list[slot].weight
+                        A_hat = A_hat + A_list[slot].weight
+                elif self.merge_op == "countsketch":
+                    B_ws = [B_s] + [B_list[slot].weight for slot in residual_slots]
+                    A_ws = [A_s] + [A_list[slot].weight for slot in residual_slots]
+                    seed = (int(self.cs_seed) * 1_000_003 + (self._cur_task + 1) * 9176
+                            + module_idx) % (2 ** 63 - 1)
+                    B_hat, A_hat = countsketch_compress(B_ws, A_ws, r_hat_t, seed)
+                elif full_svd_needed:
+                    root_S = S[:r_hat_t].sqrt()
+                    B_hat = U[:, :r_hat_t].to(dt) * root_S.to(dt).unsqueeze(0)
+                    A_hat = root_S.to(dt).unsqueeze(1) * Vh[:r_hat_t, :].to(dt)
+                else:
+                    B_hat, A_hat = rand_svd(delta_W, r_hat_t, self.oversampling)
+                B_hat, A_hat = B_hat.to(dev, dt), A_hat.to(dev, dt)
+                final_rank = B_hat.shape[1]
+
+                if self.sketch_diag:
+                    # ACTUAL achieved retained energy from the real reconstruction, not the
+                    # idealized truncated-SVD value -- naive_sum/countsketch do not achieve the
+                    # optimal projection at their nominal rank, so this must be measured, not
+                    # assumed, to make diagnostics comparable across merge_op ablations.
+                    recon_err = (delta_W.float() - (B_hat.float() @ A_hat.float())).norm()
+                    fro_delta = delta_W.float().norm()
+                    retained.append(1.0 - (recon_err / fro_delta).item() ** 2 if fro_delta > 0 else 1.0)
+                    sigma_next.append(S[final_rank].item() if (S is not None and S.numel() > final_rank) else 0.0)
+                    fro.append(fro_delta.item())
+                    rhat.append(final_rank)
+
+                if final_rank == B_s.shape[1]:
+                    # rank unchanged -> in-place copy (fixed mode, or no growth)
+                    B_s.data.copy_(B_hat)
+                    A_s.data.copy_(A_hat)
+                else:
+                    # rank changed (adaptive mode, or nocompress's growing sketch) -> replace
+                    # slot-0 Linears (variable width)
+                    dim = delta_W.shape[0]
+                    newA = nn.Linear(dim, final_rank, bias=False).to(dev, dt)
+                    newB = nn.Linear(final_rank, dim, bias=False).to(dev, dt)
+                    newA.weight.data.copy_(A_hat)
+                    newB.weight.data.copy_(B_hat)
+                    for p in list(newA.parameters()) + list(newB.parameters()):
+                        p.requires_grad = False
+                    A_list[SKETCH] = newA
+                    B_list[SKETCH] = newB
+                # reset every residual slot: kaiming A, zero B -> clean + eval no-op.
+                # All P must reset (not just the one that just trained) since the NEXT
+                # period's _train_adapter() revisits slot 1 first and merge=True would
+                # otherwise re-sum a stale prior-period residual left non-zero.
+                for slot in residual_slots:
+                    nn.init.kaiming_uniform_(A_list[slot].weight, a=math.sqrt(5))
+                    nn.init.zeros_(B_list[slot].weight)
+                module_idx += 1
+        if self.sketch_diag:
+            self._record_diag(retained, sigma_next, fro, rhat)
+
+    def _record_diag(self, retained, sigma_next, fro, rhat):
         """Aggregate + persist the per-compression singular-spectrum stats."""
         import numpy as np
         rec = {
@@ -172,15 +383,21 @@ class Learner(LoRALearner):
             "retained_energy": retained,        # frac of ||ΔW||² kept by top-r̂
             "sigma_next": sigma_next,           # σ_{r̂+1}(ΔW), per (layer,proj)
             "fro": fro,                         # ||ΔW||_F, per (layer,proj)
+            "r_hat": rhat,                      # rank chosen this compress, per (layer,proj)
             "retained_mean": float(np.mean(retained)),
             "retained_min": float(np.min(retained)),
             "fro_mean": float(np.mean(fro)),
+            "r_hat_mean": float(np.mean(rhat)) if rhat else None,
+            "r_hat_max": int(np.max(rhat)) if rhat else None,
+            "r_hat_total": int(np.sum(rhat)) if rhat else None,
         }
         self._diag_records.append(rec)
         os.makedirs(os.path.dirname(self._diag_path), exist_ok=True)
         with open(self._diag_path, "w") as f:
             json.dump(self._diag_records, f, indent=2)
+        rh = (" | r_hat mean={:.1f} total={}".format(rec["r_hat_mean"], rec["r_hat_total"])
+              if rec["r_hat_mean"] is not None else "")
         logging.info(
             "[SketchDiag] task {}: retained-energy mean={:.3f} min={:.3f} | "
-            "||ΔW||_F mean={:.3f}".format(
-                self._cur_task, rec["retained_mean"], rec["retained_min"], rec["fro_mean"]))
+            "||ΔW||_F mean={:.3f}{}".format(
+                self._cur_task, rec["retained_mean"], rec["retained_min"], rec["fro_mean"], rh))

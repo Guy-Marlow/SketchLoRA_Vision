@@ -1,0 +1,37 @@
+{
+  "dataset": "imagenetr",
+  "memory_size": 0,
+  "memory_per_class": 0,
+  "fixed_memory": false,
+  "shuffle": true,
+  "init_cls": 10,
+  "increment": 10,
+  "seed": [
+    1993
+  ],
+  "scenario": "cil",
+  "pretrained": true,
+  "print_forget": true,
+  "final_metrics": true,
+  "backbone_type": "vit_base_patch16_224_lora",
+  "lora_rank": 8,
+  "lora_alpha": 32,
+  "tuned_epoch": 50,
+  "init_lr": 0.03,
+  "batch_size": 48,
+  "weight_decay": 0.0005,
+  "min_lr": 0.0,
+  "model_name": "hidelora",
+  "lora_momentum": 0.1,
+  "reg": 0.001,
+  "crct_epochs": 30,
+  "ca_lr": 0.005,
+  "n_centroids": 10,
+  "device": [
+    "4"
+  ],
+  "prefix": "stream_smoke_imagenetr_500mb_hidelora",
+  "boundary_mode": "sample",
+  "stream_budget_mb": 500,
+  "stop_after_tasks": 5
+}

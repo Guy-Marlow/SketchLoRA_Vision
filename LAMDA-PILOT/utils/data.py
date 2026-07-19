@@ -320,6 +320,74 @@ class omnibenchmark(iData):
         self.test_data, self.test_targets = split_images_labels(test_dset.imgs)
 
 
+class omnibenchmark1k(iData):
+    """Full 1000-class OmniBenchmark (prepared by svd_sketching's prepare_omnibench.py;
+    ~169 train images/class, ImageFolder layout). Distinct from the 300-class PILOT
+    subset above -- both stay registered."""
+    use_path = True
+
+    train_trsf = build_transform(True, None)
+    test_trsf = build_transform(False, None)
+    common_trsf = [    ]
+
+    class_order = np.arange(1000).tolist()
+
+    def download_data(self):
+        train_dir = "./data/omnibenchmark1k/train/"
+        test_dir = "./data/omnibenchmark1k/test/"
+
+        train_dset = datasets.ImageFolder(train_dir)
+        test_dset = datasets.ImageFolder(test_dir)
+
+        self.train_data, self.train_targets = split_images_labels(train_dset.imgs)
+        self.test_data, self.test_targets = split_images_labels(test_dset.imgs)
+
+
+
+class sun397(iData):
+    """397-class scene-recognition benchmark (no official train/test split -- ours is
+    materialized + committed as a manifest at prep time, see scripts/data_prep.py).
+    ImageFolder layout, same pattern as omnibenchmark1k above."""
+    use_path = True
+
+    train_trsf = build_transform(True, None)
+    test_trsf = build_transform(False, None)
+    common_trsf = [    ]
+
+    class_order = np.arange(397).tolist()
+
+    def download_data(self):
+        train_dir = "./data/sun397/train/"
+        test_dir = "./data/sun397/test/"
+
+        train_dset = datasets.ImageFolder(train_dir)
+        test_dset = datasets.ImageFolder(test_dir)
+
+        self.train_data, self.train_targets = split_images_labels(train_dset.imgs)
+        self.test_data, self.test_targets = split_images_labels(test_dset.imgs)
+
+
+class food101(iData):
+    """101-class food benchmark (official ethz/food101 750/250 per-class train/test
+    split). ImageFolder layout, same pattern as omnibenchmark1k above."""
+    use_path = True
+
+    train_trsf = build_transform(True, None)
+    test_trsf = build_transform(False, None)
+    common_trsf = [    ]
+
+    class_order = np.arange(101).tolist()
+
+    def download_data(self):
+        train_dir = "./data/food101/train/"
+        test_dir = "./data/food101/test/"
+
+        train_dset = datasets.ImageFolder(train_dir)
+        test_dset = datasets.ImageFolder(test_dir)
+
+        self.train_data, self.train_targets = split_images_labels(train_dset.imgs)
+        self.test_data, self.test_targets = split_images_labels(test_dset.imgs)
+
 
 class vtab(iData):
     use_path = True

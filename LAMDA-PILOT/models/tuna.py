@@ -92,6 +92,50 @@ class Learner(BaseLearner):
     def after_task(self):
         self._known_classes = self._total_classes
 
+    def persistent_state(self):
+        net = self._network.module if hasattr(self._network, "module") else self._network
+        # backbone.adapter_update() (called inside _train, before eval_task/after_task run)
+        # already deepcopies cur_adapter into adapter_list for this task, so summing both
+        # here would double count the just-finished task's adapter.
+        adapter_bytes = sum(p.numel() * p.element_size() for p in net.backbone.adapter_list.parameters())
+        fc_bytes = sum(p.numel() * p.element_size() for p in net.fc.parameters()) if net.fc is not None else 0
+        total_bytes = adapter_bytes + fc_bytes
+        return {"params": int(total_bytes // 4), "bytes": int(total_bytes),
+                "breakdown": {"adapters": adapter_bytes, "fc": fc_bytes}}
+
+    @torch.no_grad()
+    def _deployed_forward(self, inputs):
+        """The actual deployed CIL forward, extracted verbatim from _eval_cnn/
+        _eval_cnn1 (single-batch form, returns {"logits": ...} instead of top-k
+        predictions) for metrics_logger.py's inference-cost/FLOPs measurement.
+        Genuinely per-task-count-dependent: at _cur_task==0 this is one backbone
+        pass; for _cur_task>0 it's an entropy-based ensemble over `_cur_task+1`
+        separate backbone passes (one per per-task adapter) plus one more for
+        the "general" adapter -- TUNA's own inference cost really does grow
+        with task count, unlike the folded LoRA-scaffold methods, and this
+        measurement should reflect that faithfully rather than approximate it."""
+        net = self._network.module if hasattr(self._network, "module") else self._network
+        if self._cur_task == 0:
+            features = net.backbone(inputs, adapter_id=0, train=False)["features"]
+            logits = net.fc(features)["logits"][:, :self._total_classes]
+            return {"logits": logits}
+        all_logits, all_entropies = [], []
+        for i in range(self._cur_task + 1):
+            features = net.backbone(inputs, adapter_id=i, train=False)["features"]
+            logits = net.fc(features)["logits"][:, :self._total_classes] * self.args['scale']
+            probs = F.softmax(logits, dim=1)
+            entropy = -torch.sum(probs * torch.log(probs + 1e-10), dim=1)
+            all_logits.append(logits)
+            all_entropies.append(entropy)
+        all_logits = torch.stack(all_logits)          # [cur_task+1, bs, classes]
+        all_entropies = torch.stack(all_entropies)     # [cur_task+1, bs]
+        min_entropy_indices = torch.argmin(all_entropies, dim=0)  # [bs]
+        min_entropy_logits = all_logits[min_entropy_indices, torch.arange(inputs.shape[0], device=inputs.device)]
+        features = net.backbone(inputs, adapter_id=self._cur_task + 1, train=False)["features"]
+        general_logits = net.fc(features)["logits"][:, :self._total_classes] * self.args['scale']
+        outputs = F.softmax(general_logits, dim=1) + F.softmax(min_entropy_logits, dim=1)
+        return {"logits": outputs}
+
     def incremental_train(self, data_manager):
         self._cur_task += 1
         self._total_classes = self._known_classes + data_manager.get_task_size(self._cur_task)
@@ -187,7 +231,19 @@ class Learner(BaseLearner):
                 features = self._network.backbone(inputs, adapter_id=self._cur_task, train=True)["features"]
                 logits = self._network.fc(features)["logits"]
 
-                loss = loss_cos(logits[:, self._known_classes:], targets - self._known_classes)
+                # this task's head only covers NEW classes [known,total) -- under budget
+                # mode a carryover-tail sample's raw label is below known_classes and
+                # belongs to an EARLIER, already-trained head, so it must be excluded
+                # from this loss. Unlike F.cross_entropy, cosface indexes logits by the
+                # raw label directly (wf.transpose(0,1)[labels]) -- a -1 sentinel would
+                # silently wrap to the LAST row via Python negative indexing rather than
+                # erroring, so batch-level filtering is required here, not ignore_index.
+                new_mask = targets >= self._known_classes
+                if new_mask.any():
+                    loss = loss_cos(logits[new_mask][:, self._known_classes:],
+                                    targets[new_mask] - self._known_classes)
+                else:
+                    loss = torch.zeros((), device=self._device, requires_grad=True)
                 # loss = F.cross_entropy(logits, targets.long())
                 if self._cur_task > 0 and self.use_orth:
                     loss += self.orth_loss(features) * self.args["reg"] * torch.exp(-torch.tensor(self._cur_task+1, dtype=torch.float32, device=self._device))
@@ -197,8 +253,8 @@ class Learner(BaseLearner):
                 losses += loss.item()
 
                 _, preds = torch.max(logits, dim=1)
-                correct += preds.eq(targets.expand_as(preds)).cpu().sum()
-                total += len(targets)
+                correct += preds[new_mask].eq(targets[new_mask]).cpu().sum()
+                total += int(new_mask.sum())
 
             if scheduler:
                 scheduler.step()
@@ -363,11 +419,17 @@ class Learner(BaseLearner):
                 features = self._network.backbone(inputs, adapter_id=0, train=False)["features"]
                 logits = self._network.fc(features)["logits"][:, :self._total_classes]
 
+            # cap k to classes-seen-so-far (see models/base.py::_eval_cnn) -- needed
+            # for the 50-task sensitivity/ablation splits (init_cls < 5).
+            k = min(self.topk, self._total_classes)
             predicts = torch.topk(
-                logits, k=self.topk, dim=1, largest=True, sorted=True
+                logits, k=k, dim=1, largest=True, sorted=True
             )[
                 1
-            ]  # [bs, topk]
+            ]  # [bs, k]
+            if k < self.topk:
+                pad = predicts[:, -1:].expand(-1, self.topk - k)
+                predicts = torch.cat([predicts, pad], dim=1)
             y_pred.append(predicts.cpu().numpy())
             y_true.append(targets.cpu().numpy())
 
@@ -380,6 +442,9 @@ class Learner(BaseLearner):
         self._network.eval()
         y_pred, y_true = [], []
         y_pred_specific, y_pred_general = [], []
+        # cap k to classes-seen-so-far (see models/base.py::_eval_cnn) -- needed for
+        # the 50-task sensitivity/ablation splits (init_cls < 5).
+        k = min(self.topk, self._total_classes)
         for _, (_, inputs, targets) in enumerate(loader):
             inputs = inputs.to(self._device)
             targets = targets.to(self._device)
@@ -393,7 +458,7 @@ class Learner(BaseLearner):
                 probs = F.softmax(logits, dim=1)
                 entropy = -torch.sum(probs * torch.log(probs + 1e-10), dim=1)  # bs
                 predicts = torch.topk(
-                    logits, k=self.topk, dim=1, largest=True, sorted=True
+                    logits, k=k, dim=1, largest=True, sorted=True
                 )[1]
                 all_predicts.append(predicts.cpu().numpy())
                 all_entropies.append(entropy.cpu().numpy())
@@ -412,7 +477,10 @@ class Learner(BaseLearner):
             min_entropy_logits = F.softmax(min_entropy_logits, dim=1)
 
             outputs = logits + min_entropy_logits
-            predicts = torch.topk(outputs, k=self.topk, dim=1, largest=True, sorted=True)[1]
+            predicts = torch.topk(outputs, k=k, dim=1, largest=True, sorted=True)[1]
+            if k < self.topk:
+                pad = predicts[:, -1:].expand(-1, self.topk - k)
+                predicts = torch.cat([predicts, pad], dim=1)
             pred_specific = torch.max(min_entropy_logits,dim=1)[1]
             pred_general = torch.max(logits, dim=1)[1]
             y_pred.append(predicts.cpu().numpy())

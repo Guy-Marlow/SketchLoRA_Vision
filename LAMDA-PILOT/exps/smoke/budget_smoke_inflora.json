@@ -1,0 +1,35 @@
+{
+  "dataset": "cifar224",
+  "memory_size": 0,
+  "memory_per_class": 0,
+  "fixed_memory": false,
+  "shuffle": true,
+  "init_cls": 5,
+  "increment": 5,
+  "backbone_type": "vit_base_patch16_224_lora",
+  "device": [
+    "2"
+  ],
+  "seed": [
+    1993
+  ],
+  "scenario": "cil",
+  "lora_rank": 8,
+  "lora_alpha": 32,
+  "tuned_epoch": 10,
+  "init_lr": 0.0005,
+  "batch_size": 48,
+  "weight_decay": 0.0005,
+  "min_lr": 0.0,
+  "pretrained": true,
+  "print_forget": true,
+  "boundary_mode": "budget",
+  "budget_mb": 300,
+  "stop_after_tasks": 3,
+  "final_metrics": true,
+  "model_name": "inflora",
+  "lora_merge": true,
+  "lamb": 0.95,
+  "lame": 1.0,
+  "prefix": "budget_smoke_inflora"
+}

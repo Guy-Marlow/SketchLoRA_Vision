@@ -1,0 +1,11 @@
+#!/bin/bash
+set -uo pipefail
+cd /home/gmar762/research/continuous_learning/svd_sketching_vision/LAMDA-PILOT
+source /home/gmar762/anaconda3/etc/profile.d/conda.sh
+conda activate treelora
+export CUDA_DEVICE_ORDER=PCI_BUS_ID
+for m in rainbowprompt progprompt; do
+    echo "=== starting $m ===" >> run_logs/stream_smoke/queue_inr_gpu4.log
+    python main.py --config exps/review/stream_smoke/imagenetr_250mb_${m}.json > run_logs/stream_smoke/imagenetr_250mb_${m}.out 2>&1
+    echo "=== finished $m (exit $?) ===" >> run_logs/stream_smoke/queue_inr_gpu4.log
+done

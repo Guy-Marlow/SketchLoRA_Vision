@@ -27,6 +27,20 @@ class BaseLearner(object):
         self._multiple_gpus = args["device"]
         self.args = args
 
+    def _ce_slice(self):
+        """CE-loss local class slice for the current task/chunk -- BaseLearner-level
+        copy of models/lora.py::_ce_slice (kept separate since methods outside the
+        LoRA scaffold don't share lora.py's Learner ancestry). Pure task/sample
+        modes: the head-growth range [known,total) (unchanged). Budget mode: the
+        chunk's ACTUAL data range (utils/budget_stream.py::ce_range) -- a chunk
+        carrying over the tail of the previous chunk's straddling class has raw
+        labels BELOW known_classes, which [known,total) cannot express. Requires
+        self.data_manager to be set (every subclass's incremental_train already
+        does this before calling _train)."""
+        if self.args.get("boundary_mode") == "budget":
+            return self.data_manager.ce_range(self._cur_task)
+        return self._known_classes, self._total_classes
+
     @property
     def exemplar_size(self):
         assert len(self._data_memory) == len(
@@ -152,15 +166,26 @@ class BaseLearner(object):
     def _eval_cnn(self, loader):
         self._network.eval()
         y_pred, y_true = [], []
+        # cap k to the number of classes actually grown so far -- torch.topk raises
+        # if k exceeds the logits' class dim, which happens whenever init_cls < topk
+        # (never true for any EXISTING config, all >=5, but the 50-task sensitivity/
+        # ablation splits use init_cls in {2,4} -- k=5 would crash task 0's eval
+        # otherwise). Pad predictions back to [N, topk] by repeating the worst kept
+        # rank, mirroring the identical situation already handled in
+        # models/til_base.py::_eval_til (k < topk there too, same padding trick).
+        k = min(self.topk, self._total_classes)
         for _, (_, inputs, targets) in enumerate(loader):
             inputs = inputs.to(self._device)
             with torch.no_grad():
                 outputs = self._network(inputs)["logits"]
             predicts = torch.topk(
-                outputs, k=self.topk, dim=1, largest=True, sorted=True
+                outputs, k=k, dim=1, largest=True, sorted=True
             )[
                 1
-            ]  # [bs, topk]
+            ]  # [bs, k]
+            if k < self.topk:
+                pad = predicts[:, -1:].expand(-1, self.topk - k)
+                predicts = torch.cat([predicts, pad], dim=1)
             y_pred.append(predicts.cpu().numpy())
             y_true.append(targets.cpu().numpy())
 

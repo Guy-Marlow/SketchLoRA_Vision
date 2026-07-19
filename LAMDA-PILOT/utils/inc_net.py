@@ -2,7 +2,7 @@ import copy
 import logging
 import torch
 from torch import nn
-from backbone.linears import SimpleLinear, SplitCosineLinear, CosineLinear, EaseCosineLinear, SimpleContinualLinear, TunaLinear
+from backbone.linears import SimpleLinear, SplitCosineLinear, CosineLinear, EaseCosineLinear, SimpleContinualLinear, TunaLinear, CosineLinearFeature
 
 from backbone.prompt import CodaPrompt
 import timm
@@ -269,17 +269,97 @@ def get_backbone(args, pretrained=False):
         # number of preallocated LoRA slots; defaults to one-per-task (O-LoRA et
         # al.), but a bounded-memory method (sketchlora) can request a constant
         # count via "lora_n_slots" so its footprint is O(1) in the task count.
-        n_tasks = args.get("lora_n_slots", args["nb_tasks"])
+        # Under boundary-agnostic streaming (boundary_mode=="sample"), the number
+        # of adapter-fold events is driven by a memory-constraint sample
+        # threshold, not by real task count, so it is NOT generically bounded by
+        # nb_tasks (confirmed by direct crashes -- see
+        # BOUNDARY_AGNOSTIC_IMPLEMENTATION_LOG.md's "BLOCKING ARCHITECTURAL GAP"
+        # section). Start with a single slot and grow one at a time via
+        # add_task_slot() (called from each streaming Learner's
+        # _stream_begin_chunk) instead of guessing an upper bound.
+        n_tasks = args.get("lora_n_slots",
+                            1 if args.get("boundary_mode") == "sample" else args["nb_tasks"])
         lora_rank = args.get("lora_rank", 10)
         lora_alpha = args.get("lora_alpha", None)
+        # restrict trainable LoRA to the first n blocks (q,v -> 2n matrices) for ALL
+        # lora methods; None = all blocks (default, unchanged).
+        n_lora_blocks = args.get("n_lora_blocks", None)
         if name == "vit_base_patch16_224_lora":
             model = vit_lora.vit_base_patch16_224_lora(
                 n_tasks=n_tasks, lora_rank=lora_rank, lora_alpha=lora_alpha,
-                num_classes=0, drop_path_rate=0.0)
+                n_lora_blocks=n_lora_blocks, num_classes=0, drop_path_rate=0.0)
         elif name == "vit_base_patch16_224_in21k_lora":
             model = vit_lora.vit_base_patch16_224_in21k_lora(
                 n_tasks=n_tasks, lora_rank=lora_rank, lora_alpha=lora_alpha,
-                num_classes=0, drop_path_rate=0.0)
+                n_lora_blocks=n_lora_blocks, num_classes=0, drop_path_rate=0.0)
+        else:
+            raise NotImplementedError("Unknown type {}".format(name))
+        model.out_dim = 768
+        return model
+    # ProgPrompt (backbone/vit_progprompt.py)
+    elif '_progprompt' in name:
+        from backbone import vit_progprompt
+        # see the matching comment in the '_lora' branch above -- same growable-slot
+        # rationale applies to ProgPrompt's per-task prompt pool.
+        n_tasks = args.get("lora_n_slots",
+                            1 if args.get("boundary_mode") == "sample" else args["nb_tasks"])
+        prompt_len = args.get("prompt_len", 10)
+        model = vit_progprompt.vit_base_patch16_224_progprompt(n_tasks=n_tasks, prompt_len=prompt_len)
+        model.out_dim = 768
+        return model
+    # RainbowPrompt (backbone/vit_rainbowprompt.py + backbone/rainbowprompt_module.py)
+    elif '_rainbowprompt' in name:
+        from backbone import vit_rainbowprompt
+        from backbone.rainbowprompt_module import RainbowPromptModule
+        # see the matching comment in the '_lora' branch above -- same growable-slot
+        # rationale applies to RainbowPrompt's per-task base-knowledge/base-key pool.
+        n_tasks = args.get("lora_n_slots",
+                            1 if args.get("boundary_mode") == "sample" else args["nb_tasks"])
+        prompt_module = RainbowPromptModule(
+            num_layers=12, embed_dim=768, n_tasks=n_tasks,
+            length=args.get("rp_length", 20),
+            self_attn_idx=args.get("self_attn_idx", [0, 1, 2, 3, 4, 5]),
+            KI_iter=args.get("KI_iter", 10),
+            use_linear=args.get("use_linear", True),
+            D1=args.get("rp_D1", 28), D2=args.get("rp_D2", 56),
+            evolve_dropout=args.get("rp_evolve_dropout", 0.1)).to(args["device"][0])
+        model = vit_rainbowprompt.vit_base_patch16_224_rainbowprompt(prompt_module=prompt_module)
+        model.out_dim = 768
+        return model
+    # CL-LoRA (backbone/vit_cllora.py) -- ported near-verbatim from the reference
+    # repo (svd_sketching_vision/CL-LoRA), itself a fork of an earlier LAMDA-PILOT
+    # snapshot; tuning_config replaces the reference's `easydict.EasyDict` with the
+    # stdlib `types.SimpleNamespace` (identical attribute-access semantics, no new
+    # dependency). "specfic_pos" (not "specific_pos") is the reference's own key
+    # name, kept verbatim since backbone/vit_cllora.py reads that exact attribute.
+    elif '_cllora' in name:
+        from types import SimpleNamespace
+        from backbone import vit_cllora
+        ffn_num = args["ffn_num"]
+        tuning_config = SimpleNamespace(
+            use_distillation=args["use_distillation"],
+            use_block_weight=args["use_block_weight"],
+            msa_adapt=args["msa_adapt"],
+            msa=args["msa"],
+            specfic_pos=args["specfic_pos"],
+            general_pos=args["general_pos"],
+            ffn_adapt=True,
+            ffn_option="parallel",
+            ffn_adapter_layernorm_option="none",
+            ffn_adapter_init_option="lora",
+            ffn_adapter_scalar="0.1",
+            ffn_num=ffn_num,
+            d_model=768,
+            vpt_on=False,
+            vpt_num=0,
+            _device=args["device"][0],
+        )
+        if name == "vit_base_patch16_224_cllora":
+            model = vit_cllora.vit_base_patch16_224_cllora(
+                num_classes=0, global_pool=False, drop_path_rate=0.0, tuning_config=tuning_config)
+        elif name == "vit_base_patch16_224_in21k_cllora":
+            model = vit_cllora.vit_base_patch16_224_in21k_cllora(
+                num_classes=0, global_pool=False, drop_path_rate=0.0, tuning_config=tuning_config)
         else:
             raise NotImplementedError("Unknown type {}".format(name))
         model.out_dim = 768
@@ -1095,6 +1175,100 @@ class EaseNet(BaseNet):
             if param.requires_grad:
                 print(name, param.numel())
 
+
+class OurNet(BaseNet):
+    """CL-LoRA's network wrapper (svd_sketching_vision/CL-LoRA/utils/inc_net.py),
+    ported near-verbatim -- growing per-task CosineLinearFeature classifier blocks
+    over a general/specific-LoRA ViT backbone (backbone/vit_cllora.py). `forward`'s
+    test-time branch is simplified to the paper's MAIN path only (use_reweight=True,
+    forward_diagonal) -- the reference's `moni_adam` / `use_reweight=False` branch
+    calls `self.fc(x)` on the raw input tensor rather than the extracted features
+    (`x_input`), an apparent bug in an ablation-only codepath never exercised by the
+    main method; omitted for correctness rather than faithfully reproduced."""
+    def __init__(self, args, pretrained=True):
+        super().__init__(args, pretrained)
+        self.args = args
+        self.inc = args["increment"]
+        self.init_cls = args["init_cls"]
+        self._cur_task = -1
+        self.out_dim = self.backbone.out_dim
+        self.fc = None
+        self.use_init_ptm = False
+        self.alpha = args["alpha"]
+        self.beta = args["beta"]
+        self.fc_list = nn.ModuleList()
+        self.adapter_list = nn.ModuleList()
+        self.init_proto = None
+
+    def freeze(self):
+        for name, param in self.named_parameters():
+            param.requires_grad = False
+
+    @property
+    def feature_dim(self):
+        if self.use_init_ptm:
+            return self.out_dim * (self._cur_task + 2)
+        return self.out_dim * (self._cur_task + 1)
+
+    def update_fc(self, nb_classes):
+        self._cur_task += 1
+        if self._cur_task == 0:
+            self.proxy_fc = self.generate_fc(self.out_dim, self.init_cls).to(self._device)
+        else:
+            self.proxy_fc = self.generate_fc(self.out_dim, self.inc).to(self._device)
+        init_proto = self.generate_fc(self.out_dim, nb_classes).to(self._device)
+        if self.init_proto is not None:
+            old_nb_classes = self.init_proto.out_features
+            weight = copy.deepcopy(self.init_proto.weight.data)
+            init_proto.weight.data[: old_nb_classes, :] = nn.Parameter(weight)
+        del self.init_proto
+        self.init_proto = init_proto
+
+        fc = self.generate_fc(self.feature_dim, nb_classes).to(self._device)
+        fc.reset_parameters_to_zero()
+        if self.fc is not None:
+            old_nb_classes = self.fc.out_features
+            weight = copy.deepcopy(self.fc.weight.data)
+            fc.sigma.data = self.fc.sigma.data
+            fc.weight.data[: old_nb_classes, : -self.out_dim] = nn.Parameter(weight)
+        del self.fc
+        self.fc = fc
+        self.fc.requires_grad_(False)
+
+    def add_fc(self):
+        self.fc_list.append(self.proxy_fc.requires_grad_(False))
+        del self.proxy_fc
+
+    def generate_fc(self, in_dim, out_dim):
+        return CosineLinearFeature(in_dim, out_dim)
+
+    def extract_vector(self, x):
+        return self.backbone(x)
+
+    def forward_kd(self, x, t_idx):
+        x_new, x_teacher = self.backbone.forward_general_cls(x, t_idx)
+        out_new, out_teacher = self.proxy_fc(x_new), self.proxy_fc(x_teacher)
+        return out_new, out_teacher
+
+    def forward(self, x, test=False):
+        if not test:
+            x = self.backbone.forward(x, False)
+            out = self.proxy_fc(x)
+            out.update({"features": x})
+            return out
+        x_input = self.backbone.forward(x, True, use_init_ptm=self.use_init_ptm)
+        out = self.fc.forward_diagonal(x_input, cur_task=self._cur_task, alpha=self.alpha,
+                                       init_cls=self.init_cls, inc=self.inc,
+                                       use_init_ptm=self.use_init_ptm, beta=self.beta)
+        out.update({"features": x_input})
+        return out
+
+    def show_trainable_params(self):
+        for name, param in self.named_parameters():
+            if param.requires_grad:
+                print(name, param.numel())
+
+
 class SLCANet(BaseNet):
 
     def __init__(self, args, pretrained=True, fc_with_ln=False):
@@ -1310,6 +1484,69 @@ class TUNANet(nn.Module):
         return res
 
 
+class ProgPromptVitNet(BaseNet):
+    """Network wrapper for backbone/vit_progprompt.py. A single growing
+    SimpleLinear head; forward threads a `task` id through to the backbone's
+    progressive-prompt-stack injection (merge=True-equivalent -- task<0 is a plain,
+    prompt-free forward, matching vit_lora.py's convention for consistency)."""
+
+    def __init__(self, args, pretrained=True):
+        super().__init__(args, pretrained)
+        self.default_task = -1
+
+    def update_fc(self, nb_classes):
+        fc = self.generate_fc(self.feature_dim, nb_classes).to(self._device)
+        if self.fc is not None:
+            nb_output = self.fc.out_features
+            weight = copy.deepcopy(self.fc.weight.data)
+            bias = copy.deepcopy(self.fc.bias.data)
+            fc.weight.data[:nb_output] = weight
+            fc.bias.data[:nb_output] = bias
+        del self.fc
+        self.fc = fc
+
+    def generate_fc(self, in_dim, out_dim):
+        return SimpleLinear(in_dim, out_dim)
+
+    def forward(self, x, task=-1):
+        task = self.default_task if task < 0 else task
+        features = self.backbone(x, task=task)
+        out = self.fc(features)
+        out.update({"features": features})
+        return out
+
+
+class RainbowPromptVitNet(BaseNet):
+    """Network wrapper for backbone/vit_rainbowprompt.py. A single growing
+    SimpleLinear head, as in LoRAVitNet; forward threads task_id + train through to
+    the backbone's evolving-prompt injection."""
+
+    def __init__(self, args, pretrained=True):
+        super().__init__(args, pretrained)
+        self.default_task = 0
+
+    def update_fc(self, nb_classes):
+        fc = self.generate_fc(self.feature_dim, nb_classes).to(self._device)
+        if self.fc is not None:
+            nb_output = self.fc.out_features
+            weight = copy.deepcopy(self.fc.weight.data)
+            bias = copy.deepcopy(self.fc.bias.data)
+            fc.weight.data[:nb_output] = weight
+            fc.bias.data[:nb_output] = bias
+        del self.fc
+        self.fc = fc
+
+    def generate_fc(self, in_dim, out_dim):
+        return SimpleLinear(in_dim, out_dim)
+
+    def forward(self, x, task_id=None, train=False, known_task=None):
+        task_id = self.default_task if task_id is None else task_id
+        out = self.backbone(x, task_id=task_id, train=train, known_task=known_task)
+        logits = self.fc(out["features"])
+        logits.update({"features": out["features"], "sim_loss": out["sim_loss"]})
+        return logits
+
+
 class LoRAVitNet(BaseNet):
     """Network wrapper for the baseline per-task LoRA ViT (backbone/vit_lora.py).
 
@@ -1357,6 +1594,14 @@ class LoRAVitNet(BaseNet):
 
     def freeze_to_task(self, task, train_a=True):
         self.backbone.freeze_to_task(task, train_a=train_a)
+
+    # -- dynamic slot growth passthrough (boundary-agnostic streaming only) --
+    def add_task_slot(self):
+        self.backbone.add_task_slot()
+
+    # -- frozen-slot folding passthrough (opt-in, plan doc §6 item 2) ----
+    def enable_frozen_folding(self):
+        self.backbone.enable_frozen_folding()
 
     # -- input-covariance collection passthrough (InfLoRA) --------------
     def set_collect(self, flag):

@@ -1,0 +1,35 @@
+{
+  "dataset": "omnibenchmark1k",
+  "memory_size": 0,
+  "memory_per_class": 0,
+  "fixed_memory": false,
+  "shuffle": true,
+  "backbone_type": "vit_base_patch16_224_lora",
+  "device": [
+    "0"
+  ],
+  "seed": [
+    1993
+  ],
+  "scenario": "both",
+  "lora_rank": 8,
+  "lora_alpha": 32,
+  "tuned_epoch": 10,
+  "init_lr": 0.0001,
+  "batch_size": 48,
+  "weight_decay": 0.0005,
+  "min_lr": 0.0,
+  "pretrained": true,
+  "print_forget": true,
+  "model_name": "sketchlora",
+  "lora_merge": true,
+  "lora_train_merge": true,
+  "svd_rank": 8,
+  "svd_oversampling": 10,
+  "svd_energy_target": 0.005,
+  "lora_n_slots": 2,
+  "init_cls": 10,
+  "increment": 10,
+  "stop_after_tasks": 10,
+  "prefix": "omni1k_100t_smoke_lr1e4"
+}

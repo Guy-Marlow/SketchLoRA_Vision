@@ -26,12 +26,13 @@ from tqdm import tqdm
 
 from utils.inc_net import LoRAVitNet
 from models.til_base import TILLearner
+from models.stream_mixin import StreamMixin
 from utils.toolkit import tensor2numpy
 
 num_workers = 8
 
 
-class Learner(TILLearner):
+class Learner(StreamMixin, TILLearner):
     def __init__(self, args):
         super().__init__(args)
         self._network = LoRAVitNet(args, True)
@@ -42,6 +43,14 @@ class Learner(TILLearner):
         self.min_lr = args["min_lr"] if args.get("min_lr") is not None else 1e-8
         # train forward routing: per-task (False) vs accumulated sum (True)
         self.train_merge = bool(args.get("lora_train_merge", False))
+        # LR schedule: cosine anneal (default) vs constant init_lr (lr_anneal=false).
+        # Constant LR removes the anneal cycle entirely -- used to de-confound the
+        # sample-boundary streaming runs (no schedule to misalign with the chunk clock).
+        self.lr_anneal = bool(args.get("lr_anneal", True))
+        # memory-budget streaming (utils/budget_stream.py): the CE loss's local
+        # slice must come from the chunk's ACTUAL data range, not known/total
+        # (see _ce_slice).
+        self._budget_mode = args.get("boundary_mode") == "budget"
 
     def after_task(self):
         self._known_classes = self._total_classes
@@ -53,8 +62,16 @@ class Learner(TILLearner):
 
     def _eval_adapter(self, task):
         """Which LoRA index to route for a sample whose ground-truth task is
-        `task` during TIL evaluation."""
-        return task
+        `task` during TIL evaluation. Under stream_mixin.py's decoupled-boundary
+        streaming, adapter slots are indexed by CHUNK, not by real task -- so once
+        chunk count diverges from task count (generically true), routing directly
+        by `task` would hit the wrong (possibly untrained) slot for later
+        checkpoints. `_stream_task_to_chunk` (populated by stream_run() itself,
+        not per-method) remaps to whichever chunk/slot was active when that real
+        task's own epochs finished. No-op (identity) outside streaming, and for
+        any method that overrides this itself (SeqLoRA pins slot 0, SketchLoRA
+        always routes to the sketch slot -- both already correct without this)."""
+        return getattr(self, "_stream_task_to_chunk", {}).get(task, task)
 
     def incremental_train(self, data_manager):
         self._cur_task += 1
@@ -86,13 +103,25 @@ class Learner(TILLearner):
         if len(self._multiple_gpus) > 1:
             self._network = self._network.module
 
+    def _ce_slice(self):
+        """CE-loss local class slice for the current task/chunk. Pure task/sample
+        modes: the head-growth range [known,total) (unchanged). Budget mode: the
+        chunk's ACTUAL data range (utils/budget_stream.py::ce_range) -- a chunk
+        carrying over the tail of the previous chunk's straddling class has raw
+        labels BELOW known_classes, which [known,total) cannot express (see the
+        BudgetStreamManager.ce_range docstring for the full explanation)."""
+        if self._budget_mode:
+            return self.data_manager.ce_range(self._cur_task)
+        return self._known_classes, self._total_classes
+
     def _train(self, train_loader):
         self._network.to(self._device)
         params = [p for p in self._network.parameters() if p.requires_grad]
         optimizer = optim.AdamW(params, lr=self.init_lr, weight_decay=self.weight_decay)
-        scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=self.epochs, eta_min=self.min_lr)
+        scheduler = optim.lr_scheduler.CosineAnnealingLR(
+            optimizer, T_max=self.epochs, eta_min=self.min_lr) if self.lr_anneal else None
 
-        lo, hi = self._known_classes, self._total_classes
+        lo, hi = self._ce_slice()
         prog_bar = tqdm(range(self.epochs))
         for _, epoch in enumerate(prog_bar):
             self._network.train()
@@ -113,7 +142,8 @@ class Learner(TILLearner):
                 preds = local_logits.argmax(dim=1)
                 correct += preds.eq(local_targets).cpu().sum()
                 total += len(targets)
-            scheduler.step()
+            if scheduler is not None:
+                scheduler.step()
             train_acc = np.around(tensor2numpy(correct) * 100 / total, decimals=2)
             prog_bar.set_description(
                 "Task {}, Epoch {}/{} => Loss {:.3f}, Train_accy {:.2f}".format(
@@ -124,6 +154,33 @@ class Learner(TILLearner):
     def _forward_task(self, inputs, task):
         net = self._network.module if hasattr(self._network, "module") else self._network
         return net(inputs, task=self._eval_adapter(task), merge=False)
+
+    # deployed (CIL) forward -- used by utils/metrics_logger.py's latency measurement.
+    # Matches the routing eval_task()/_eval_cnn actually use (base.py::_eval_cnn calls
+    # `self._network(inputs)` via __call__, which for LoRAVitNet defaults to whatever
+    # default_task/merge the learner last set via incremental_train -- this makes the
+    # routing explicit and correct regardless of that transient state).
+    def _deployed_forward(self, inputs):
+        net = self._network.module if hasattr(self._network, "module") else self._network
+        return net(inputs, task=self._train_adapter(), merge=self.train_merge)
+
+    # persistent state: K adapter slots (A+B, q+v, all blocks) still allocated,
+    # regardless of which are currently trainable -- the "raw allocation" accounting
+    # this project already uses elsewhere (never freed once a slot exists).
+    def persistent_state(self):
+        net = self._network.module if hasattr(self._network, "module") else self._network
+        total_params, total_bytes = 0, 0
+        for attn in net.attn_modules():
+            for mlist in (attn.lora_A_q, attn.lora_B_q, attn.lora_A_v, attn.lora_B_v):
+                for m in mlist:
+                    for p in m.parameters():
+                        total_params += p.numel()
+                        total_bytes += p.numel() * p.element_size()
+        total_params += sum(p.numel() for p in net.fc.parameters())
+        total_bytes += sum(p.numel() * p.element_size() for p in net.fc.parameters())
+        return {"params": total_params, "bytes": total_bytes,
+                "breakdown": {"lora_slots": total_params - sum(p.numel() for p in net.fc.parameters()),
+                             "head": sum(p.numel() for p in net.fc.parameters())}}
 
     def _log_trainable(self):
         net = self._network

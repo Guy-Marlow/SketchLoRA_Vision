@@ -70,8 +70,61 @@ class Attention_LoRA(nn.Module):
         # cur_matrix = running average of x^T x over tokens for the LoRA input x.
         # Off by default so the baseline / O-LoRA paths pay nothing.
         self._collect = False
-        self.cur_matrix = torch.zeros(dim, dim)
+        self.register_buffer('cur_matrix', torch.zeros(dim, dim))
         self.n_cur_matrix = 0
+
+        # ---- frozen-slot folding (opt-in, see fold_frozen_slots()) ----
+        # merge=True forward normally loops `for t in range(task+1): B_t(A_t(x))` every
+        # call -- O(K) matmuls/forward. If a method's frozen slots are IMMUTABLE once
+        # frozen (true for olora/inflora/treelora/hidelora; NOT true for sketchlora,
+        # whose sketch slot is periodically overwritten by compression), every frozen
+        # slot's contribution can be folded ONCE into a dense [dim,dim] delta and reused
+        # every forward until the next fold, turning the per-forward cost O(1). Off by
+        # default (`_fold_enabled=False`) so nothing changes unless a method opts in via
+        # enable_frozen_folding() -- sketchlora/seqlora/plain lora never call it.
+        self._fold_enabled = False
+        self._folded_upto = -1   # highest task index already folded into frozen_delta_*
+        self.register_buffer('frozen_delta_q', torch.zeros(dim, dim))
+        self.register_buffer('frozen_delta_v', torch.zeros(dim, dim))
+
+    def enable_frozen_folding(self):
+        self._fold_enabled = True
+
+    @torch.no_grad()
+    def add_task_slot(self):
+        """Append one more (A,B) pair for both q and v, matching the constructor's
+        device/dtype/init convention exactly (kaiming A, zero B). Used by
+        boundary-agnostic streaming (models/stream_mixin.py) when the adapter-fold
+        clock advances past however many slots were preallocated at construction --
+        the fold count there is driven by a memory-constraint sample threshold, not
+        by real task count, so it is not generically bounded by `n_tasks`."""
+        ref = self.lora_A_q[0].weight
+        device, dtype = ref.device, ref.dtype
+        new_A_q = nn.Linear(self.dim, self.lora_rank, bias=False).to(device=device, dtype=dtype)
+        new_B_q = nn.Linear(self.lora_rank, self.dim, bias=False).to(device=device, dtype=dtype)
+        new_A_v = nn.Linear(self.dim, self.lora_rank, bias=False).to(device=device, dtype=dtype)
+        new_B_v = nn.Linear(self.lora_rank, self.dim, bias=False).to(device=device, dtype=dtype)
+        nn.init.kaiming_uniform_(new_A_q.weight, a=math.sqrt(5))
+        nn.init.kaiming_uniform_(new_A_v.weight, a=math.sqrt(5))
+        nn.init.zeros_(new_B_q.weight)
+        nn.init.zeros_(new_B_v.weight)
+        self.lora_A_q.append(new_A_q)
+        self.lora_B_q.append(new_B_q)
+        self.lora_A_v.append(new_A_v)
+        self.lora_B_v.append(new_B_v)
+        self.n_tasks += 1
+
+    @torch.no_grad()
+    def fold_up_to(self, task):
+        """Fold every newly-frozen slot in (self._folded_upto, task] into the dense
+        frozen_delta buffers. Idempotent -- calling with a `task` <= the current
+        `_folded_upto` is a no-op."""
+        if not self._fold_enabled or task <= self._folded_upto:
+            return
+        for t in range(self._folded_upto + 1, task + 1):
+            self.frozen_delta_q += self.lora_B_q[t].weight @ self.lora_A_q[t].weight
+            self.frozen_delta_v += self.lora_B_v[t].weight @ self.lora_A_v[t].weight
+        self._folded_upto = task
 
     def set_task(self, task, merge=False):
         self._task = task
@@ -81,27 +134,42 @@ class Attention_LoRA(nn.Module):
         self._collect = flag
 
     def reset_cur_matrix(self):
-        self.cur_matrix = torch.zeros(self.dim, self.dim)
+        self.cur_matrix = torch.zeros_like(self.cur_matrix)
         self.n_cur_matrix = 0
 
     def _accumulate_cov(self, x):
         # x: [B, N, C] input to the q/v projections (post norm1)
         xd = x.detach()
-        cov = torch.bmm(xd.permute(0, 2, 1), xd).sum(dim=0).cpu()
+        cov = torch.bmm(xd.permute(0, 2, 1), xd).sum(dim=0)
         n = x.shape[0] * x.shape[1]
         self.cur_matrix = (self.cur_matrix * self.n_cur_matrix + cov) / (self.n_cur_matrix + n)
         self.n_cur_matrix += n
 
-    def _lora_delta(self, x, A_list, B_list):
+    def _lora_delta(self, x, A_list, B_list, frozen_delta):
         task, merge = self._task, self._merge
         if task < 0:
             return 0.0
-        if merge:
-            delta = 0.0
-            for t in range(task + 1):
-                delta = delta + B_list[t](A_list[t](x))
+        if not merge:
+            return B_list[task](A_list[task](x)) * self.lora_scaling
+        if self._fold_enabled:
+            # merge=True is only ever queried (in this codebase) for the CURRENT deployed
+            # task, so frozen_delta (folded through _folded_upto) is always either exactly
+            # this task's state (task == _folded_upto) or one task behind it, with the
+            # live/still-training slot's branch added on top (task == _folded_upto + 1).
+            # Assert rather than silently mishandle a usage pattern that would need
+            # frozen_delta to represent a DIFFERENT task's history than what's stored.
+            assert task >= self._folded_upto, (
+                "merge=True requested for task={} but frozen_delta already folded through "
+                "task={} -- folding assumes merge=True is only ever queried at or one task "
+                "ahead of the most recently folded task".format(task, self._folded_upto))
+            delta = nn.functional.linear(x, frozen_delta)
+            if task > self._folded_upto:
+                delta = delta + B_list[task](A_list[task](x))
             return delta * self.lora_scaling
-        return B_list[task](A_list[task](x)) * self.lora_scaling
+        delta = 0.0
+        for t in range(task + 1):
+            delta = delta + B_list[t](A_list[t](x))
+        return delta * self.lora_scaling
 
     def _shape(self, tensor, seq_len, bsz):
         return tensor.view(bsz, seq_len, self.num_heads, self.head_dim).transpose(1, 2).contiguous()
@@ -111,9 +179,9 @@ class Attention_LoRA(nn.Module):
         if self._collect:
             self._accumulate_cov(x)
 
-        q = self.q_proj(x) + self._lora_delta(x, self.lora_A_q, self.lora_B_q)
+        q = self.q_proj(x) + self._lora_delta(x, self.lora_A_q, self.lora_B_q, self.frozen_delta_q)
         k = self.k_proj(x)
-        v = self.v_proj(x) + self._lora_delta(x, self.lora_A_v, self.lora_B_v)
+        v = self.v_proj(x) + self._lora_delta(x, self.lora_A_v, self.lora_B_v, self.frozen_delta_v)
 
         q = self._shape(q, N, B).view(B * self.num_heads, -1, self.head_dim)
         k = self._shape(k, -1, B).view(B * self.num_heads, -1, self.head_dim)
@@ -165,7 +233,7 @@ class VisionTransformer(nn.Module):
     def __init__(self, img_size=224, patch_size=16, in_chans=3, num_classes=0, embed_dim=768,
                  depth=12, num_heads=12, mlp_ratio=4., qkv_bias=True, drop_rate=0.,
                  attn_drop_rate=0., drop_path_rate=0., embed_layer=PatchEmbed, norm_layer=None,
-                 act_layer=None, n_tasks=1, lora_rank=10, lora_alpha=None):
+                 act_layer=None, n_tasks=1, lora_rank=10, lora_alpha=None, n_lora_blocks=None):
         super().__init__()
         print("I'm using ViT with per-task LoRA (q,v).")
         self.num_classes = num_classes
@@ -174,6 +242,11 @@ class VisionTransformer(nn.Module):
         norm_layer = norm_layer or partial(nn.LayerNorm, eps=1e-6)
         act_layer = act_layer or nn.GELU
         self.n_tasks = n_tasks
+        # restrict trainable LoRA to the first n transformer blocks (q,v -> 2n matrices).
+        # None = all blocks. Blocks >= n keep B=0 (no contribution). Applies to every
+        # method that routes trainability through freeze_to_task (seqlora/olora/inflora;
+        # sketchlora additionally restricts its sketch/compress via its own n_lora_blocks).
+        self.n_lora_blocks = n_lora_blocks
 
         self.patch_embed = embed_layer(img_size=img_size, patch_size=patch_size,
                                        in_chans=in_chans, embed_dim=embed_dim)
@@ -203,16 +276,46 @@ class VisionTransformer(nn.Module):
         ``train_a=False`` keeps the A (down-projection) matrices frozen and
         trains only the B matrices -- used by InfLoRA, which sets A analytically
         from the input subspace and learns only B.
+
+        Also folds every slot below `task` into frozen_delta_{q,v} (a no-op unless
+        a method opted in via enable_frozen_folding() -- see Attention_LoRA.fold_up_to).
+        By the time task `task` starts, task `task-1`'s slot has finished training
+        (and any post-processing like HiDeLoRA's momentum blend, which runs inside
+        that task's own _train, strictly before this point) -- so folding
+        `task - 1` here is always folding a slot that is now permanently frozen.
         """
+        self.fold_frozen_slots(task - 1)
         for p in self.parameters():
             p.requires_grad = False
-        for blk in self.blocks:
+        train_blocks = self.blocks if self.n_lora_blocks is None else self.blocks[:self.n_lora_blocks]
+        for blk in train_blocks:
             train_lists = [blk.attn.lora_B_q, blk.attn.lora_B_v]
             if train_a:
                 train_lists += [blk.attn.lora_A_q, blk.attn.lora_A_v]
             for mlist in train_lists:
                 for p in mlist[task].parameters():
                     p.requires_grad = True
+
+    def add_task_slot(self):
+        """Grow every block's attention module by one adapter slot (see
+        Attention_LoRA.add_task_slot). Only ever called from a streaming
+        Learner's _stream_begin_chunk -- the regular (non-streaming)
+        task-incremental path preallocates exactly nb_tasks slots at
+        construction and never calls this."""
+        for blk in self.blocks:
+            blk.attn.add_task_slot()
+        self.n_tasks += 1
+
+    # -- frozen-slot folding (opt-in; see Attention_LoRA.fold_up_to) -----
+    def enable_frozen_folding(self):
+        for attn in self.attn_modules():
+            attn.enable_frozen_folding()
+
+    def fold_frozen_slots(self, task):
+        if task < 0:
+            return
+        for attn in self.attn_modules():
+            attn.fold_up_to(task)
 
     # -- input-covariance collection (InfLoRA) --------------------------
     def attn_modules(self):

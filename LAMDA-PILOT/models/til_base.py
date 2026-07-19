@@ -66,6 +66,9 @@ class TILLearner(BaseLearner):
             y_pred, y_true = self._eval_til()
             til_accy = self._evaluate(y_pred, y_true)
             logging.info("TIL top1: {}".format(til_accy["top1"]))
+        self._til_accy = til_accy   # exposed for utils/metrics_logger.py (eval_task only
+                                     # ever returns cnn_accy as "primary"; til_accy was
+                                     # otherwise discarded)
 
         if self.scenario == "til":
             primary = til_accy

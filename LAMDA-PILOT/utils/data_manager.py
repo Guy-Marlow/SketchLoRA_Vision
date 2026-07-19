@@ -3,7 +3,7 @@ import numpy as np
 from PIL import Image
 from torch.utils.data import Dataset
 from torchvision import transforms
-from utils.data import iCIFAR10, iCIFAR100, iImageNet100, iImageNet1000, iCIFAR224, iImageNetR,iImageNetA,CUB, objectnet, omnibenchmark, vtab
+from utils.data import iCIFAR10, iCIFAR100, iImageNet100, iImageNet1000, iCIFAR224, iImageNetR,iImageNetA,CUB, objectnet, omnibenchmark, omnibenchmark1k, vtab, sun397, food101
 
 
 class DataManager(object):
@@ -235,8 +235,14 @@ def _get_idata(dataset_name, args=None):
         return objectnet()
     elif name == "omnibenchmark":
         return omnibenchmark()
+    elif name == "omnibenchmark1k":
+        return omnibenchmark1k()
     elif name == "vtab":
         return vtab()
+    elif name == "sun397":
+        return sun397()
+    elif name == "food101":
+        return food101()
 
     else:
         raise NotImplementedError("Unknown dataset {}.".format(dataset_name))

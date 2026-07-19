@@ -58,6 +58,16 @@ def get_model(model_name, args):
         from models.inflora import Learner
     elif name == 'sketchlora':
         from models.sketchlora import Learner
+    elif name == 'hidelora':
+        from models.hidelora import Learner
+    elif name == 'treelora':
+        from models.treelora import Learner
+    elif name == 'cllora':
+        from models.cllora import Learner
+    elif name == 'rainbowprompt':
+        from models.rainbowprompt import Learner
+    elif name == 'progprompt':
+        from models.progprompt import Learner
     else:
         assert 0
     return Learner(args)

@@ -1,0 +1,44 @@
+{
+  "dataset": "cifar224",
+  "memory_size": 0,
+  "memory_per_class": 0,
+  "fixed_memory": false,
+  "shuffle": true,
+  "init_cls": 5,
+  "increment": 5,
+  "backbone_type": "vit_base_patch16_224_rainbowprompt",
+  "device": [
+    "2"
+  ],
+  "seed": [
+    1993
+  ],
+  "tuned_epoch": 20,
+  "init_lr": 0.03,
+  "batch_size": 48,
+  "weight_decay": 0.0,
+  "min_lr": 0.0,
+  "pretrained": true,
+  "print_forget": true,
+  "model_name": "rainbowprompt",
+  "prefix": "budget_smoke_rainbowprompt",
+  "rp_length": 20,
+  "self_attn_idx": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5
+  ],
+  "KI_iter": 10,
+  "pull_constraint_coeff": 0.1,
+  "use_linear": true,
+  "rp_D1": 28,
+  "rp_D2": 56,
+  "stop_after_tasks": 3,
+  "final_metrics": true,
+  "boundary_mode": "budget",
+  "budget_mb": 300,
+  "scenario": "cil"
+}
