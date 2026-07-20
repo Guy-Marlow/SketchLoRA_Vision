@@ -32,6 +32,16 @@ Notes:
   unchanged from the prior convention. CIFAR-100/SUN397/Food101 all move from
   20-task to 10-task splits, replacing the earlier 20-task convention used in
   `exps/final_vision/`.
+- **OmniBenchmark-1K is the designated long-horizon evaluation** — deliberately
+  the dataset with by far the most tasks (50, vs. 10-20 for everything else).
+  20 classes/task (rather than the tempting, more standard-looking 100 tasks ×
+  10 classes/task) was a deliberate choice: 100 tasks was judged too
+  restrictive per-task (fewer images/class reaching each task, and 2x the
+  bookkeeping-event count for bank-growing methods for comparatively little
+  extra long-horizon signal over 50 tasks). Not yet wired into
+  `scripts/gen_final_vision_configs.py`'s `DATASET_CFG` (which currently only
+  covers the 4 main-grid datasets) — open question whether this runs as part
+  of the main grid or as a separate track, given its distinct purpose.
 
 ## Native LAMDA-PILOT Defaults — InfLoRA, TUNA, EASE
 
