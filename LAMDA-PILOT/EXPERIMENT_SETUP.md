@@ -70,7 +70,7 @@ Notes:
   question whether this runs as part of the main grid or as a separate
   track, given its distinct purpose.
 
-## Native LAMDA-PILOT Defaults — InfLoRA, TUNA, EASE
+## Native LAMDA-PILOT Defaults — InfLoRA, TUNA, EASE (+ SeqLoRA)
 
 **Important distinction**: these are LAMDA-PILOT's own *bundled toolkit configs*
 (`exps/{inflora,inflora_20t,ease,ease_inr,tuna_cifar,tuna_inr}.json`, shipped
@@ -122,6 +122,20 @@ Note batch=48 in the native CIFAR-100 config already matches our unified grid
 convention (unlike InfLoRA's own separate reference repo, which uses 128) —
 LAMDA-PILOT's own port had already moved closer to what we use independently.
 
+### SeqLoRA
+
+**Decision 2026-07-20**: SeqLoRA shares InfLoRA's hyperparameters by default,
+on every benchmark — epochs=10, lr=0.0005, batch=48, rank=10, identical
+across CIFAR-100/ImageNet-R/SUN397/Food101/OmniBenchmark-1K (same table as
+InfLoRA above, minus `lamb`/`lame`, which are InfLoRA-specific orthogonality-
+penalty knobs with no SeqLoRA equivalent). This replaces the earlier unified-
+grid values for SeqLoRA specifically (lr was 3e-4, rank was 8). Note:
+`models/lora.py` (the shared LoRA-scaffold training loop SeqLoRA/InfLoRA/
+O-LoRA/SketchLoRA/TreeLoRA all use) hardcodes AdamW regardless of any
+`optim`/`optimizer` config value, so despite InfLoRA's native config
+literally saying `"optim": "adam"`, SeqLoRA (like InfLoRA) trains under
+AdamW in practice either way — not a real distinction here.
+
 ### TUNA
 
 | | CIFAR-100 (native, `exps/tuna_cifar.json`) | ImageNet-R (native, `exps/tuna_inr.json`) | SUN397 | Food101 | OmniBenchmark-1K |
@@ -161,13 +175,13 @@ worth being aware of if adopting these native settings as-is.
 
 ## Status: not yet applied to the production pipeline
 
-Everything in this document (dataset splits, InfLoRA/TUNA/EASE baseline HPs)
-is a **decision record only** — `scripts/gen_final_vision_configs.py` and
-`exps/final_vision/*.json` (the configs the live cluster run is actually
+Everything in this document (dataset splits, InfLoRA/TUNA/EASE/SeqLoRA
+baseline HPs) is a **decision record only** — `scripts/gen_final_vision_configs.py`
+and `exps/final_vision/*.json` (the configs the live cluster run is actually
 using) still reflect the *earlier* convention: 20-task splits for CIFAR-100/
 ImageNet-R/Food101/SUN397 (the old init_cls/increment values, not the ones
 in the Dataset Splits table above), OmniBenchmark-1K not present at all, and
 the unified batch=48/lr=3e-4/rank=8 convention applied uniformly to all 10
-methods including InfLoRA/TUNA/EASE (not their native per-dataset baselines
-above). None of this document's decisions have been wired into the actual
-generator or regenerated yet.
+methods including InfLoRA/TUNA/EASE/SeqLoRA (not their native per-dataset
+baselines above). None of this document's decisions have been wired into the
+actual generator or regenerated yet.
