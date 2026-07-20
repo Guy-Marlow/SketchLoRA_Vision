@@ -173,6 +173,73 @@ rank-8 convention used elsewhere in our grid — EASE's adapter dimension isn't
 directly comparable to a LoRA rank, but this is a real capacity difference
 worth being aware of if adopting these native settings as-is.
 
+## Native Paper/Repo Defaults — CL-LoRA, TreeLoRA
+
+Distinct from the "Native LAMDA-PILOT Defaults" section above: these come
+from each method's *own* paper (`literature/CL-LoRA.pdf`, `literature/
+treelora.txt`) and its own separate reference repo (`CL-LoRA/`, `TreeLoRA/`),
+not a LAMDA-PILOT-bundled config — there is no LAMDA-PILOT-native config for
+either method on any of our 5 benchmarks.
+
+**Coverage**: neither paper evaluates on SUN397, Food101, or OmniBenchmark —
+confirmed by full-text search of both papers (zero mentions of any of the
+three) and by their reference repos (CL-LoRA's `README.md`/`exps/` only list
+CIFAR-100/ImageNet-R/ImageNet-A/VTAB; TreeLoRA's repo contains *no vision
+code at all*, only the NLP/TRACE side — its vision numbers come from the
+paper text alone). Explicit non-coverage, not an unfound gap.
+
+### CL-LoRA
+
+Evaluates CIFAR-100, ImageNet-R, ImageNet-A, VTAB (paper Sec 5.1: *"we
+conduct comprehensive experiments on four representative CIL benchmarks
+including CIFAR-100, ImageNet-R, ImageNet-A, and VTAB"*). lr/epochs/batch/
+optimizer below come from the repo's own `exps/*.json` (not stated per-
+dataset in the paper text, which only fixes rank=10, λ1=5, λ2=0.0001, split
+point l=6 as constants across all its datasets, Sec 5.1 Implementation
+Details).
+
+| | CIFAR-100 (`CL-LoRA/exps/cifar.json`) | ImageNet-R (`CL-LoRA/exps/inr.json`) | SUN397 | Food101 | OmniBenchmark |
+|---|---|---|---|---|---|
+| native task split | 20 tasks × 5 cls (**not** our 10×10) | 40 tasks × 5 cls (**not** our 20×10) | *not evaluated* | *not evaluated* | *not evaluated* |
+| epochs | 30 / 30 | 20 / 20 | — | — | — |
+| optimizer | SGD, cosine | SGD, cosine | — | — | — |
+| lr | 0.03 | 0.05 | — | — | — |
+| batch size | 64 | 32 | — | — | — |
+| rank | 10 | 10 | — | — | — |
+| λ1 / λ2 | 5 / 0.0001 | 5 / 0.0001 | — | — | — |
+
+Both native splits are considerably finer-grained than ours (more, smaller
+tasks) — a real mismatch worth being aware of if adopting these HPs, since
+epoch/lr choices tuned for 20-40 tasks may not transfer cleanly to our
+10-20-task splits.
+
+### TreeLoRA
+
+Vision-track benchmarks: Split CIFAR-100, Split ImageNet-R, Split CUB-200
+(paper Sec 5.1; CUB-200 out of scope here). No SUN397/Food101/OmniBenchmark
+mentions anywhere in the paper or repo.
+
+| | CIFAR-100 | ImageNet-R | SUN397 | Food101 | OmniBenchmark |
+|---|---|---|---|---|---|
+| native task split | 10 tasks × 10 cls (**matches our split exactly**) | 10 tasks × 20 cls (**not** our 20×10) | *not evaluated* | *not evaluated* | *not evaluated* |
+| epochs | 20 | 50 | — | — | — |
+| optimizer | Adam (β1=0.9, β2=0.999) | Adam | — | — | — |
+| lr | 0.005 | 0.005 | — | — | — |
+| batch size | 192 | 192 | — | — | — |
+| λ (reg coeff) | 0.1 | 0.1 (no per-dataset override stated) | — | — | — |
+
+CIFAR-100's native split matches ours exactly, unlike CL-LoRA's.
+
+**Confirmed discrepancy** (verified directly, not just from the porting
+comment): our actual configs — `models/treelora.py`'s own default
+(`self.reg = args.get("reg", 0.5)`), `exps/review/task_incremental_imr5t/
+treelora.json`, and every `exps/final_vision/*_treelora_*.json` — all use
+`reg=0.5`. That value traces back to `TreeLoRA/scripts/lora_based_methods/
+Tree_LoRA.sh`, which is the **NLP/TRACE launch script**, not a vision source.
+The paper's own vision-section default is **λ=0.1** (Table 6 sensitivity
+study) — we're currently running TreeLoRA at 5x its paper-recommended
+regularization strength for vision. Worth deciding whether to correct this.
+
 ## Status: not yet applied to the production pipeline
 
 Everything in this document (dataset splits, InfLoRA/TUNA/EASE/SeqLoRA
