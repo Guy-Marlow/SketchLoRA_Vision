@@ -72,6 +72,13 @@ Notes:
 
 ## Native LAMDA-PILOT Defaults — InfLoRA, TUNA, EASE (+ SeqLoRA)
 
+**Locked in 2026-07-20**, confirmed via a live 3-task smoke test on GPU 1 for
+all 5 (method, dataset) pairs with a native config (InfLoRA/CIFAR-100, TUNA/
+CIFAR-100, TUNA/ImageNet-R, EASE/CIFAR-100, EASE/ImageNet-R) — all 5 finished
+cleanly with sensible, monotonically-decaying CIL accuracy and low-to-modest
+forgetting (0.9-6.65 over 3 tasks); no crashes, no anomalies. Metrics JSONs
+under `run_logs/final/{inflora,tuna,ease}/metrics_*native_defaults_smoke*.json`.
+
 **Important distinction**: these are LAMDA-PILOT's own *bundled toolkit configs*
 (`exps/{inflora,inflora_20t,ease,ease_inr,tuna_cifar,tuna_inr}.json`, shipped
 with this repo, unmodified) — a **different source** from each method's own
