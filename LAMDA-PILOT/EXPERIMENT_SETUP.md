@@ -18,20 +18,30 @@ divide evenly.
 | ImageNet-R | 200 | 10 | 10 | 20 |
 | CIFAR-100 | 100 | 10 | 10 | 10 |
 | SUN397 | 397 | 37 | 40 | 10 |
-| Food101 | 101 | 11 | 10 | 10 |
+| Food101 | 101 | 6 | 5 | 20 |
 | OmniBenchmark-1K | 1000 | 10 | 10 | 100 |
 
 Notes:
 - SUN397 (397) is prime, so no split of 10 tasks can be perfectly even; 37/40
   (task 0 slightly smaller, the other 9 equal) was chosen over the alternative
   10/43 to keep the non-uniform task closer in size to the rest.
-- CIFAR-100, Food101 (101 = 11 + 9×10), and OmniBenchmark-1K (1000 = 100×10,
+- CIFAR-100, Food101 (101 = 6 + 19×5), and OmniBenchmark-1K (1000 = 100×10,
   perfectly even) all divide cleanly or near-cleanly.
 - OmniBenchmark-1K is back in scope as of 2026-07-20 (previously dropped
   2026-07-19 for being under-studied/longest-running); ImageNet-R's split is
-  unchanged from the prior convention. CIFAR-100/SUN397/Food101 all move from
-  20-task to 10-task splits, replacing the earlier 20-task convention used in
-  `exps/final_vision/`.
+  unchanged from the prior convention. CIFAR-100/SUN397 move from 20-task to
+  10-task splits, replacing the earlier 20-task convention used in
+  `exps/final_vision/`. Food101 was also moved to 10-task, then brought back
+  up to 20-task (2026-07-20) — see note below.
+- **Food101 reverted to 20 tasks** (6/5 split, matching the original
+  pre-10-task convention exactly): at 10 tasks Food101 was 7,575 images/task,
+  the largest of any dataset in scope and not close to any other dataset's
+  current per-task volume. At 20 tasks it's 3,787.5 images/task — nonstandard
+  (no other dataset uses a 20-task split with this class/task shape) but the
+  closest available match is CIFAR-100's 5,000 images/task (ratio 0.76x,
+  diff 1,213) — closer than the 10-task version was to anything. Verified via
+  DataManager: init_cls=6, increment=5, 20 tasks, 101 classes, 75,750 total
+  images, no remainder.
 - **OmniBenchmark-1K is the designated long-horizon evaluation** — deliberately
   the dataset with by far the most tasks (100, vs. 10-20 for everything else).
   **Split finalized as 100 tasks × 10 classes/task** (1000 total training
