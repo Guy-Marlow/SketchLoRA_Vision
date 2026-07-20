@@ -79,54 +79,88 @@ or OmniBenchmark-1K, for any of InfLoRA/TUNA/EASE** (confirmed by direct
 search of `exps/*.json` — none match any of the three model names paired
 with those three datasets).
 
+**Extending to SUN397/Food101/OmniBenchmark-1K**: no native config exists for
+any of the three on these datasets, so each borrows the *closest-matching*
+existing dataset's HPs by images/task (same principle used for the dataset-
+split decisions above): Food101 (3,787.5 img/task) → **CIFAR-100** (ratio
+0.76x); OmniBenchmark-1K (1,687.2 img/task) → **ImageNet-R** (ratio 1.40x);
+SUN397 (1,985.0 img/task) is a **weak, ambiguous call** — technically closest
+to CIFAR-100 (ratio 0.40x from 1) vs. ImageNet-R (ratio 0.65x from 1), but the
+margin is small enough that this shouldn't be treated as a confident match
+either way; flagged rather than silently resolved.
+
 ### InfLoRA
 
-| | CIFAR-100 (native split: 10 tasks, `exps/inflora.json`) | CIFAR-100 (native split: 20 tasks, `exps/inflora_20t.json`) | ImageNet-R |
-|---|---|---|---|
-| init_cls/increment | 10/10 | 5/5 | *no bundled LAMDA-PILOT config* |
-| epochs | 10 | 10 | — |
-| optimizer | Adam | Adam | — |
-| lr | 0.0005 | 0.0005 | — |
-| batch size | 48 | 48 | — |
-| lora_rank | 10 | 10 | — |
-| lamb / lame | 0.95 / 1.0 | 0.95 / 1.0 | — |
+| | CIFAR-100 (native, `exps/inflora.json`) | ImageNet-R | SUN397 | Food101 | OmniBenchmark-1K |
+|---|---|---|---|---|---|
+| source | native (10-task variant matches our split exactly) | **no native LAMDA-PILOT config at all** | borrow CIFAR-100 (weak match) | borrow CIFAR-100 | borrow ImageNet-R — **but InfLoRA has no native ImageNet-R HPs to borrow** |
+| epochs | 10 | ? | 10 | 10 | ? |
+| optimizer | Adam | ? | Adam | Adam | ? |
+| lr | 0.0005 | ? | 0.0005 | 0.0005 | ? |
+| batch size | 48 | ? | 48 | 48 | ? |
+| lora_rank | 10 | ? | 10 | 10 | ? |
+| lamb / lame | 0.95 / 1.0 | ? | 0.95 / 1.0 | 0.95 / 1.0 | ? |
 
-The 10-task variant's split (10/10) matches our own chosen CIFAR-100 split
-exactly. Note batch=48 here already matches our unified convention (unlike
-InfLoRA's own separate reference repo, which uses 128) — LAMDA-PILOT's own
-port had already moved closer to what we're using independently.
+**Open gap**: InfLoRA has no bundled LAMDA-PILOT ImageNet-R config at all, and
+OmniBenchmark-1K's convention is "borrow ImageNet-R" — so InfLoRA has nothing
+to borrow for either. Two options: (a) fall back to InfLoRA's own *separate*
+reference-repo ImageNet-R config (`mimg20_inflora.json`, reported earlier in
+conversation: epochs=50, batch=128, lr=0.0005, rank=10, lamb=0.98 — a
+different source than "LAMDA-PILOT native," consistent with how this
+document has been distinguishing the two sources throughout), or (b) borrow
+CIFAR-100's InfLoRA HPs for both ImageNet-R and OmniBenchmark-1K instead.
+Needs a decision — not resolved yet.
+
+Note batch=48 in the native CIFAR-100 config already matches our unified grid
+convention (unlike InfLoRA's own separate reference repo, which uses 128) —
+LAMDA-PILOT's own port had already moved closer to what we use independently.
 
 ### TUNA
 
-| | CIFAR-100 (`exps/tuna_cifar.json`, 20-task: 5/5) | ImageNet-R (`exps/tuna_inr.json`, 10-task: 20/20) |
-|---|---|---|
-| epochs | 15 | 10 |
-| optimizer | SGD | SGD |
-| lr | 0.01 | 0.02 |
-| batch size | 16 | 32 |
-| r (adapter rank) | 16 | 16 |
-| use_orth | false | true |
-| decay | false | true |
+| | CIFAR-100 (native, `exps/tuna_cifar.json`) | ImageNet-R (native, `exps/tuna_inr.json`) | SUN397 | Food101 | OmniBenchmark-1K |
+|---|---|---|---|---|---|
+| source | native | native | borrow CIFAR-100 (weak match) | borrow CIFAR-100 | borrow ImageNet-R |
+| epochs | 15 | 10 | 15 | 15 | 10 |
+| optimizer | SGD | SGD | SGD | SGD | SGD |
+| lr | 0.01 | 0.02 | 0.01 | 0.01 | 0.02 |
+| batch size | 16 | 32 | 16 | 16 | 32 |
+| r (adapter rank) | 16 | 16 | 16 | 16 | 16 |
+| use_orth | false | true | false | false | true |
+| decay | false | true | false | false | true |
 
-Both native splits differ from our own chosen splits (CIFAR-100: native 20
-tasks vs. our 10; ImageNet-R: native 10 tasks vs. our 20) — HPs reported
-as-is from the native config regardless, since split and per-step HPs are
-tracked separately in this document.
+Native splits differ from our own chosen splits (CIFAR-100: native 20 tasks
+vs. our 10; ImageNet-R: native 10 tasks vs. our 20) — HPs reported as-is from
+the native config regardless, since split and per-step HPs are tracked
+separately in this document.
 
 ### EASE
 
-| | CIFAR-100 (`exps/ease.json`, 20-task: 5/5) | ImageNet-R (`exps/ease_inr.json`, 10-task: 20/20) |
-|---|---|---|
-| epochs | 20 | 20 |
-| optimizer | SGD | SGD |
-| lr | 0.025 | 0.05 |
-| batch size | 48 | 16 |
-| weight_decay | 0.0005 | 0.005 |
-| ffn_num (adapter dim) | 64 | 64 |
-| prompt_token_num | 5 | 5 |
-| alpha | 0.1 | 0.1 |
+| | CIFAR-100 (native, `exps/ease.json`) | ImageNet-R (native, `exps/ease_inr.json`) | SUN397 | Food101 | OmniBenchmark-1K |
+|---|---|---|---|---|---|
+| source | native | native | borrow CIFAR-100 (weak match) | borrow CIFAR-100 | borrow ImageNet-R |
+| epochs | 20 | 20 | 20 | 20 | 20 |
+| optimizer | SGD | SGD | SGD | SGD | SGD |
+| lr | 0.025 | 0.05 | 0.025 | 0.025 | 0.05 |
+| batch size | 48 | 16 | 48 | 48 | 16 |
+| weight_decay | 0.0005 | 0.005 | 0.0005 | 0.0005 | 0.005 |
+| ffn_num (adapter dim) | 64 | 64 | 64 | 64 | 64 |
+| prompt_token_num | 5 | 5 | 5 | 5 | 5 |
+| alpha | 0.1 | 0.1 | 0.1 | 0.1 | 0.1 |
 
 Same split caveat as TUNA above. ffn_num=64 here is notably larger than the
 rank-8 convention used elsewhere in our grid — EASE's adapter dimension isn't
 directly comparable to a LoRA rank, but this is a real capacity difference
 worth being aware of if adopting these native settings as-is.
+
+## Status: not yet applied to the production pipeline
+
+Everything in this document (dataset splits, InfLoRA/TUNA/EASE baseline HPs)
+is a **decision record only** — `scripts/gen_final_vision_configs.py` and
+`exps/final_vision/*.json` (the configs the live cluster run is actually
+using) still reflect the *earlier* convention: 20-task splits for CIFAR-100/
+ImageNet-R/Food101/SUN397 (the old init_cls/increment values, not the ones
+in the Dataset Splits table above), OmniBenchmark-1K not present at all, and
+the unified batch=48/lr=3e-4/rank=8 convention applied uniformly to all 10
+methods including InfLoRA/TUNA/EASE (not their native per-dataset baselines
+above). None of this document's decisions have been wired into the actual
+generator or regenerated yet.
