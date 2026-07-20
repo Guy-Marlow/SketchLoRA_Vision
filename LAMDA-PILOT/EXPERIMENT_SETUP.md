@@ -19,13 +19,13 @@ divide evenly.
 | CIFAR-100 | 100 | 10 | 10 | 10 |
 | SUN397 | 397 | 37 | 40 | 10 |
 | Food101 | 101 | 11 | 10 | 10 |
-| OmniBenchmark-1K | 1000 | 20 | 20 | 50 |
+| OmniBenchmark-1K | 1000 | 10 | 10 | 100 |
 
 Notes:
 - SUN397 (397) is prime, so no split of 10 tasks can be perfectly even; 37/40
   (task 0 slightly smaller, the other 9 equal) was chosen over the alternative
   10/43 to keep the non-uniform task closer in size to the rest.
-- CIFAR-100, Food101 (101 = 11 + 9×10), and OmniBenchmark-1K (1000 = 50×20,
+- CIFAR-100, Food101 (101 = 11 + 9×10), and OmniBenchmark-1K (1000 = 100×10,
   perfectly even) all divide cleanly or near-cleanly.
 - OmniBenchmark-1K is back in scope as of 2026-07-20 (previously dropped
   2026-07-19 for being under-studied/longest-running); ImageNet-R's split is
@@ -33,15 +33,24 @@ Notes:
   20-task to 10-task splits, replacing the earlier 20-task convention used in
   `exps/final_vision/`.
 - **OmniBenchmark-1K is the designated long-horizon evaluation** — deliberately
-  the dataset with by far the most tasks (50, vs. 10-20 for everything else).
-  20 classes/task (rather than the tempting, more standard-looking 100 tasks ×
-  10 classes/task) was a deliberate choice: 100 tasks was judged too
-  restrictive per-task (fewer images/class reaching each task, and 2x the
-  bookkeeping-event count for bank-growing methods for comparatively little
-  extra long-horizon signal over 50 tasks). Not yet wired into
-  `scripts/gen_final_vision_configs.py`'s `DATASET_CFG` (which currently only
-  covers the 4 main-grid datasets) — open question whether this runs as part
-  of the main grid or as a separate track, given its distinct purpose.
+  the dataset with by far the most tasks (100, vs. 10-20 for everything else).
+  **Split finalized as 100 tasks × 10 classes/task** (1000 total training
+  images / task-count comparison, verified against the real dataset —
+  168,718 train images total): this gives **1,687 images/task**, the closest
+  match among all candidates to an existing dataset's current per-task volume
+  — specifically ImageNet-R's current 20-task split (1,204 images/task, ratio
+  1.40x). The alternative 50-task/20-class split (3,374 images/task) was
+  rejected: it sits roughly between CIFAR-100 (5,000/task, ratio 0.67x) and
+  ImageNet-R (ratio 2.80x) without closely matching either. **HP convention:
+  OmniBenchmark-1K should use whatever hyperparameters each method already
+  uses for its ImageNet-R 20-task split** (both the unified-grid batch=48/
+  lr=3e-4 convention, and — for InfLoRA/TUNA/EASE specifically — the native
+  LAMDA-PILOT ImageNet-R defaults documented below), as a starting point,
+  rather than deriving a new OmniBenchmark-specific HP set from scratch. Not
+  yet wired into `scripts/gen_final_vision_configs.py`'s `DATASET_CFG` (which
+  currently only covers the 4 main-grid datasets) — open question whether
+  this runs as part of the main grid or as a separate track, given its
+  distinct purpose.
 
 ## Native LAMDA-PILOT Defaults — InfLoRA, TUNA, EASE
 
