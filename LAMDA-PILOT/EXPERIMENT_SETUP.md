@@ -32,3 +32,72 @@ Notes:
   unchanged from the prior convention. CIFAR-100/SUN397/Food101 all move from
   20-task to 10-task splits, replacing the earlier 20-task convention used in
   `exps/final_vision/`.
+
+## Native LAMDA-PILOT Defaults — InfLoRA, TUNA, EASE
+
+**Important distinction**: these are LAMDA-PILOT's own *bundled toolkit configs*
+(`exps/{inflora,inflora_20t,ease,ease_inr,tuna_cifar,tuna_inr}.json`, shipped
+with this repo, unmodified) — a **different source** from each method's own
+separate paper/reference-repo defaults (e.g. InfLoRA's own repo uses
+epochs=20/batch=128 for CIFAR-100, vs. LAMDA-PILOT's own bundled port below,
+which uses epochs=10/batch=48 — already much closer to our unified
+convention). Reported separately from the earlier InfLoRA-paper numbers to
+avoid conflating the two sources.
+
+**Coverage**: LAMDA-PILOT bundles native configs for CIFAR-100 and ImageNet-R
+only, for all three methods. **No bundled config exists for SUN397, Food101,
+or OmniBenchmark-1K, for any of InfLoRA/TUNA/EASE** (confirmed by direct
+search of `exps/*.json` — none match any of the three model names paired
+with those three datasets).
+
+### InfLoRA
+
+| | CIFAR-100 (native split: 10 tasks, `exps/inflora.json`) | CIFAR-100 (native split: 20 tasks, `exps/inflora_20t.json`) | ImageNet-R |
+|---|---|---|---|
+| init_cls/increment | 10/10 | 5/5 | *no bundled LAMDA-PILOT config* |
+| epochs | 10 | 10 | — |
+| optimizer | Adam | Adam | — |
+| lr | 0.0005 | 0.0005 | — |
+| batch size | 48 | 48 | — |
+| lora_rank | 10 | 10 | — |
+| lamb / lame | 0.95 / 1.0 | 0.95 / 1.0 | — |
+
+The 10-task variant's split (10/10) matches our own chosen CIFAR-100 split
+exactly. Note batch=48 here already matches our unified convention (unlike
+InfLoRA's own separate reference repo, which uses 128) — LAMDA-PILOT's own
+port had already moved closer to what we're using independently.
+
+### TUNA
+
+| | CIFAR-100 (`exps/tuna_cifar.json`, 20-task: 5/5) | ImageNet-R (`exps/tuna_inr.json`, 10-task: 20/20) |
+|---|---|---|
+| epochs | 15 | 10 |
+| optimizer | SGD | SGD |
+| lr | 0.01 | 0.02 |
+| batch size | 16 | 32 |
+| r (adapter rank) | 16 | 16 |
+| use_orth | false | true |
+| decay | false | true |
+
+Both native splits differ from our own chosen splits (CIFAR-100: native 20
+tasks vs. our 10; ImageNet-R: native 10 tasks vs. our 20) — HPs reported
+as-is from the native config regardless, since split and per-step HPs are
+tracked separately in this document.
+
+### EASE
+
+| | CIFAR-100 (`exps/ease.json`, 20-task: 5/5) | ImageNet-R (`exps/ease_inr.json`, 10-task: 20/20) |
+|---|---|---|
+| epochs | 20 | 20 |
+| optimizer | SGD | SGD |
+| lr | 0.025 | 0.05 |
+| batch size | 48 | 16 |
+| weight_decay | 0.0005 | 0.005 |
+| ffn_num (adapter dim) | 64 | 64 |
+| prompt_token_num | 5 | 5 |
+| alpha | 0.1 | 0.1 |
+
+Same split caveat as TUNA above. ffn_num=64 here is notably larger than the
+rank-8 convention used elsewhere in our grid — EASE's adapter dimension isn't
+directly comparable to a LoRA rank, but this is a real capacity difference
+worth being aware of if adopting these native settings as-is.
