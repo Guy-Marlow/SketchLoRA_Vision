@@ -71,6 +71,8 @@ from torch import optim
 from torch.nn import functional as F
 from torch.utils.data import DataLoader
 
+from utils.metrics_logger import MetricsLogger
+
 num_workers = 8
 BYTES_PER_IMAGE = 224 * 224 * 3   # same accounting convention as budget_stream.py / stream_mixin.py
 
@@ -345,11 +347,30 @@ class BoundedMemoryMixin:
         task_image_cumends = np.cumsum(task_image_sizes)
         task_class_cumends = np.cumsum(task_class_sizes)
 
+        # ---- metrics logging: runtime, persistent memory, peak VRAM, inference
+        # FLOPs/latency (found MISSING entirely from this harness 2026-07-27 --
+        # every prior bounded_memory run, interactive and the H200 production
+        # grid alike, recorded accuracy only). ALWAYS ON here (unlike the oracle
+        # path's "final_metrics" opt-in gate in trainer.py -- there is no other
+        # track sharing this specific driver to protect from the overhead, and
+        # this harness IS the production grid, so there is no case where these
+        # metrics shouldn't be collected). Reuses utils/metrics_logger.py's
+        # MetricsLogger completely unchanged -- same per-method
+        # persistent_state()/_deployed_forward hooks the oracle path already
+        # uses (confirmed present for all 5 round-2 methods: SeqLoRA/O-LoRA/
+        # InfLoRA/TreeLoRA inherit LoRALearner's _deployed_forward, SketchLoRA
+        # overrides its own) -- nothing here is SketchLoRA-specific or
+        # method-specific in any way.
+        _metrics_tag = "{}_{}_s{}".format(args["model_name"], args.get("prefix", "run"), seed0)
+        mlog = MetricsLogger(os.path.join("run_logs", "final", args["model_name"]), _metrics_tag, args)
+        self._bounded_metrics_path = mlog.out_path
+
         results = []
         cum_images = 0
         next_ckpt_idx = 0
         cycle_idx = -1
         _prev_param_hash = None   # Round 2 §2.2 eval-routing identity check
+        mlog.begin_task()   # starts timing the FIRST checkpoint-interval
         while cum_images < total_images:
             cycle_idx += 1
             c_start = cum_images
@@ -380,6 +401,22 @@ class BoundedMemoryMixin:
             self._stream_end_chunk(loader)
 
             cum_images = c_end
+            # CHECKPOINT-interval granularity, not per-cycle: a checkpoint spans
+            # ~cycles_per_checkpoint (often 5-10) training cycles, and
+            # mlog.begin_task()/mark_train_done() bracket exactly that whole span --
+            # so train_seconds below is the REAL accumulated training time since the
+            # last checkpoint, not a fraction of it. persistent_state()/peak-VRAM/
+            # disk-write only happen at checkpoint frequency (matching
+            # _bounded_checkpoint_write's own existing cadence exactly, not more
+            # often) -- doing this every raw cycle instead would multiply disk I/O
+            # and the persistent_state() python-loop 5-10x for zero measurement
+            # benefit, since nothing about persistent state needs finer-than-
+            # checkpoint resolution to be meaningful.
+            checkpoint_due = (next_ckpt_idx < len(checkpoint_images)
+                              and cum_images >= checkpoint_images[next_ckpt_idx])
+            if checkpoint_due:
+                mlog.mark_train_done()   # ends TRAIN time for the whole interval just finished
+            cnn_accy = None
             while next_ckpt_idx < len(checkpoint_images) and cum_images >= checkpoint_images[next_ckpt_idx]:
                 acc, acc5, hi_total, per_task_acc, per_task_acc5 = self._bounded_eval(
                     all_data, all_targets, cum_images, data_manager, task_class_cumends)
@@ -392,6 +429,7 @@ class BoundedMemoryMixin:
                         "{}) -- eval may be reading a stale/frozen state instead of the "
                         "just-trained one.".format(cycle_idx, cycle_idx))
                 _prev_param_hash = param_hash
+                cnn_accy = {"top1": acc}   # feeds mlog.record_task below, once per checkpoint
                 logging.info(
                     "[bounded_mem eval] volume {:.2f} | cycle {} | classes_seen {} | "
                     "CIL top1 {:.2f} | top5 {:.2f} | (nearest latent task ~{}) | "
@@ -415,6 +453,26 @@ class BoundedMemoryMixin:
                 _bounded_checkpoint_write(args, results, total_sessions, cycle_images,
                                           budget_mb, total_images)
                 next_ckpt_idx += 1
+
+            if checkpoint_due:
+                mlog.record_task(self, cycle_idx, cnn_accy, None)
+                mlog.begin_task()   # start timing the NEXT checkpoint-interval immediately
+
+        # ---- final inference-cost measurement (FLOPs/latency) + finalize ----
+        # Measured once, at the end, over the full final class range -- same
+        # convention as the oracle path's record_inference_cost call. cnn_matrix/
+        # til_matrix are intentionally None: bounded_memory has no real per-task
+        # boundary matrix to compute FAA/AIA/forgetting/BWT from (this harness is
+        # explicitly boundary-free -- see module docstring), so finalize() just
+        # marks the metrics JSON "done" without attempting a CL-summary that
+        # doesn't have a well-defined meaning here (mirrors how TIL is already
+        # "not computed -- meaningless in the memory-increment setup").
+        final_test_set = data_manager.get_dataset(
+            np.arange(0, data_manager.nb_classes), source="test", mode="test")
+        final_test_loader = DataLoader(final_test_set, batch_size=64, shuffle=False,
+                                       num_workers=num_workers)
+        mlog.record_inference_cost(self, final_test_loader)
+        mlog.finalize(None, None, cycle_idx)
 
         self._bounded_results = results
         return results

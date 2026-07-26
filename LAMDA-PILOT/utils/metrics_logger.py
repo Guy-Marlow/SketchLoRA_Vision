@@ -133,9 +133,9 @@ class MetricsLogger:
         os.makedirs(out_dir, exist_ok=True)
         self.out_path = os.path.join(out_dir, "metrics_{}.json".format(tag))
         keep = ("model_name", "dataset", "init_cls", "increment", "seed", "scenario",
-                "boundary_mode", "budget_mb", "n_lora_blocks", "lora_rank", "lora_alpha",
-                "svd_energy_target", "svd_rank", "svd_period", "merge_op", "cs_rank",
-                "lamda_1", "lamda_2", "lamb", "lame")
+                "boundary_mode", "budget_mb", "bm_budget_mb", "n_lora_blocks", "lora_rank",
+                "lora_alpha", "svd_energy_target", "svd_rank", "svd_period", "merge_op",
+                "cs_rank", "lamda_1", "lamda_2", "lamb", "lame")
         self.meta = {
             "args_subset": {k: args.get(k) for k in keep},
             "status": "running",
