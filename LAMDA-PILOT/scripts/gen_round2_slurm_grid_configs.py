@@ -1,6 +1,8 @@
 """Config generator for the round-2 SLURM grid (user request 2026-07-27):
 SeqLoRA, SketchLoRA, O-LoRA, InfLoRA, TreeLoRA x {100, 200}MB x 3 seeds,
-OmniBenchmark-1K, 30 latent tasks, bounded_memory boundary mode -- same
+OmniBenchmark-1K, full 100-task split (REVISED 2026-07-27, was truncated to
+30 to match this session's interactive testing-cluster runs -- production
+runs use the full split), bounded_memory boundary mode -- same
 harness/fixes as the round-2 dose-response grid (exps/round2_grid/), just a
 different method/budget/seed subset plus TreeLoRA (new to round 2) and a
 frozen (non-ramped) InfLoRA retention setting.
@@ -59,7 +61,7 @@ BASE = dict(
     batch_size=48, weight_decay=0.0005, min_lr=0.0,
     tuned_epoch=20,
     boundary_mode="bounded_memory",
-    stop_after_tasks=30,
+    stop_after_tasks=100,  # full OmniBenchmark-1K split (100 tasks x 10 classes = 1000 classes)
     device=["0"],
 )
 

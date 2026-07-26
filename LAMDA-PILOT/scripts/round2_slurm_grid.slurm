@@ -10,8 +10,10 @@
 #
 # Round-2 SLURM grid (user request 2026-07-27, scheduling revised 2026-07-27):
 # SeqLoRA, SketchLoRA, O-LoRA, InfLoRA, TreeLoRA x {100, 200}MB x 3 seeds
-# (1993, 1996, 1999), OmniBenchmark-1K, 30 latent tasks, bounded_memory
-# boundary mode -- 30 runs total. SketchLoRA uses svd_energy_target=0.01 and
+# (1993, 1996, 1999), OmniBenchmark-1K, FULL 100-task split (REVISED
+# 2026-07-27 from a 30-task truncation -- see
+# scripts/gen_round2_slurm_grid_configs.py), bounded_memory boundary mode --
+# 30 runs total. SketchLoRA uses svd_energy_target=0.01 and
 # merge_op=randsvd/svd_oversampling=10 (REVERTED to RandSVD, user-specified:
 # RandSVD is central to the method's guarantees and its incurred error is
 # low -- supersedes round-2 2.5's temporary exact-SVD-until-cleared fallback,
