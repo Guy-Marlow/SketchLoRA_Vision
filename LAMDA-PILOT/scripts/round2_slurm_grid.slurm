@@ -112,13 +112,21 @@ run_one() {
   local prefix="round2_slurm_grid_omni30t_${budget}mb_${method}_s${seed}"
   # matches trainer.py::_run_bounded_memory's exact output path
   local json="run_logs/boundedmem_${method}_${prefix}_s${seed}.json"
+  # matches models/bounded_memory_mixin.py's MetricsLogger tag/out_path exactly
+  # (metrics-logging fix, commit 2645b71): a run that completed BEFORE that fix
+  # landed has a "done" accuracy json but no (or an incomplete) metrics json --
+  # skip-if-done must require BOTH, or a resubmission would silently skip every
+  # run that already finished under the old accuracy-only code, permanently
+  # leaving it without runtime/persistent-memory/FLOP data.
+  local metrics_json="run_logs/final/${method}/metrics_${method}_${prefix}_s${seed}.json"
 
   if [ ! -f "$config" ]; then
     echo "==== SKIP (no config) ${tag} $(date) ===="
     return
   fi
-  if [ -f "$json" ] && grep -q '"partial": false' "$json"; then
-    echo "==== SKIP (done) ${tag} $(date) ===="
+  if [ -f "$json" ] && grep -q '"partial": false' "$json" \
+     && [ -f "$metrics_json" ] && grep -q '"status": "done"' "$metrics_json"; then
+    echo "==== SKIP (done, accuracy+metrics both complete) ${tag} $(date) ===="
     return
   fi
   echo "==== START [gpu ${gpu}] ${tag} $(date) ===="
