@@ -46,6 +46,44 @@ class Learner(LoRALearner):
         self.project_type = []                    # 'remove' | 'retain' per layer
         self.feature_mat = []                     # per-layer projection matrices
 
+    # FLAGGED CHANGE (2026-07-21): exact persistent_state() override, added
+    # alongside the free_folded_slots() fix above. Previously InfLoRA had no
+    # override and fell back to utils.metrics_logger.default_persistent_state(),
+    # which was measuring the wrong thing entirely: it sums named_parameters(),
+    # which (a) INCLUDED the (now-freed) dead per-task lora_A/lora_B bank, and
+    # (b) EXCLUDED frozen_delta_q/frozen_delta_v entirely, since those are
+    # register_buffer, not nn.Parameter, so named_parameters() never saw them.
+    # This override counts what InfLoRA's algorithm actually needs to persist:
+    # the folded delta (bounded, O(d^2) per block), the DualGPM bases that seed
+    # future tasks' analytic A, and the current (not-yet-folded) task's own live
+    # slot -- matching exactly what free_folded_slots() leaves allocated.
+    def persistent_state(self):
+        net = self._network.module if hasattr(self._network, "module") else self._network
+        frozen_delta_bytes = 0
+        for attn in net.attn_modules():
+            frozen_delta_bytes += attn.frozen_delta_q.numel() * attn.frozen_delta_q.element_size()
+            frozen_delta_bytes += attn.frozen_delta_v.numel() * attn.frozen_delta_v.element_size()
+        cur_slot_bytes = 0
+        for attn in net.attn_modules():
+            for mlist in (attn.lora_A_q, attn.lora_B_q, attn.lora_A_v, attn.lora_B_v):
+                for p in mlist[self._cur_task].parameters():
+                    cur_slot_bytes += p.numel() * p.element_size()
+        # feature_mat is a cached derivative of feature_list (feature_mat[i] =
+        # feature_list[i] @ feature_list[i].T) -- recomputable, not fundamentally
+        # needed to persist, but counted here anyway since it's actually held in
+        # memory right now (this project's "raw allocation" accounting convention,
+        # same as sketchlora's persistent_state -- see its docstring).
+        dualgpm_bytes = 0
+        for f in self.feature_list:
+            dualgpm_bytes += f.numel() * f.element_size()
+        for m in self.feature_mat:
+            dualgpm_bytes += m.numel() * m.element_size()
+        fc_bytes = sum(p.numel() * p.element_size() for p in net.fc.parameters()) if net.fc is not None else 0
+        total_bytes = frozen_delta_bytes + cur_slot_bytes + dualgpm_bytes + fc_bytes
+        return {"params": int(total_bytes // 4), "bytes": int(total_bytes),
+                "breakdown": {"frozen_delta": frozen_delta_bytes, "current_slot": cur_slot_bytes,
+                             "dualgpm_bases": dualgpm_bytes, "fc": fc_bytes}}
+
     # -- TIL eval must use InfLoRA's *merged* adapter -------------------
     # Like O-LoRA, InfLoRA trains and infers with the merged sum (merge=True).
     # The inherited TIL routing (slot t alone, merge=False) mismatches training
@@ -69,6 +107,16 @@ class Learner(LoRALearner):
     def _stream_slot(self):
         return self._stream_chunk
 
+    # Plan C §C1 concession: total_sessions (T, used by update_DualGPM's
+    # threshold ramp below) is normally the real task count; under bounded-
+    # memory streaming there is no real task count available a priori in the
+    # same sense, so the harness computes T := ceil(stream_images/cycle_images)
+    # and sets it once via this hook before training starts (models/
+    # bounded_memory_mixin.py::bounded_memory_run). No-op default lives on
+    # BoundedMemoryMixin; only InfLoRA needs this concession.
+    def _bounded_set_total_sessions(self, total_sessions):
+        self.total_sessions = total_sessions
+
     def _stream_begin_chunk(self, loader):
         self._stream_chunk += 1
         if self._stream_chunk > 0:
@@ -77,6 +125,10 @@ class Learner(LoRALearner):
             self._network.add_task_slot()
         self._cur_task = self._stream_chunk      # _init_lora_A / DualGPM read _cur_task as slot
         self._network.freeze_to_task(self._stream_chunk, train_a=False)
+        # FLAGGED CHANGE (2026-07-21): freeze_to_task just folded chunk-1's slot into
+        # frozen_delta -- free its now-fully-redundant weight memory (see
+        # Attention_LoRA.free_folded_slot's docstring; InfLoRA-specific, safe here).
+        self._network.free_folded_slots(self._stream_chunk - 1)
         for p in self._network.fc.parameters():
             p.requires_grad = True
         self._network.to(self._device)
@@ -96,8 +148,20 @@ class Learner(LoRALearner):
         self._network.default_task = self._cur_task
         logging.info("[InfLoRA] Learning on {}-{}".format(self._known_classes, self._total_classes))
 
+        # Grow one adapter slot if this task needs an index that isn't allocated
+        # yet (construction only preallocates slot 0 -- see utils/inc_net.py).
+        if self._cur_task >= self._network.backbone.n_tasks:
+            self._network.add_task_slot()
+
         # only B (+ head) trainable; A is set analytically below
         self._network.freeze_to_task(self._cur_task, train_a=False)
+        # FLAGGED CHANGE (2026-07-21): freeze_to_task just folded task-1's slot into
+        # frozen_delta -- free its now-fully-redundant weight memory (see
+        # Attention_LoRA.free_folded_slot's docstring; InfLoRA-specific, safe here;
+        # NOT applied to O-LoRA/TreeLoRA/HideLoRA, which also opt into folding but
+        # may still need individual past slots -- O-LoRA's orthogonality penalty
+        # genuinely reads every past lora_A forever).
+        self._network.free_folded_slots(self._cur_task - 1)
         for p in self._network.fc.parameters():
             p.requires_grad = True
 

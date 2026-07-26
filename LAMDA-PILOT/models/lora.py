@@ -27,12 +27,13 @@ from tqdm import tqdm
 from utils.inc_net import LoRAVitNet
 from models.til_base import TILLearner
 from models.stream_mixin import StreamMixin
+from models.bounded_memory_mixin import BoundedMemoryMixin
 from utils.toolkit import tensor2numpy
 
 num_workers = 8
 
 
-class Learner(StreamMixin, TILLearner):
+class Learner(StreamMixin, BoundedMemoryMixin, TILLearner):
     def __init__(self, args):
         super().__init__(args)
         self._network = LoRAVitNet(args, True)
@@ -82,6 +83,13 @@ class Learner(StreamMixin, TILLearner):
         self._network.default_task = self._train_adapter()
         logging.info("Learning on {}-{}".format(self._known_classes, self._total_classes))
 
+        # Grow one adapter slot if this task needs an index that isn't allocated
+        # yet (construction only preallocates slot 0 -- see utils/inc_net.py).
+        # No-op for SeqLoRA (_train_adapter() always returns 0) and for
+        # sketchlora (bounded by its fixed lora_n_slots, never reaches it).
+        if self._train_adapter() >= self._network.backbone.n_tasks:
+            self._network.add_task_slot()
+
         # only the active LoRA + head are trainable
         self._network.freeze_to_task(self._train_adapter())
         for p in self._network.fc.parameters():
@@ -114,9 +122,18 @@ class Learner(StreamMixin, TILLearner):
             return self.data_manager.ce_range(self._cur_task)
         return self._known_classes, self._total_classes
 
+    # Trainable parameters for the optimizer -- a flat list by default (uniform
+    # weight_decay=self.weight_decay for everything, exactly the previous inline
+    # behavior, byte-for-byte unchanged for every method that doesn't override
+    # this). A subclass needing per-group weight_decay (e.g. SketchLoRA's frozen
+    # variant, Plan A §A5.1: wd=0 for LoRA params only) can instead return a list
+    # of optim.AdamW-style param-group dicts.
+    def _optimizer_param_groups(self):
+        return [p for p in self._network.parameters() if p.requires_grad]
+
     def _train(self, train_loader):
         self._network.to(self._device)
-        params = [p for p in self._network.parameters() if p.requires_grad]
+        params = self._optimizer_param_groups()
         optimizer = optim.AdamW(params, lr=self.init_lr, weight_decay=self.weight_decay)
         scheduler = optim.lr_scheduler.CosineAnnealingLR(
             optimizer, T_max=self.epochs, eta_min=self.min_lr) if self.lr_anneal else None

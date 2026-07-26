@@ -344,7 +344,7 @@ class VisionTransformer(nn.Module):
     def init_adapters(self):
         self.cur_adapter = nn.ModuleList()
         for i in range(len(self.blocks)):
-            adapter = Adapter(self.config, dropout=0.1, bottleneck=16,
+            adapter = Adapter(self.config, dropout=0.1, bottleneck=self.r,
                               init_option="lora",
                               adapter_scalar="0.1",
                               adapter_layernorm_option="none",

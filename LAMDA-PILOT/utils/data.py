@@ -103,6 +103,16 @@ def build_transform(is_train, args):
             transforms.RandomResizedCrop(input_size, scale=scale, ratio=ratio),
             transforms.RandomHorizontalFlip(p=0.5),
             transforms.ToTensor(),
+            # FLAGGED CHANGE (2026-07-23): ImageNet mean/std normalize, matching the
+            # pretrained ViT-B/16 backbone's own expected input distribution -- this
+            # pipeline previously fed raw [0,1] ToTensor output with no channel
+            # normalization at all. Smoke-tested via SeqLoRA/ImageNet-R 5-task before
+            # being adopted broadly; see conversation history for the decision. NOTE:
+            # InfLoRA shows a larger, growing accuracy gap under normalization than
+            # SeqLoRA did (controlled A/B, same lr/tasks/eval) -- likely needs its own
+            # re-tuning pass (InfLoRA's adapter init/DualGPM are covariance-derived,
+            # directly sensitive to input scale) before treating it as settled here.
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
         ]
         return transform
 
@@ -114,7 +124,8 @@ def build_transform(is_train, args):
         )
         t.append(transforms.CenterCrop(input_size))
     t.append(transforms.ToTensor())
-    
+    t.append(transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]))
+
     # return transforms.Compose(t)
     return t
 

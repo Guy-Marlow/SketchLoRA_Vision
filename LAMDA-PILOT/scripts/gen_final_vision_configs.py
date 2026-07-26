@@ -34,9 +34,18 @@ grid); epoch count (30/task, native) and ffn_num=8 (already rank-8) left as-is.
 utils/flops.py for what gets recorded (persistent_state/_deployed_forward now
 implemented for all 10 methods).
 
-HiDeLoRA and OmniBenchmark-1k are OUT of scope per user decision 2026-07-19
-(HiDeLoRA won't be used in either final evaluation; OmniBenchmark-1k dropped
-for being under-studied and by far the longest-running split).
+SUPERSEDED (2026-07-21): the 2026-07-19 decision below excluded HiDeLoRA and
+OmniBenchmark-1k. OmniBenchmark-1k was already brought back 2026-07-20 (see
+EXPERIMENT_SETUP.md's Dataset Splits section). HiDeLoRA is now back in too,
+replacing ProgPrompt -- ProgPrompt was dropped 2026-07-21 for not being
+specialized toward class-incremental evaluation (this project's actual focus);
+HiDeLoRA needs its own tuning pass (still on rank=8/alpha=32/lr=0.03/50ep from
+an earlier, separate investigation -- never run under this session's
+rank=10/scale-x1 convention) before its results here should be trusted.
+Original 2026-07-19 text, kept for history: "HiDeLoRA and OmniBenchmark-1k are
+OUT of scope (HiDeLoRA won't be used in either final evaluation;
+OmniBenchmark-1k dropped for being under-studied and by far the
+longest-running split)."
 """
 import json
 import os
@@ -44,13 +53,11 @@ import os
 SRC_DIR = "exps/review/task_incremental_imr5t"
 OUT_DIR = "exps/final_vision"
 METHODS = ["seqlora", "olora", "inflora", "sketchlora", "treelora", "cllora",
-           "rainbowprompt", "progprompt", "ease", "tuna"]
+           "rainbowprompt", "hidelora", "ease", "tuna"]
 SEEDS = [1993, 1994, 1995]
 
 # method -> {config_field: value} overrides applied after the batch/lr convention.
-EPOCH_OVERRIDES = {
-    "progprompt": {"tuned_epoch": 15},
-}
+EPOCH_OVERRIDES = {}
 
 # Full 20-task splits (established convention, see BOUNDARY_AGNOSTIC_IMPLEMENTATION_LOG.md
 # and the plan doc's task-split discussion -- sun397/food101 don't divide evenly into 20

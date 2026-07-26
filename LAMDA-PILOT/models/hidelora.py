@@ -126,6 +126,12 @@ class Learner(LoRALearner):
         self._network.default_task = self._cur_task
         logging.info("[HiDeLoRA] Learning on {}-{}".format(self._known_classes, self._total_classes))
 
+        # Grow one adapter slot if this task needs an index that isn't allocated
+        # yet (construction only preallocates slot 0 -- see utils/inc_net.py).
+        # Must happen before _warm_start(), which writes into A_list[t]/B_list[t].
+        if self._cur_task >= self._network.backbone.n_tasks:
+            self._network.add_task_slot()
+
         if self._cur_task > 0 and self.lora_warmstart:
             self._warm_start()
 

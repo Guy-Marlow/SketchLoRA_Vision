@@ -266,19 +266,22 @@ def get_backbone(args, pretrained=False):
     # Baseline per-task LoRA (q,v) backbone -- see backbone/vit_lora.py
     elif '_lora' in name:
         from backbone import vit_lora
-        # number of preallocated LoRA slots; defaults to one-per-task (O-LoRA et
-        # al.), but a bounded-memory method (sketchlora) can request a constant
-        # count via "lora_n_slots" so its footprint is O(1) in the task count.
-        # Under boundary-agnostic streaming (boundary_mode=="sample"), the number
-        # of adapter-fold events is driven by a memory-constraint sample
-        # threshold, not by real task count, so it is NOT generically bounded by
-        # nb_tasks (confirmed by direct crashes -- see
-        # BOUNDARY_AGNOSTIC_IMPLEMENTATION_LOG.md's "BLOCKING ARCHITECTURAL GAP"
-        # section). Start with a single slot and grow one at a time via
-        # add_task_slot() (called from each streaming Learner's
-        # _stream_begin_chunk) instead of guessing an upper bound.
-        n_tasks = args.get("lora_n_slots",
-                            1 if args.get("boundary_mode") == "sample" else args["nb_tasks"])
+        # Number of preallocated LoRA slots at construction. Always start with a
+        # single slot and grow one at a time via add_task_slot() -- called from
+        # every plain per-task Learner's incremental_train (models/lora.py,
+        # models/inflora.py) whenever the adapter index it needs doesn't exist
+        # yet, and from each streaming Learner's _stream_begin_chunk. Previously
+        # this pre-allocated the FULL nb_tasks count upfront for the plain path,
+        # which made persistent_state()'s "lora_slots" byte count constant across
+        # the whole run for SeqLoRA/O-LoRA/InfLoRA/TreeLoRA (all sharing this
+        # scaffold) -- the metric was reporting allocated capacity, not actually-
+        # accumulated adapter mass, masking O-LoRA/TreeLoRA/InfLoRA's genuine
+        # per-task growth entirely. A bounded-memory method (sketchlora) still
+        # requests a constant count via "lora_n_slots" so its O(1) footprint is
+        # unaffected; SeqLoRA never grows past its initial slot 0 either (its
+        # _train_adapter() always returns 0, so the growth check in
+        # incremental_train never fires for it).
+        n_tasks = args.get("lora_n_slots", 1)
         lora_rank = args.get("lora_rank", 10)
         lora_alpha = args.get("lora_alpha", None)
         # restrict trainable LoRA to the first n blocks (q,v -> 2n matrices) for ALL
@@ -1602,6 +1605,12 @@ class LoRAVitNet(BaseNet):
     # -- frozen-slot folding passthrough (opt-in, plan doc §6 item 2) ----
     def enable_frozen_folding(self):
         self.backbone.enable_frozen_folding()
+
+    # FLAGGED CHANGE (2026-07-21): passthrough for the free_folded_slots fix --
+    # see backbone/vit_lora.py's VisionTransformer.free_folded_slots /
+    # Attention_LoRA.free_folded_slot docstrings. InfLoRA-specific, opt-in.
+    def free_folded_slots(self, task):
+        self.backbone.free_folded_slots(task)
 
     # -- input-covariance collection passthrough (InfLoRA) --------------
     def set_collect(self, flag):

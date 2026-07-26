@@ -89,6 +89,50 @@ class Learner(LoRALearner):
         # behaviour above.
         self.merge_op = args.get("merge_op", "randsvd")
         assert self.merge_op in ("randsvd", "exactsvd", "countsketch", "naive_sum", "nocompress")
+        # -- Plan A §A5.1/§A5.2 "frozen" SketchLoRA variant (impl_plan_7.25.2026) --
+        # All three knobs below default to the ORIGINAL, unmodified behavior --
+        # every existing config/run is byte-for-byte unaffected. Set explicitly
+        # (sketchlora_admission="bounded_eviction", sketchlora_rank_cap=128,
+        # sketchlora_lora_wd=0.0) to opt into the frozen variant Plan C requires.
+        # See docs/sketchlora_frozen_variant.md for the full design writeup.
+        self.admission_rule = args.get("sketchlora_admission", "global_eps")
+        assert self.admission_rule in ("global_eps", "bounded_eviction")
+        if self.admission_rule == "bounded_eviction":
+            assert self.energy_target is not None, \
+                "bounded_eviction is a rank-SELECTION refinement of adaptive (energy_target) " \
+                "mode -- it has nothing to bound in fixed-rank mode, where svd_rank already " \
+                "pins the rank every merge. Set svd_energy_target to use it."
+        self.rank_cap = args.get("sketchlora_rank_cap", None)   # r_max; None = unbounded (old default)
+        # Round 2 §2.4: the bounded-eviction FORMULA has two possible readings
+        # of the source spec's "t = min(r_residual, k_eps)"; both implemented,
+        # switchable, unit-tested (scripts/test_eviction_rule.py). "conformant"
+        # (default, matches §2.4's restated spec exactly) reads k_eps as the
+        # EVICTION COUNT the energy threshold requests (max(0, composite_rank -
+        # keep_rank)); "literal_keeprank" (never used in production, kept only
+        # so the rejected reading is a real, runnable code path for the unit
+        # test / audit trail) reads k_eps as the KEEP-rank threshold value
+        # itself substituted directly as the eviction count -- this fails to
+        # evict a meaningful amount precisely when the energy threshold is most
+        # aggressive (see the unit test's "responsiveness check").
+        self.eviction_reading = args.get("sketchlora_eviction_reading", "conformant")
+        assert self.eviction_reading in ("conformant", "literal_keeprank")
+        # -- Plan C §C1 lazy_merge (non-default, sign-off gated per §C8 -- runs
+        # as a labeled experimental arm only, never the default). Accumulate the
+        # residual across multiple bounded-memory cycles instead of folding
+        # every cycle; fold only once an internal, boundary-blind saturation
+        # statistic trips. See _lazy_should_fold's docstring for the exact
+        # statistic and its rationale.
+        self.lazy_merge = bool(args.get("lazy_merge", False))
+        self.lazy_merge_frac = args.get("lazy_merge_frac", 0.9)
+        if self.lazy_merge:
+            assert self.energy_target is not None, \
+                "lazy_merge's saturation check is an energy-threshold rank measurement -- " \
+                "requires svd_energy_target (adaptive mode)."
+        # Per-parameter-group weight_decay override for LoRA params only (Plan A
+        # §A5.1: "weight_decay = 0 for all LoRA parameters"). None = old behavior
+        # (single AdamW group, uniform self.weight_decay for everything, built
+        # inline in models/lora.py::_train). See _optimizer_param_groups override.
+        self.lora_weight_decay = args.get("sketchlora_lora_wd", None)
         self.cs_rank = args.get("cs_rank", self.svd_rank)
         self.cs_seed = args.get("cs_seed", args["seed"] if not isinstance(args.get("seed"), list)
                                  else args["seed"][0])
@@ -126,6 +170,11 @@ class Learner(LoRALearner):
             for attn in self._all_attns():
                 for A_list in (attn.lora_A_q, attn.lora_A_v):
                     nn.init.zeros_(A_list[SKETCH].weight)
+        # True once the sketch slot has actually absorbed real content from a
+        # merge. False only before the very first compression event, when slot 0
+        # is still the zero-initialised placeholder set up above -- see _compress's
+        # "nothing to combine yet" branch.
+        self._sketch_populated = False
         # -- compression diagnostics (test Corollary 3's structural assumption) --
         # records, per compression event, the singular spectrum of the
         # accumulated delta_W so we can read sigma_{r̂+1} and the retained-energy
@@ -176,6 +225,23 @@ class Learner(LoRALearner):
         """Slot indices 1..P (P = svd_period); {RESIDUAL} when P=1 (unchanged)."""
         return list(range(RESIDUAL, RESIDUAL + self.svd_period))
 
+    # Plan A §A5.1: weight_decay=0 for LoRA params specifically (the frozen
+    # variant), head keeps the ordinary self.weight_decay. Only takes effect
+    # when sketchlora_lora_wd is set in config; otherwise falls back to the
+    # base class's single-group behavior (byte-identical to before).
+    def _optimizer_param_groups(self):
+        if self.lora_weight_decay is None:
+            return super()._optimizer_param_groups()
+        lora_params, other_params = [], []
+        for name, p in self._network.named_parameters():
+            if not p.requires_grad:
+                continue
+            (lora_params if ("lora_A" in name or "lora_B" in name) else other_params).append(p)
+        groups = [{"params": lora_params, "weight_decay": self.lora_weight_decay}]
+        if other_params:
+            groups.append({"params": other_params, "weight_decay": self.weight_decay})
+        return groups
+
     def _freeze_inactive_blocks(self):
         """When depth-restricted, keep every residual slot frozen on blocks >= n so
         the optimiser never touches them (they stay zero -> no contribution)."""
@@ -211,7 +277,45 @@ class Learner(LoRALearner):
     def _stream_end_chunk(self, loader):
         self._cur_task += 1
         self._freeze_inactive_blocks()
+        if self.lazy_merge and not self._lazy_should_fold():
+            # Accumulate: DON'T compress, don't reset the residual -- leave its
+            # (now further-trained) weights exactly as they are. The next
+            # cycle's _stream_begin_chunk only re-establishes trainability +
+            # a fresh optimizer (StreamMixin's default), it does not touch the
+            # residual's weights, so training simply continues on the SAME
+            # residual across cycles until this returns True.
+            return
         self._compress()                          # fold -> sketch, reset residual (folded)
+
+    @torch.no_grad()
+    def _lazy_should_fold(self):
+        """Plan C §C1 lazy_merge saturation check: an internal, boundary-blind
+        statistic (no data volume, cycle count, or real-task information read)
+        -- fold once the residual's OWN occupied rank, measured by the SAME
+        energy-threshold rule used for the main compression but applied to the
+        residual's factor product (B_r @ A_r) in isolation, reaches
+        `lazy_merge_frac` of its allocated rank budget (self.lora_rank). Once a
+        rank-`lora_rank` residual is using most of its own budget to represent
+        the data trained into it so far, it has little room left to absorb
+        materially new signal without truncation -- an intentionally simple,
+        self-contained proxy for "residual energy/rank saturates" (Plan C's own
+        phrasing), not a claim of optimality."""
+        ratios = []
+        for attn in self._active_attns():
+            for A_list, B_list in ((attn.lora_A_q, attn.lora_B_q), (attn.lora_A_v, attn.lora_B_v)):
+                for slot in self._residual_slots():
+                    A_r, B_r = A_list[slot].weight, B_list[slot].weight
+                    delta = (B_r @ A_r).float()
+                    S = torch.linalg.svdvals(delta)
+                    total = S.pow(2).sum()
+                    if total <= 0:
+                        continue
+                    cum = torch.cumsum(S.pow(2), 0) / total
+                    r_hat = int((cum < (1.0 - self.energy_target)).sum().item()) + 1
+                    ratios.append(r_hat / self.lora_rank)
+        if not ratios:
+            return False
+        return (sum(ratios) / len(ratios)) >= self.lazy_merge_frac
 
     # -- adapter routing (override the lora.Learner indirection) --------
     def _train_adapter(self):
@@ -225,6 +329,18 @@ class Learner(LoRALearner):
     def _eval_adapter(self, task):
         return SKETCH            # TIL routes to the single compressed sketch
 
+    def _deployed_forward(self, inputs):
+        """CIL/FLOPs-measurement forward (utils/metrics_logger.py's record_inference_cost,
+        called once after the final task -- by then _compress() has already run for that
+        task too). Unlike the shared models/lora.py version, this does NOT call
+        self._train_adapter() (which always points at the residual slot, since that's the
+        correct routing DURING training) -- deployed/evaluated inference happens
+        post-compress, when the residual is a reset (kaiming A, zero B) no-op, so routing
+        through the sketch alone is bit-exact and matches the paper's O(r̂d) inference cost
+        instead of training's O((r̂+r)d)."""
+        net = self._network.module if hasattr(self._network, "module") else self._network
+        return net(inputs, task=SKETCH, merge=True)
+
     # -- train then compress, but ONLY at a period boundary (or the run's last task)
     # -- eval runs before after_task) --------------
     def _train(self, train_loader):
@@ -234,6 +350,19 @@ class Learner(LoRALearner):
         at_last_task = (self._cur_task + 1) >= self._n_run_effective
         if at_period_boundary or at_last_task:
             self._compress()
+            # Eval (CIL's bare net(inputs), routed via LoRAVitNet.default_task -- see
+            # utils/inc_net.py's _resolve) runs after this returns, before after_task().
+            # _compress() just reset every residual slot to (kaiming A, zero B) -- a
+            # mathematically exact no-op contribution -- so summing sketch+residual at
+            # eval time is provably identical to the sketch alone, just twice the
+            # matmuls. Route default_task to the sketch slot so eval pays the paper's
+            # O(r̂d) inference cost (Table 1) instead of training's O((r̂+r)d); this
+            # cannot change any computed value (adding a zero-valued branch is a no-op),
+            # only skips computing it. Reset again next task by incremental_train's own
+            # `default_task = self._train_adapter()` (models/lora.py) before any training
+            # happens, so this never leaks into the next task's training routing.
+            net = self._network.module if hasattr(self._network, "module") else self._network
+            net.default_task = SKETCH
 
     @torch.no_grad()
     def _compress(self):
@@ -270,8 +399,18 @@ class Learner(LoRALearner):
         merge_op ablations."""
         retained, sigma_next, fro, rhat = [], [], [], []   # per (layer,proj) diagnostics
         residual_slots = self._residual_slots()
-        full_svd_needed = self.merge_op in ("exactsvd", "nocompress")
-        need_svdvals = (not full_svd_needed) and (self.sketch_diag or self.energy_target is not None)
+        # Nothing to combine yet: before the sketch has ever been populated, a
+        # single residual slot is the ONLY contributor to delta_W (the sketch
+        # slot is still the zero placeholder) -- there is no history to fold in,
+        # so running any merge algorithm (SVD truncation, count-sketch hashing,
+        # ...) on it can only discard information for zero compression benefit.
+        # Real sketching starts once there are >=2 things to combine: task 1's
+        # (sketch + residual), or (with svd_period=P>1) the first boundary's P
+        # residuals even though the sketch itself is still zero at that point.
+        skip_compression = (not self._sketch_populated) and len(residual_slots) == 1
+        full_svd_needed = (not skip_compression) and self.merge_op in ("exactsvd", "nocompress")
+        need_svdvals = (not skip_compression) and (not full_svd_needed) and \
+            (self.sketch_diag or self.energy_target is not None)
         module_idx = 0     # unique per (layer,proj) -- seeds countsketch's hash/sign draw
         for attn in self._active_attns():
             for A_list, B_list in ((attn.lora_A_q, attn.lora_B_q),
@@ -282,6 +421,39 @@ class Learner(LoRALearner):
                 for slot in residual_slots:
                     A_r, B_r = A_list[slot].weight, B_list[slot].weight
                     delta_W = delta_W + B_r @ A_r
+
+                if skip_compression:
+                    # transplant the lone residual into slot 0 verbatim, at its
+                    # own native rank -- no SVD, no loss.
+                    only_slot = residual_slots[0]
+                    B_hat = B_list[only_slot].weight.clone()
+                    A_hat = A_list[only_slot].weight.clone()
+                    final_rank = B_hat.shape[1]
+                    if self.sketch_diag:
+                        fro_delta = delta_W.float().norm()
+                        retained.append(1.0)
+                        sigma_next.append(0.0)
+                        fro.append(fro_delta.item())
+                        rhat.append(final_rank)
+                    B_hat, A_hat = B_hat.to(dev, dt), A_hat.to(dev, dt)
+                    if final_rank == B_s.shape[1]:
+                        B_s.data.copy_(B_hat)
+                        A_s.data.copy_(A_hat)
+                    else:
+                        newA = nn.Linear(delta_W.shape[0], final_rank, bias=False).to(dev, dt)
+                        newB = nn.Linear(final_rank, delta_W.shape[0], bias=False).to(dev, dt)
+                        newA.weight.data.copy_(A_hat)
+                        newB.weight.data.copy_(B_hat)
+                        for p in list(newA.parameters()) + list(newB.parameters()):
+                            p.requires_grad = False
+                        A_list[SKETCH] = newA
+                        B_list[SKETCH] = newB
+                    for slot in residual_slots:
+                        nn.init.kaiming_uniform_(A_list[slot].weight, a=math.sqrt(5))
+                        nn.init.zeros_(B_list[slot].weight)
+                    module_idx += 1
+                    continue
+
                 S = None
                 if full_svd_needed:
                     U, S, Vh = torch.linalg.svd(delta_W.float())          # reused for diag + recon
@@ -302,10 +474,54 @@ class Learner(LoRALearner):
                     total = S.pow(2).sum()
                     if total > 0:
                         cum = torch.cumsum(S.pow(2), 0) / total
-                        r_hat_t = int((cum < (1.0 - self.energy_target)).sum().item()) + 1
+                        k_eps = int((cum < (1.0 - self.energy_target)).sum().item()) + 1
                     else:
-                        r_hat_t = 1
-                    r_hat_t = max(1, min(r_hat_t, delta_W.shape[0]))
+                        k_eps = 1
+                    k_eps = max(1, min(k_eps, delta_W.shape[0]))
+                    if self.admission_rule == "bounded_eviction":
+                        # Plan A §A5.2 / Round 2 §2.4: never evict more than the
+                        # residual's OWN just-added rank per merge (bounds eviction to
+                        # <= what was just contributed, so rank is monotone non-
+                        # decreasing below the cap -- the pure-global-eps branch below
+                        # can otherwise evict far more than that in one merge if the
+                        # composite's post-fold energy spectrum happens to concentrate
+                        # differently, which is the "retroactive mass-eviction" /
+                        # post-peak rank collapse A5.2 exists to fix).
+                        #
+                        # RESOLVED (Round 2 §2.4, restates the spec-conformant rule
+                        # explicitly): below cap, evict t = min(r_residual, k_eps)
+                        # trailing directions; at cap, evict exactly (composite_rank -
+                        # r_max). Two readings of k_eps exist and both are implemented,
+                        # switchable via sketchlora_eviction_reading (default
+                        # "conformant"), unit-tested in scripts/test_eviction_rule.py:
+                        #   conformant: k_eps = requested EVICTION count (naive_evict
+                        #     below, = max(0, composite_rank - keep_rank)) -- rank
+                        #     tracks the energy signal responsively, selected as correct.
+                        #   literal_keeprank: k_eps = the KEEP-rank threshold itself,
+                        #     substituted directly as the eviction count -- evicts almost
+                        #     nothing whenever the threshold is aggressive (small
+                        #     keep-rank), the opposite of the rule's purpose; kept only
+                        #     as a documented, tested, never-used-in-production path.
+                        prev_rank = A_s.shape[0]
+                        residual_total = sum(A_list[slot].weight.shape[0] for slot in residual_slots)
+                        composite_rank = prev_rank + residual_total
+                        cap = self.rank_cap if self.rank_cap is not None else composite_rank
+                        if composite_rank > cap:
+                            # at/above the cap: evict exactly enough to return to r_max,
+                            # even if that's more than residual_total.
+                            evict = composite_rank - cap
+                        elif self.eviction_reading == "literal_keeprank":
+                            evict = min(residual_total, k_eps)
+                        else:
+                            naive_evict = max(0, composite_rank - k_eps)
+                            evict = min(residual_total, naive_evict)
+                        r_hat_t = max(1, composite_rank - evict)
+                    else:
+                        r_hat_t = k_eps
+                        if self.rank_cap is not None:
+                            # A5.1's hard cap lands independently of the admission-rule
+                            # sign-off (A5.2) -- applies as a plain clamp here too.
+                            r_hat_t = min(r_hat_t, self.rank_cap)
                 elif self.merge_op == "countsketch":
                     r_hat_t = self.cs_rank
                 else:
@@ -372,6 +588,7 @@ class Learner(LoRALearner):
                     nn.init.kaiming_uniform_(A_list[slot].weight, a=math.sqrt(5))
                     nn.init.zeros_(B_list[slot].weight)
                 module_idx += 1
+        self._sketch_populated = True
         if self.sketch_diag:
             self._record_diag(retained, sigma_next, fro, rhat)
 

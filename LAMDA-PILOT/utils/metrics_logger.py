@@ -70,26 +70,54 @@ def serialized_bytes(state_dict_like):
 
 
 def compute_cl_summary(matrix, last_task_idx):
-    """FAA / AIA / forgetting / BWT / last-task-accuracy from an accuracy MATRIX in the
-    exact layout trainer.py already builds: matrix[i] = list of per-task accuracies
-    (task 0..i) recorded right after training task i (cnn_matrix / til_matrix, ragged
-    rows -- row i has i+1 entries). Forgetting uses trainer.py:150's own formula
-    (transpose to [task, checkpoint], per-task max-so-far minus final, averaged over
-    all but the last task) so results agree with the existing print_forget path
-    exactly. Returns None fields if there's only one task (nothing to forget yet)."""
+    """FAA / AIA / forgetting / BWT / last-task-accuracy from an accuracy MATRIX.
+
+    `matrix` is a list of (task_idx, row) tuples -- a "row" is the per-task-bucket
+    accuracy list recorded at a CIL-eval CHECKPOINT right after training task_idx
+    (ragged: row has task_idx+1 entries). task_idx need not be contiguous: this is
+    sparse-checkpoint safe (e.g. OmniBenchmark-1K's every-5-tasks CIL eval cadence,
+    trainer.py's `is_checkpoint` gate) and reduces to the original dense formula
+    exactly when every task is a checkpoint (every dataset other than Omni-1K).
+
+    FAA only reads the FINAL checkpoint's row, which is always present (trainer.py
+    forces the last task to be a checkpoint regardless of cadence) -- unaffected by
+    sparsity. Forgetting's "max ever recorded" only ever takes a max over whatever
+    checkpoints exist; a 0-filled not-yet-existing/not-measured cell can never
+    spuriously beat a real (non-negative) accuracy under max, so it's sparse-safe
+    as-is, just resolution-limited by however many checkpoints actually happened.
+    AIA and BWT are NOT naturally sparse-safe and are redefined below:
+      - AIA: originally averaged one term per real task (assumed a dense row every
+        task); now averages over the CHECKPOINTS that actually happened instead.
+      - BWT: originally read the literal diagonal (a task's accuracy measured
+        exactly at its own task boundary); under sparse eval that value doesn't
+        exist for most tasks, so it's redefined as each task's FIRST-EVER-RECORDED
+        accuracy (the earliest checkpoint that happened to include it) -- the
+        standard adjustment for sparse-checkpoint CL evaluation. When every task is
+        a checkpoint, the first checkpoint >= task j IS task j itself, so this is
+        exactly the old diagonal -- no change for non-Omni datasets.
+    Returns None fields if fewer than two checkpoints exist (nothing to measure
+    forgetting/BWT against yet)."""
     import numpy as np
     n = last_task_idx + 1
     acc = np.zeros((n, n))
-    for i, row in enumerate(matrix):
-        acc[i, :len(row)] = np.array(row)
-    acc = acc.T  # [task, checkpoint]: acc[j, i] = accuracy of task j right after training task i
+    for task_idx, row in matrix:
+        acc[task_idx, :len(row)] = np.array(row)
+    acc = acc.T  # [task_bucket, checkpoint_task_idx]: acc[j, i] = accuracy of task j at checkpoint i
 
-    faa = float(np.mean(acc[:, -1]))                       # final average accuracy
-    aia = float(np.mean([np.mean(matrix[i]) for i in range(n)]))  # avg incremental accuracy
+    faa = float(np.mean(acc[:, -1]))                                    # final checkpoint's row
+    aia = float(np.mean([np.mean(row) for _, row in matrix]))           # avg over CHECKPOINTS only
     last_task_acc = float(acc[-1, -1])
-    if n > 1:
+    if n > 1 and len(matrix) > 1:
         forgetting = float(np.mean((np.max(acc, axis=1) - acc[:, -1])[:-1]))
-        bwt = float(np.mean((acc[:-1, -1] - np.diag(acc)[:-1])))
+        checkpoint_idxs = sorted(idx for idx, _ in matrix)
+        first_seen = np.full(n, np.nan)
+        for j in range(n - 1):
+            for ci in checkpoint_idxs:
+                if ci >= j:
+                    first_seen[j] = acc[j, ci]
+                    break
+        valid = ~np.isnan(first_seen[:-1])
+        bwt = float(np.mean(acc[:-1, -1][valid] - first_seen[:-1][valid])) if valid.any() else None
     else:
         forgetting = None
         bwt = None

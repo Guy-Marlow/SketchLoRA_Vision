@@ -97,8 +97,14 @@ class Attention_LoRA(nn.Module):
         boundary-agnostic streaming (models/stream_mixin.py) when the adapter-fold
         clock advances past however many slots were preallocated at construction --
         the fold count there is driven by a memory-constraint sample threshold, not
-        by real task count, so it is not generically bounded by `n_tasks`."""
-        ref = self.lora_A_q[0].weight
+        by real task count, so it is not generically bounded by `n_tasks`.
+
+        Device/dtype reference is frozen_delta_q (a register_buffer, always a real
+        tensor) rather than lora_A_q[0].weight -- for methods that opt into
+        free_folded_slot (InfLoRA), slot 0 is replaced with nn.Identity() once
+        folded, which has no .weight and would crash this lookup once a later
+        task needs a new slot."""
+        ref = self.frozen_delta_q
         device, dtype = ref.device, ref.dtype
         new_A_q = nn.Linear(self.dim, self.lora_rank, bias=False).to(device=device, dtype=dtype)
         new_B_q = nn.Linear(self.lora_rank, self.dim, bias=False).to(device=device, dtype=dtype)
@@ -125,6 +131,31 @@ class Attention_LoRA(nn.Module):
             self.frozen_delta_q += self.lora_B_q[t].weight @ self.lora_A_q[t].weight
             self.frozen_delta_v += self.lora_B_v[t].weight @ self.lora_A_v[t].weight
         self._folded_upto = task
+
+    @torch.no_grad()
+    def free_folded_slot(self, task):
+        """FLAGGED CHANGE (2026-07-21): free a single already-folded slot's (lora_A/
+        lora_B, q/v) weight memory by replacing it with a zero-parameter nn.Identity
+        placeholder. `fold_up_to` only ever ADDS a slot's contribution into
+        frozen_delta -- it never freed the original tensors, so every folded method
+        was carrying an ever-growing, fully redundant O(K) bank of dead per-task
+        weights (their contribution already lives in frozen_delta; forward's fold
+        branch above never reads an old slot by index again once folded).
+
+        NOT wired into fold_up_to/freeze_to_task itself, and NOT safe to call for
+        every folding method: O-LoRA's orthogonality penalty reads every individual
+        past lora_A forever (genuinely needs them), so freeing here would silently
+        break it. This is opt-in, called explicitly only by models/inflora.py,
+        which never reads a slot again once its own fold_up_to has consumed it
+        (confirmed: _lora_delta's fold branch only reads frozen_delta + the current
+        live slot; InfLoRA's TIL routing and DualGPM update both also go through
+        the merged/fold-aware forward, never indexing an old slot directly)."""
+        if task < 0 or task > self._folded_upto:
+            return  # only free slots that have actually been folded
+        self.lora_A_q[task] = nn.Identity()
+        self.lora_B_q[task] = nn.Identity()
+        self.lora_A_v[task] = nn.Identity()
+        self.lora_B_v[task] = nn.Identity()
 
     def set_task(self, task, merge=False):
         self._task = task
@@ -316,6 +347,16 @@ class VisionTransformer(nn.Module):
             return
         for attn in self.attn_modules():
             attn.fold_up_to(task)
+
+    def free_folded_slots(self, task):
+        """FLAGGED CHANGE (2026-07-21): network-level wrapper for
+        Attention_LoRA.free_folded_slot -- see that method's docstring. Opt-in,
+        called explicitly only by models/inflora.py; never called from the shared
+        fold_up_to/freeze_to_task path so O-LoRA/TreeLoRA/HideLoRA are unaffected."""
+        if task < 0:
+            return
+        for attn in self.attn_modules():
+            attn.free_folded_slot(task)
 
     # -- input-covariance collection (InfLoRA) --------------------------
     def attn_modules(self):

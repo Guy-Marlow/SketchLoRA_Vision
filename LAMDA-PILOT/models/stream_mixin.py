@@ -43,7 +43,9 @@ reuses its own math primitives (compress, orthogonality, DualGPM, warm-start,
 data-preparation and outer-loop logic does.
 """
 
+import json
 import logging
+import os
 import numpy as np
 import torch
 from torch import optim
@@ -51,6 +53,25 @@ from torch.nn import functional as F
 from torch.utils.data import DataLoader
 
 num_workers = 8
+
+
+def _stream_checkpoint_write(args, results, tag="stream", partial=True):
+    """Write the results-so-far next to where trainer.py::_run_stream will write
+    the final copy (same path convention: run_logs/{tag}_{model_name}_{prefix}_
+    s{seed}.json). Called after EVERY per-task checkpoint inside stream_run's own
+    loop (not just once at the very end) so a hard kill mid-run -- e.g. a wall-
+    clock budget cutoff -- still leaves a real, structured accuracy record on
+    disk instead of losing everything back to whatever's only in the log text.
+    The final call from trainer.py (partial=False) overwrites this with the
+    complete run, so there's no dual-source-of-truth conflict on clean exit."""
+    seed = args["seed"][0] if isinstance(args.get("seed"), (list, tuple)) else args.get("seed")
+    out = "run_logs/{}_{}_{}_s{}.json".format(tag, args["model_name"], args.get("prefix", "run"), seed)
+    os.makedirs("run_logs", exist_ok=True)
+    with open(out, "w") as f:
+        json.dump({"args_subset": {k: args.get(k) for k in
+                    ("model_name", "dataset", "init_cls", "increment", "stream_budget_mb",
+                     "n_lora_blocks", "init_lr", "svd_energy_target", "lamda_1", "lamb", "lame")},
+                    "results": results, "partial": partial}, f, indent=2)
 
 # uint8 model-input accounting: 224x224x3, the same "memory budget" convention
 # used by utils/budget_stream.py -- kept identical so MB values mean the same
@@ -282,9 +303,11 @@ class StreamMixin:
                 last_task_ended = newly_completed[-1]
                 if not eval_only_final:
                     results.append(self._stream_eval(last_task_ended + 1))
+                    _stream_checkpoint_write(args, results, tag="stream", partial=True)
 
         if eval_only_final and last_task_ended >= 0:
             results.append(self._stream_eval(last_task_ended + 1))
+            _stream_checkpoint_write(args, results, tag="stream", partial=True)
 
         self._stream_results = results
         return results

@@ -4,6 +4,24 @@ Living document describing the datasets, task splits, and per-method
 hyperparameters used in the final vision continual-learning evaluation.
 Built up incrementally; sections are added as they're settled.
 
+## Backbone Consistency (2026-07-21)
+
+All 10 methods must use the same pretrained ViT-B/16 backbone. Traced every
+method's actual `timm.create_model(...)` call and found two outliers: TUNA
+and CL-LoRA were both pointed at the pure-IN21K checkpoint
+(`vit_base_patch16_224_in21k_*`), while every other method (SeqLoRA/
+SketchLoRA/O-LoRA/InfLoRA/TreeLoRA/RainbowPrompt/EASE/ProgPrompt) — and, per
+a full survey of every `exps/*.json` LAMDA-PILOT bundles, essentially the
+*entire* rest of the toolkit's ~25+ method catalog including ones we haven't
+implemented — uses the no-suffix, IN1K-finetuned checkpoint
+(`utils/inc_net.py:13-17`: both are IN21K-pretrained; the no-suffix variant
+adds an IN1K fine-tuning stage on top). TUNA/CL-LoRA were the outliers, not
+the other 8 — both were ported from their own separate reference repos rather
+than being native LAMDA-PILOT baselines, likely explaining the deviation.
+Fixed by switching both to their existing in1k-variant backbone functions
+(`vit_base_patch16_224_tuna`, `vit_base_patch16_224_cllora`) across every
+config file in the tree (`backbone_type` field only — no code changes).
+
 ## Dataset Splits
 
 All splits verified exactly against each dataset's true class count via
@@ -123,31 +141,130 @@ source to begin with.
 | lr | 0.0005 | 0.0005 | 0.0005 | 0.0005 | 0.0005 |
 | batch size | 48 | 48 | 48 | 48 | 48 |
 | lora_rank | 10 | 10 | 10 | 10 | 10 |
+| lora_alpha | null (scale×1) | null | null | null | null |
 | lamb / lame | 0.95 / 1.0 | 0.95 / 1.0 | 0.95 / 1.0 | 0.95 / 1.0 | 0.95 / 1.0 |
+
+**Correction (2026-07-21)**: this row previously said `40` (scale×4), reflecting
+an intended fix from the earlier scaling investigation that was applied to the
+*doc* but never actually applied to the config file
+(`exps/review/native_defaults_smoke/inflora_cifar224.json`), which has run at
+`null` (scale×1) the whole time. Rather than switch the config to match the
+stale doc value now, the doc is corrected to match what was actually tested —
+keeping InfLoRA on the same scale×1 convention as SeqLoRA/SketchLoRA/O-LoRA/
+TreeLoRA (its lr=0.0005/epochs=10/batch=48/lamb/lame stay its own native
+values, unaffected). This means every InfLoRA result reported so far (fold-fix
+verification's accuracy/persistent-memory numbers, the InfLoRA-vs-SketchLoRA
+comparisons) remains valid — no rerun needed.
 
 Note batch=48 in the native CIFAR-100 config already matches our unified grid
 convention (unlike InfLoRA's own separate reference repo, which uses 128) —
 LAMDA-PILOT's own port had already moved closer to what we use independently.
 
+**Scaling fix (2026-07-20):** `lora_scaling = (lora_alpha if not None else
+lora_rank) / lora_rank` (`backbone/vit_lora.py:54`). When rank moved from the
+old unified grid's 8 to InfLoRA's native 10, `lora_alpha` was left at `null`,
+which silently dropped scaling from the standing ×4 convention (α=32 at rank=8)
+to ×1 (α=null at any rank). Fixed by setting `lora_alpha=40` (40/10 = ×4,
+preserving the ×4 convention at the new rank) instead of carrying over the
+old α=32 (32/10 = ×3.2, wrong) or leaving it null. Applies to every review
+smoke config under `exps/review/seqlora_sketchlora_check/` and
+`exps/review/sketchlora_lr3e4_check/` — NOT yet reconciled with
+`scripts/gen_final_vision_configs.py`, which still uses its own separate
+rank=8/α=32 convention (see "Status" section below).
+
+### SketchLoRA
+
+**Decision 2026-07-21**: rank=10, `lora_alpha=null` (scaling ×1 — NOT the
+×4 convention InfLoRA/TUNA/EASE use), batch=48 held fixed; lr/epochs/
+`svd_energy_target` (ε) tuned per-dataset via an overnight smoke-test search
+(smoke size = ⌈tasks/4⌉ — 10-task→3, 20-task→5 — except OmniBenchmark-1K,
+capped at a fixed 10-task smoke by explicit instruction rather than the
+25 the formula would give, since 100 tasks is too slow to search).
+
+| | CIFAR-100 | ImageNet-R | Food101 | SUN397 | OmniBenchmark-1K |
+|---|---|---|---|---|---|
+| lr | 0.001 | 0.001 | 0.0005 | 0.001 | 0.001 |
+| epochs | 10 | 10 | 10 | 10 | 15 |
+| svd_energy_target (ε) | 0.01 | 0.01 | 0.01 | 0.01 | 0.01 |
+| svd_rank | 10 | 10 | 10 | 10 | 10 |
+| lora_rank | 10 | 10 | 10 | 10 | 10 |
+| lora_alpha | null | null | null | null | null |
+| batch size | 48 | 48 | 48 | 48 | 48 |
+
+Notes:
+- CIFAR-100/ImageNet-R (lr=1e-3/10ep/ε=0.01/scale×1) were the pre-existing
+  starting point from the same-night scaling investigation (see "Scaling
+  fix" note above), not independently re-searched in the overnight run.
+- Food101: only lr changed (5e-4 vs the 1e-3 starting point, +2.8 CIL at
+  smoke scale) — ε=0.03 alone also helped, but combining lr=5e-4+ε=0.03
+  underperformed either change alone (interference, not synergy), so only
+  the single best axis was kept.
+- SUN397: nothing beat the starting point across 6 tested variants
+  (ε∈{0.005,0.01,0.03}, lr∈{5e-4,1e-3,2e-3}, epochs∈{10,15}) — kept as-is.
+- OmniBenchmark-1K: only epoch count changed (15 vs 10, +2.4 CIL). epochs=20
+  was also tested and performed *worse* than 15, confirming a real peak
+  rather than "more epochs is always better."
+- All results single-seed (1993), smoke-scale only — not yet confirmed at
+  full task count.
+
 ### SeqLoRA
 
-**Decision 2026-07-20**: SeqLoRA shares InfLoRA's hyperparameters by default,
-on every benchmark — epochs=10, lr=0.0005, batch=48, rank=10, identical
-across CIFAR-100/ImageNet-R/SUN397/Food101/OmniBenchmark-1K (same table as
-InfLoRA above, minus `lamb`/`lame`, which are InfLoRA-specific orthogonality-
-penalty knobs with no SeqLoRA equivalent). This replaces the earlier unified-
-grid values for SeqLoRA specifically (lr was 3e-4, rank was 8). Note:
-`models/lora.py` (the shared LoRA-scaffold training loop SeqLoRA/InfLoRA/
-O-LoRA/SketchLoRA/TreeLoRA all use) hardcodes AdamW regardless of any
+**Decision 2026-07-21 (supersedes the 2026-07-20 decision below)**: SeqLoRA
+now shares SketchLoRA's hyperparameters (table above) rather than InfLoRA's —
+rank=10, `lora_alpha=null` (scale×1), batch=48, and the same per-dataset
+lr/epochs (SketchLoRA's `svd_energy_target` has no SeqLoRA equivalent).
+Reversed after overnight comparison runs (same seed/splits/smoke sizes) showed
+SketchLoRA beating SeqLoRA at every dataset under these settings — Food101
++5.22 CIL, SUN397 +2.92, OmniBenchmark-1K +11.43 (smoke scale) — using
+SeqLoRA's own matching lr/epochs, not a mismatched comparison.
+
+*Superseded 2026-07-20 decision, kept for history:* SeqLoRA shared InfLoRA's
+hyperparameters — epochs=10, lr=0.0005, batch=48, rank=10, alpha=40
+(scaling ×4), identical across all 5 benchmarks.
+
+Note: `models/lora.py` (the shared LoRA-scaffold training loop SeqLoRA/
+InfLoRA/O-LoRA/SketchLoRA/TreeLoRA all use) hardcodes AdamW regardless of any
 `optim`/`optimizer` config value, so despite InfLoRA's native config
 literally saying `"optim": "adam"`, SeqLoRA (like InfLoRA) trains under
 AdamW in practice either way — not a real distinction here.
 
+### TreeLoRA
+
+**Decision 2026-07-21**: TreeLoRA shares SketchLoRA/SeqLoRA's hyperparameters
+— rank=10, `lora_alpha=null` (scale×1), batch=48, and the same per-dataset
+lr/epochs (table above) — plus its own `reg=0.1` (corrected this session from
+0.5, which traced to the reference repo's NLP/TRACE launch script rather than
+the paper's own vision-section default; see the "Native Paper/Repo Defaults"
+section below for the discrepancy detail).
+
+This was cross-checked against TreeLoRA's own paper-native settings (batch=192,
+constant lr=0.005, 20 epochs CIFAR-100/50 elsewhere, same reg=0.1) run
+head-to-head at smoke scale, same seed: the native settings underperformed our
+tuned convention by a wide margin on CIFAR-100 (81.2 vs 92.37 final-task CIL,
+-11.2), so the native-config comparison was cut short (ImageNet-R/SUN397/
+OmniBenchmark-1K not run) and the SketchLoRA-matching settings were locked in
+instead.
+
+Result at these settings (smoke scale, single seed 1993): CIFAR-100 92.37,
+ImageNet-R 81.98, Food101 **86.88** (best Food101 result of any method
+tested), SUN397 77.85, OmniBenchmark-1K 75.58 — competitive with or ahead of
+SketchLoRA/O-LoRA on 4 of 5 datasets, clearly ahead of SeqLoRA on all 5.
+
 ### TUNA
 
-| | CIFAR-100 (native, `exps/tuna_cifar.json`) | ImageNet-R (native, `exps/tuna_inr.json`) | SUN397 | Food101 | OmniBenchmark-1K |
+**Decision 2026-07-21 (reverts both the 2026-07-20 batch-unification AND
+epoch-unification below)**: batch size AND epoch count both reverted back to
+the pristine native values (batch 16/CIFAR-100, 32/ImageNet-R; epochs
+15/CIFAR-100, 10/ImageNet-R unchanged). Neither the batch=48 nor the
+epochs=10-on-CIFAR-100 change was ever actually applied to the source config
+files (`exps/tuna_cifar.json` still held batch=16/epochs=15 the whole time),
+so this revert is a doc-only change, nothing to undo in the actual configs.
+Propagated to both borrowed columns (Food101 borrows CIFAR-100,
+SUN397/OmniBenchmark-1K borrow ImageNet-R) automatically.
+
+| | CIFAR-100 (`exps/tuna_cifar.json`) | ImageNet-R (`exps/tuna_inr.json`) | SUN397 | Food101 | OmniBenchmark-1K |
 |---|---|---|---|---|---|
-| source | native | native | borrow ImageNet-R | borrow CIFAR-100 | borrow ImageNet-R |
+| source | native (fully unchanged) | native (fully unchanged) | borrow ImageNet-R | borrow CIFAR-100 | borrow ImageNet-R |
 | epochs | 15 | 10 | 10 | 15 | 10 |
 | optimizer | SGD | SGD | SGD | SGD | SGD |
 | lr | 0.01 | 0.02 | 0.02 | 0.01 | 0.02 |
@@ -156,6 +273,9 @@ AdamW in practice either way — not a real distinction here.
 | use_orth | false | true | true | false | true |
 | decay | false | true | true | false | true |
 
+No LR-scaling caveat needed now — with batch reverted to native, there's no
+batch change to reconcile lr against.
+
 Native splits differ from our own chosen splits (CIFAR-100: native 20 tasks
 vs. our 10; ImageNet-R: native 10 tasks vs. our 20) — HPs reported as-is from
 the native config regardless, since split and per-step HPs are tracked
@@ -163,9 +283,16 @@ separately in this document.
 
 ### EASE
 
-| | CIFAR-100 (native, `exps/ease.json`) | ImageNet-R (native, `exps/ease_inr.json`) | SUN397 | Food101 | OmniBenchmark-1K |
+**Decision 2026-07-21 (reverts the 2026-07-20 batch-unification below)**:
+ImageNet-R's batch size reverted back to its pristine native value (16) — as
+with TUNA, `exps/ease_inr.json` itself was never actually changed to 48, so
+this is a doc-only revert. CIFAR-100 was already 48 natively, unaffected.
+Epoch counts unchanged throughout (20 everywhere). Propagated to
+SUN397/OmniBenchmark-1K (both borrow ImageNet-R) automatically.
+
+| | CIFAR-100 (`exps/ease.json`) | ImageNet-R (`exps/ease_inr.json`) | SUN397 | Food101 | OmniBenchmark-1K |
 |---|---|---|---|---|---|
-| source | native | native | borrow ImageNet-R | borrow CIFAR-100 | borrow ImageNet-R |
+| source | native (unchanged) | native (unchanged) | borrow ImageNet-R | borrow CIFAR-100 | borrow ImageNet-R |
 | epochs | 20 | 20 | 20 | 20 | 20 |
 | optimizer | SGD | SGD | SGD | SGD | SGD |
 | lr | 0.025 | 0.05 | 0.05 | 0.025 | 0.05 |
@@ -174,6 +301,8 @@ separately in this document.
 | ffn_num (adapter dim) | 64 | 64 | 64 | 64 | 64 |
 | prompt_token_num | 5 | 5 | 5 | 5 | 5 |
 | alpha | 0.1 | 0.1 | 0.1 | 0.1 | 0.1 |
+
+No LR-scaling caveat needed now, for the same reason as TUNA above.
 
 Same split caveat as TUNA above. ffn_num=64 here is notably larger than the
 rank-8 convention used elsewhere in our grid — EASE's adapter dimension isn't
