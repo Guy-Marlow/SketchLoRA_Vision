@@ -146,6 +146,55 @@ class Learner(LoRALearner):
         if self.reg > 0:
             self.tree.end_task(self._stream_chunk)
 
+    def _ce_aux_macs_per_step(self):
+        # impl_plan_7.27.2026 sec 2.3: per-step sparse-update regularizer +
+        # gradient-similarity estimate, r*d-order per module (only charged
+        # when reg>0, matching the actual code path in _bounded_train_epoch).
+        if self.reg <= 0:
+            return 0.0
+        from utils.ce_formulas import treelora_aux_macs_per_step
+        net = self._network.module if hasattr(self._network, "module") else self._network
+        rank = net.attn_modules()[0].rank
+        return treelora_aux_macs_per_step(rank=rank)
+
+    def _bounded_train_epoch(self, loader, optimizer, scheduler, cycle_class_mask):
+        """bounded_memory_mixin.py's own driver never calls _stream_train_epoch
+        below (that hook only exists on the stream_run path, models/stream_mixin.py) --
+        it inlines a generic loop (BoundedMemoryMixin._bounded_train_epoch) that only
+        offers the narrow _stream_extra_loss(lo, hi) hook, which cannot carry the tree
+        regularizer (needs new_epoch_init/step/insert_grad/tree_search/get_loss and the
+        raw pre-penalty loss value -- see _stream_train_epoch's own docstring below for
+        why _stream_extra_loss's signature is insufficient). Without this override,
+        self.tree.current_grad is never populated by insert_grad, so end_task's
+        `self.current_grad.shape[0]` crashes with AttributeError on the very first
+        cycle. Full override, mirroring the base class's masked-CE convention (additive
+        -inf mask over the full head, not lo:hi slicing) instead of stream_run's slice
+        convention -- the only other difference from _stream_train_epoch below."""
+        self._network.train()
+        slot, merge = self._stream_slot(), self._stream_train_merge()
+        t = self._stream_chunk
+        if self.reg > 0:
+            self.tree.new_epoch_init(len(loader))
+        for _, inputs, targets in loader:
+            if self.reg > 0:
+                self.tree.step()
+            inputs, targets = inputs.to(self._device), targets.to(self._device)
+            logits = self._network(inputs, task=slot, merge=merge)["logits"]
+            masked_logits = logits + cycle_class_mask
+            loss = F.cross_entropy(masked_logits, targets)
+            if self.reg > 0:
+                grad_current = self._stacked_A()
+                self.tree.insert_grad(grad_current)
+                if t > 0:
+                    prev_id_matrix = self.tree.tree_search(t, self._device)
+                    reg_loss = self.tree.get_loss(grad_current, loss, prev_id_matrix)
+                    loss = loss - reg_loss
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+        if scheduler is not None:
+            scheduler.step()
+
     def _stream_train_epoch(self, loader, lo, hi):
         """Full override (not just _stream_extra_loss) -- TreeLoRA's regularizer
         needs the raw CE loss VALUE to scale itself (kd_tree.py::get_loss does

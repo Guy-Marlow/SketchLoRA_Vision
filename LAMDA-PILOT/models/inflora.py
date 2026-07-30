@@ -138,6 +138,18 @@ class Learner(LoRALearner):
     def _stream_end_chunk(self, loader):
         self._update_dualgpm(loader)             # grow DualGPM feature memory
 
+    def _ce_boundary_macs_this_cycle(self, chunk_images):
+        # impl_plan_7.27.2026 sec 2.3: CONFIRMED two dedicated extra full passes
+        # over the chunk's own data per cycle (_init_lora_A at begin, _update_
+        # dualgpm at end, both above) -- not a per-step cost. Expected to
+        # dominate InfLoRA's non-fwd/bwd overhead (~16% of one forward per
+        # image, recurring every image of every cycle).
+        from utils.ce_formulas import inflora_boundary_macs, inflora_dualgpm_svd_macs
+        return {
+            "covariance_hooks": inflora_boundary_macs(chunk_images),
+            "dualgpm_svd": inflora_dualgpm_svd_macs(),
+        }
+
     # -- task loop ------------------------------------------------------
     def incremental_train(self, data_manager):
         self._cur_task += 1

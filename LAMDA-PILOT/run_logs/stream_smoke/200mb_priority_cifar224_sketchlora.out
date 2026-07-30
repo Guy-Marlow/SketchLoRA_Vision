@@ -1,0 +1,153 @@
+2026-07-20 01:20:29,707 [trainer.py] => config: exps/review/budget_finer_check/200mb_cifar224_sketchlora.json
+2026-07-20 01:20:29,707 [trainer.py] => dataset: cifar224
+2026-07-20 01:20:29,707 [trainer.py] => memory_size: 0
+2026-07-20 01:20:29,707 [trainer.py] => memory_per_class: 0
+2026-07-20 01:20:29,707 [trainer.py] => fixed_memory: False
+2026-07-20 01:20:29,707 [trainer.py] => shuffle: True
+2026-07-20 01:20:29,707 [trainer.py] => init_cls: 2
+2026-07-20 01:20:29,707 [trainer.py] => increment: 2
+2026-07-20 01:20:29,707 [trainer.py] => seed: 1993
+2026-07-20 01:20:29,707 [trainer.py] => scenario: cil
+2026-07-20 01:20:29,707 [trainer.py] => pretrained: True
+2026-07-20 01:20:29,707 [trainer.py] => print_forget: True
+2026-07-20 01:20:29,707 [trainer.py] => backbone_type: vit_base_patch16_224_lora
+2026-07-20 01:20:29,707 [trainer.py] => lora_rank: 8
+2026-07-20 01:20:29,707 [trainer.py] => lora_alpha: 32
+2026-07-20 01:20:29,707 [trainer.py] => tuned_epoch: 10
+2026-07-20 01:20:29,707 [trainer.py] => init_lr: 0.0003
+2026-07-20 01:20:29,707 [trainer.py] => batch_size: 48
+2026-07-20 01:20:29,708 [trainer.py] => weight_decay: 0.0005
+2026-07-20 01:20:29,708 [trainer.py] => min_lr: 0.0
+2026-07-20 01:20:29,708 [trainer.py] => model_name: sketchlora
+2026-07-20 01:20:29,708 [trainer.py] => lora_merge: True
+2026-07-20 01:20:29,708 [trainer.py] => lora_train_merge: True
+2026-07-20 01:20:29,708 [trainer.py] => svd_rank: 8
+2026-07-20 01:20:29,708 [trainer.py] => svd_oversampling: 10
+2026-07-20 01:20:29,708 [trainer.py] => svd_energy_target: 0.01
+2026-07-20 01:20:29,708 [trainer.py] => lora_n_slots: 2
+2026-07-20 01:20:29,708 [trainer.py] => device: [device(type='cuda', index=0)]
+2026-07-20 01:20:29,708 [trainer.py] => prefix: budget_finer_check_200mb_cifar224_sketchlora
+2026-07-20 01:20:29,708 [trainer.py] => boundary_mode: sample
+2026-07-20 01:20:29,708 [trainer.py] => stream_budget_mb: 200
+2026-07-20 01:20:29,708 [trainer.py] => stop_after_tasks: 5
+2026-07-20 01:20:29,708 [trainer.py] => stream_eval_final_only: False
+Files already downloaded and verified
+Files already downloaded and verified
+2026-07-20 01:20:31,410 [data_manager.py] => [68, 56, 78, 8, 23, 84, 90, 65, 74, 76, 40, 89, 3, 92, 55, 9, 26, 80, 43, 38, 58, 70, 77, 1, 85, 19, 17, 50, 28, 53, 13, 81, 45, 82, 6, 59, 83, 16, 15, 44, 91, 41, 72, 60, 79, 52, 20, 10, 31, 54, 37, 95, 14, 71, 96, 98, 97, 2, 64, 66, 42, 22, 35, 86, 24, 34, 87, 21, 99, 0, 88, 27, 18, 94, 11, 12, 47, 25, 30, 46, 62, 69, 36, 61, 7, 63, 75, 5, 32, 4, 51, 48, 73, 93, 39, 67, 29, 49, 57, 33]
+This is for the BaseNet initialization.
+I'm using ViT with per-task LoRA (q,v).
+_IncompatibleKeys(missing_keys=['blocks.0.attn.cur_matrix', 'blocks.0.attn.frozen_delta_q', 'blocks.0.attn.frozen_delta_v', 'blocks.0.attn.lora_A_q.0.weight', 'blocks.0.attn.lora_A_q.1.weight', 'blocks.0.attn.lora_B_q.0.weight', 'blocks.0.attn.lora_B_q.1.weight', 'blocks.0.attn.lora_A_v.0.weight', 'blocks.0.attn.lora_A_v.1.weight', 'blocks.0.attn.lora_B_v.0.weight', 'blocks.0.attn.lora_B_v.1.weight', 'blocks.1.attn.cur_matrix', 'blocks.1.attn.frozen_delta_q', 'blocks.1.attn.frozen_delta_v', 'blocks.1.attn.lora_A_q.0.weight', 'blocks.1.attn.lora_A_q.1.weight', 'blocks.1.attn.lora_B_q.0.weight', 'blocks.1.attn.lora_B_q.1.weight', 'blocks.1.attn.lora_A_v.0.weight', 'blocks.1.attn.lora_A_v.1.weight', 'blocks.1.attn.lora_B_v.0.weight', 'blocks.1.attn.lora_B_v.1.weight', 'blocks.2.attn.cur_matrix', 'blocks.2.attn.frozen_delta_q', 'blocks.2.attn.frozen_delta_v', 'blocks.2.attn.lora_A_q.0.weight', 'blocks.2.attn.lora_A_q.1.weight', 'blocks.2.attn.lora_B_q.0.weight', 'blocks.2.attn.lora_B_q.1.weight', 'blocks.2.attn.lora_A_v.0.weight', 'blocks.2.attn.lora_A_v.1.weight', 'blocks.2.attn.lora_B_v.0.weight', 'blocks.2.attn.lora_B_v.1.weight', 'blocks.3.attn.cur_matrix', 'blocks.3.attn.frozen_delta_q', 'blocks.3.attn.frozen_delta_v', 'blocks.3.attn.lora_A_q.0.weight', 'blocks.3.attn.lora_A_q.1.weight', 'blocks.3.attn.lora_B_q.0.weight', 'blocks.3.attn.lora_B_q.1.weight', 'blocks.3.attn.lora_A_v.0.weight', 'blocks.3.attn.lora_A_v.1.weight', 'blocks.3.attn.lora_B_v.0.weight', 'blocks.3.attn.lora_B_v.1.weight', 'blocks.4.attn.cur_matrix', 'blocks.4.attn.frozen_delta_q', 'blocks.4.attn.frozen_delta_v', 'blocks.4.attn.lora_A_q.0.weight', 'blocks.4.attn.lora_A_q.1.weight', 'blocks.4.attn.lora_B_q.0.weight', 'blocks.4.attn.lora_B_q.1.weight', 'blocks.4.attn.lora_A_v.0.weight', 'blocks.4.attn.lora_A_v.1.weight', 'blocks.4.attn.lora_B_v.0.weight', 'blocks.4.attn.lora_B_v.1.weight', 'blocks.5.attn.cur_matrix', 'blocks.5.attn.frozen_delta_q', 'blocks.5.attn.frozen_delta_v', 'blocks.5.attn.lora_A_q.0.weight', 'blocks.5.attn.lora_A_q.1.weight', 'blocks.5.attn.lora_B_q.0.weight', 'blocks.5.attn.lora_B_q.1.weight', 'blocks.5.attn.lora_A_v.0.weight', 'blocks.5.attn.lora_A_v.1.weight', 'blocks.5.attn.lora_B_v.0.weight', 'blocks.5.attn.lora_B_v.1.weight', 'blocks.6.attn.cur_matrix', 'blocks.6.attn.frozen_delta_q', 'blocks.6.attn.frozen_delta_v', 'blocks.6.attn.lora_A_q.0.weight', 'blocks.6.attn.lora_A_q.1.weight', 'blocks.6.attn.lora_B_q.0.weight', 'blocks.6.attn.lora_B_q.1.weight', 'blocks.6.attn.lora_A_v.0.weight', 'blocks.6.attn.lora_A_v.1.weight', 'blocks.6.attn.lora_B_v.0.weight', 'blocks.6.attn.lora_B_v.1.weight', 'blocks.7.attn.cur_matrix', 'blocks.7.attn.frozen_delta_q', 'blocks.7.attn.frozen_delta_v', 'blocks.7.attn.lora_A_q.0.weight', 'blocks.7.attn.lora_A_q.1.weight', 'blocks.7.attn.lora_B_q.0.weight', 'blocks.7.attn.lora_B_q.1.weight', 'blocks.7.attn.lora_A_v.0.weight', 'blocks.7.attn.lora_A_v.1.weight', 'blocks.7.attn.lora_B_v.0.weight', 'blocks.7.attn.lora_B_v.1.weight', 'blocks.8.attn.cur_matrix', 'blocks.8.attn.frozen_delta_q', 'blocks.8.attn.frozen_delta_v', 'blocks.8.attn.lora_A_q.0.weight', 'blocks.8.attn.lora_A_q.1.weight', 'blocks.8.attn.lora_B_q.0.weight', 'blocks.8.attn.lora_B_q.1.weight', 'blocks.8.attn.lora_A_v.0.weight', 'blocks.8.attn.lora_A_v.1.weight', 'blocks.8.attn.lora_B_v.0.weight', 'blocks.8.attn.lora_B_v.1.weight', 'blocks.9.attn.cur_matrix', 'blocks.9.attn.frozen_delta_q', 'blocks.9.attn.frozen_delta_v', 'blocks.9.attn.lora_A_q.0.weight', 'blocks.9.attn.lora_A_q.1.weight', 'blocks.9.attn.lora_B_q.0.weight', 'blocks.9.attn.lora_B_q.1.weight', 'blocks.9.attn.lora_A_v.0.weight', 'blocks.9.attn.lora_A_v.1.weight', 'blocks.9.attn.lora_B_v.0.weight', 'blocks.9.attn.lora_B_v.1.weight', 'blocks.10.attn.cur_matrix', 'blocks.10.attn.frozen_delta_q', 'blocks.10.attn.frozen_delta_v', 'blocks.10.attn.lora_A_q.0.weight', 'blocks.10.attn.lora_A_q.1.weight', 'blocks.10.attn.lora_B_q.0.weight', 'blocks.10.attn.lora_B_q.1.weight', 'blocks.10.attn.lora_A_v.0.weight', 'blocks.10.attn.lora_A_v.1.weight', 'blocks.10.attn.lora_B_v.0.weight', 'blocks.10.attn.lora_B_v.1.weight', 'blocks.11.attn.cur_matrix', 'blocks.11.attn.frozen_delta_q', 'blocks.11.attn.frozen_delta_v', 'blocks.11.attn.lora_A_q.0.weight', 'blocks.11.attn.lora_A_q.1.weight', 'blocks.11.attn.lora_B_q.0.weight', 'blocks.11.attn.lora_B_q.1.weight', 'blocks.11.attn.lora_A_v.0.weight', 'blocks.11.attn.lora_A_v.1.weight', 'blocks.11.attn.lora_B_v.0.weight', 'blocks.11.attn.lora_B_v.1.weight'], unexpected_keys=[])
+After BaseNet initialization.
+2026-07-20 01:20:37,561 [stream_mixin.py] => [stream] stop_after_tasks=5 (of 50 total)
+2026-07-20 01:20:37,569 [stream_mixin.py] => [stream] unique-image budget 1393 images (200.0MB); 5000 total images, 5 tasks -> 4 chunks
+Target rank: 7
+Target rank: 7
+Target rank: 8
+Target rank: 7
+Target rank: 8
+Target rank: 8
+Target rank: 8
+Target rank: 8
+Target rank: 8
+Target rank: 8
+Target rank: 8
+Target rank: 8
+Target rank: 8
+Target rank: 8
+Target rank: 8
+Target rank: 8
+Target rank: 7
+Target rank: 8
+Target rank: 7
+Target rank: 7
+Target rank: 7
+Target rank: 8
+Target rank: 4
+Target rank: 7
+2026-07-20 01:22:15,562 [sketchlora.py] => [SketchDiag] task 0: retained-energy mean=0.997 min=0.991 | ||ΔW||_F mean=0.194 | r_hat mean=7.5 total=180
+2026-07-20 01:22:16,799 [stream_mixin.py] => [stream eval] completed  1 | chunk   1 | CIL 100.00
+Target rank: 14
+Target rank: 14
+Target rank: 15
+Target rank: 14
+Target rank: 16
+Target rank: 15
+Target rank: 16
+Target rank: 15
+Target rank: 16
+Target rank: 15
+Target rank: 16
+Target rank: 15
+Target rank: 16
+Target rank: 15
+Target rank: 16
+Target rank: 15
+Target rank: 14
+Target rank: 15
+Target rank: 14
+Target rank: 14
+Target rank: 14
+Target rank: 15
+Target rank: 6
+Target rank: 13
+2026-07-20 01:23:51,051 [sketchlora.py] => [SketchDiag] task 1: retained-energy mean=0.995 min=0.991 | ||ΔW||_F mean=0.265 | r_hat mean=14.5 total=348
+2026-07-20 01:23:53,524 [stream_mixin.py] => [stream eval] completed  2 | chunk   1 | CIL 99.75
+Target rank: 19
+Target rank: 20
+Target rank: 21
+Target rank: 20
+Target rank: 23
+Target rank: 22
+Target rank: 23
+Target rank: 22
+Target rank: 23
+Target rank: 21
+Target rank: 23
+Target rank: 21
+Target rank: 23
+Target rank: 21
+Target rank: 23
+Target rank: 21
+Target rank: 20
+Target rank: 21
+Target rank: 20
+Target rank: 21
+Target rank: 19
+Target rank: 21
+Target rank: 6
+Target rank: 18
+2026-07-20 01:25:28,028 [sketchlora.py] => [SketchDiag] task 2: retained-energy mean=0.993 min=0.990 | ||ΔW||_F mean=0.330 | r_hat mean=20.5 total=492
+2026-07-20 01:25:33,006 [stream_mixin.py] => [stream eval] completed  4 | chunk   1 | CIL 95.38
+Target rank: 23
+Target rank: 25
+Target rank: 27
+Target rank: 25
+Target rank: 29
+Target rank: 28
+Target rank: 30
+Target rank: 29
+Target rank: 30
+Target rank: 27
+Target rank: 30
+Target rank: 28
+Target rank: 30
+Target rank: 27
+Target rank: 30
+Target rank: 27
+Target rank: 26
+Target rank: 27
+Target rank: 26
+Target rank: 26
+Target rank: 24
+Target rank: 26
+Target rank: 7
+Target rank: 20
+2026-07-20 01:26:32,403 [sketchlora.py] => [SketchDiag] task 3: retained-energy mean=0.993 min=0.990 | ||ΔW||_F mean=0.350 | r_hat mean=26.1 total=627
+2026-07-20 01:26:38,734 [stream_mixin.py] => [stream eval] completed  5 | chunk   1 | CIL 95.00
+2026-07-20 01:26:38,735 [trainer.py] => [stream] completed-task checkpoints: [1, 2, 4, 5]
+2026-07-20 01:26:38,735 [trainer.py] => [stream] CIL curve: [100.0, 99.75, 95.38, 95.0]
+[stream] checkpoints (completed tasks): [1, 2, 4, 5]
+[stream] CIL: [100.0, 99.75, 95.38, 95.0]
+2026-07-20 01:26:38,735 [trainer.py] => [stream] FINAL  CIL 95.00  (over 5 tasks) -- TIL not computed (meaningless in the memory-increment setup)
+[stream] FINAL CIL 95.00
+[stream] wrote run_logs/stream_sketchlora_budget_finer_check_200mb_cifar224_sketchlora_s1993.json

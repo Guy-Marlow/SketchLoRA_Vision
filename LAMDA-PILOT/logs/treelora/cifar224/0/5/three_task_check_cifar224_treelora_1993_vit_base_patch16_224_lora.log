@@ -1,0 +1,67 @@
+2026-07-19 17:58:38,206 [trainer.py] => config: exps/review/three_task_check/cifar224_treelora.json
+2026-07-19 17:58:38,207 [trainer.py] => dataset: cifar224
+2026-07-19 17:58:38,207 [trainer.py] => memory_size: 0
+2026-07-19 17:58:38,207 [trainer.py] => memory_per_class: 0
+2026-07-19 17:58:38,207 [trainer.py] => fixed_memory: False
+2026-07-19 17:58:38,207 [trainer.py] => shuffle: True
+2026-07-19 17:58:38,207 [trainer.py] => init_cls: 5
+2026-07-19 17:58:38,207 [trainer.py] => increment: 5
+2026-07-19 17:58:38,207 [trainer.py] => seed: 1993
+2026-07-19 17:58:38,207 [trainer.py] => scenario: cil
+2026-07-19 17:58:38,207 [trainer.py] => stop_after_tasks: 3
+2026-07-19 17:58:38,207 [trainer.py] => pretrained: True
+2026-07-19 17:58:38,207 [trainer.py] => print_forget: True
+2026-07-19 17:58:38,207 [trainer.py] => final_metrics: True
+2026-07-19 17:58:38,207 [trainer.py] => backbone_type: vit_base_patch16_224_lora
+2026-07-19 17:58:38,207 [trainer.py] => lora_rank: 8
+2026-07-19 17:58:38,207 [trainer.py] => lora_alpha: 32
+2026-07-19 17:58:38,207 [trainer.py] => tuned_epoch: 10
+2026-07-19 17:58:38,207 [trainer.py] => init_lr: 0.0005
+2026-07-19 17:58:38,207 [trainer.py] => batch_size: 128
+2026-07-19 17:58:38,207 [trainer.py] => weight_decay: 0.0005
+2026-07-19 17:58:38,207 [trainer.py] => min_lr: 0.0
+2026-07-19 17:58:38,207 [trainer.py] => model_name: treelora
+2026-07-19 17:58:38,208 [trainer.py] => reg: 0.5
+2026-07-19 17:58:38,208 [trainer.py] => device: [device(type='cuda', index=1)]
+2026-07-19 17:58:38,208 [trainer.py] => prefix: three_task_check_cifar224_treelora
+2026-07-19 17:58:39,917 [data_manager.py] => [68, 56, 78, 8, 23, 84, 90, 65, 74, 76, 40, 89, 3, 92, 55, 9, 26, 80, 43, 38, 58, 70, 77, 1, 85, 19, 17, 50, 28, 53, 13, 81, 45, 82, 6, 59, 83, 16, 15, 44, 91, 41, 72, 60, 79, 52, 20, 10, 31, 54, 37, 95, 14, 71, 96, 98, 97, 2, 64, 66, 42, 22, 35, 86, 24, 34, 87, 21, 99, 0, 88, 27, 18, 94, 11, 12, 47, 25, 30, 46, 62, 69, 36, 61, 7, 63, 75, 5, 32, 4, 51, 48, 73, 93, 39, 67, 29, 49, 57, 33]
+2026-07-19 17:58:42,735 [trainer.py] => stop_after_tasks=3 (of 20 total)
+2026-07-19 17:58:43,225 [trainer.py] => All params: 91696896
+2026-07-19 17:58:43,230 [trainer.py] => Trainable params: 5898240
+2026-07-19 17:58:43,749 [lora.py] => Learning on 0-5
+2026-07-19 17:58:43,756 [lora.py] => Trainable params this task: 298,757 / 91,700,741
+2026-07-19 18:01:31,271 [treelora.py] => [TreeLoRA] Task 0 done. Acc 96.28
+2026-07-19 18:01:33,826 [trainer.py] => No NME accuracy.
+2026-07-19 18:01:33,827 [trainer.py] => CNN: {'total': 100.0, '00-04': 100.0, 'old': 0, 'new': 100.0}
+2026-07-19 18:01:33,827 [trainer.py] => CNN top1 curve: [100.0]
+2026-07-19 18:01:33,827 [trainer.py] => CNN top5 curve: [100.0]
+
+2026-07-19 18:01:33,827 [trainer.py] => Average Accuracy (CNN): 100.0 
+
+2026-07-19 18:01:33,831 [trainer.py] => All params: 91700741
+2026-07-19 18:01:33,834 [trainer.py] => Trainable params: 298757
+2026-07-19 18:01:33,836 [lora.py] => Learning on 5-10
+2026-07-19 18:01:33,848 [lora.py] => Trainable params this task: 302,602 / 91,704,586
+2026-07-19 18:04:23,607 [treelora.py] => [TreeLoRA] Task 1 done. Acc 95.36
+2026-07-19 18:04:27,723 [trainer.py] => No NME accuracy.
+2026-07-19 18:04:27,723 [trainer.py] => CNN: {'total': 96.1, '00-04': 94.6, '05-09': 97.6, 'old': 94.6, 'new': 97.6}
+2026-07-19 18:04:27,723 [trainer.py] => CNN top1 curve: [100.0, 96.1]
+2026-07-19 18:04:27,723 [trainer.py] => CNN top5 curve: [100.0, 99.9]
+
+2026-07-19 18:04:27,723 [trainer.py] => Average Accuracy (CNN): 98.05 
+
+2026-07-19 18:04:27,725 [trainer.py] => All params: 91704586
+2026-07-19 18:04:27,728 [trainer.py] => Trainable params: 302602
+2026-07-19 18:04:27,729 [lora.py] => Learning on 10-15
+2026-07-19 18:04:27,738 [lora.py] => Trainable params this task: 306,447 / 91,708,431
+2026-07-19 18:07:17,619 [treelora.py] => [TreeLoRA] Task 2 done. Acc 94.80
+2026-07-19 18:07:23,324 [trainer.py] => No NME accuracy.
+2026-07-19 18:07:23,325 [trainer.py] => CNN: {'total': 93.13, '00-04': 89.2, '05-09': 92.6, '10-14': 97.6, 'old': 90.9, 'new': 97.6}
+2026-07-19 18:07:23,325 [trainer.py] => CNN top1 curve: [100.0, 96.1, 93.13]
+2026-07-19 18:07:23,325 [trainer.py] => CNN top5 curve: [100.0, 99.9, 99.27]
+
+2026-07-19 18:07:23,325 [trainer.py] => Average Accuracy (CNN): 96.41000000000001 
+
+2026-07-19 18:07:28,182 [metrics_logger.py] => [metrics] wrote run_logs/final/treelora/metrics_treelora_cifar224_three_task_check_cifar224_treelora_s1993.json
+2026-07-19 18:07:28,183 [trainer.py] => Forgetting (CNN): 7.899999999999999
+2026-07-19 18:07:28,183 [trainer.py] => Forgetting (NME): 7.899999999999999

@@ -1,0 +1,67 @@
+2026-07-19 00:02:09,279 [trainer.py] => config: exps/review/stream_smoke/cifar224_sketchlora.json
+2026-07-19 00:02:09,279 [trainer.py] => dataset: cifar224
+2026-07-19 00:02:09,279 [trainer.py] => memory_size: 0
+2026-07-19 00:02:09,279 [trainer.py] => memory_per_class: 0
+2026-07-19 00:02:09,279 [trainer.py] => fixed_memory: False
+2026-07-19 00:02:09,279 [trainer.py] => shuffle: True
+2026-07-19 00:02:09,279 [trainer.py] => init_cls: 5
+2026-07-19 00:02:09,279 [trainer.py] => increment: 5
+2026-07-19 00:02:09,279 [trainer.py] => seed: 1993
+2026-07-19 00:02:09,279 [trainer.py] => scenario: cil
+2026-07-19 00:02:09,279 [trainer.py] => pretrained: True
+2026-07-19 00:02:09,279 [trainer.py] => print_forget: True
+2026-07-19 00:02:09,280 [trainer.py] => final_metrics: True
+2026-07-19 00:02:09,280 [trainer.py] => backbone_type: vit_base_patch16_224_lora
+2026-07-19 00:02:09,280 [trainer.py] => lora_rank: 8
+2026-07-19 00:02:09,280 [trainer.py] => lora_alpha: 32
+2026-07-19 00:02:09,280 [trainer.py] => tuned_epoch: 10
+2026-07-19 00:02:09,280 [trainer.py] => init_lr: 0.0005
+2026-07-19 00:02:09,280 [trainer.py] => batch_size: 48
+2026-07-19 00:02:09,280 [trainer.py] => weight_decay: 0.0005
+2026-07-19 00:02:09,280 [trainer.py] => min_lr: 0.0
+2026-07-19 00:02:09,280 [trainer.py] => model_name: sketchlora
+2026-07-19 00:02:09,280 [trainer.py] => lora_merge: True
+2026-07-19 00:02:09,280 [trainer.py] => lora_train_merge: True
+2026-07-19 00:02:09,280 [trainer.py] => svd_rank: 8
+2026-07-19 00:02:09,280 [trainer.py] => svd_oversampling: 10
+2026-07-19 00:02:09,280 [trainer.py] => svd_energy_target: 0.01
+2026-07-19 00:02:09,280 [trainer.py] => lora_n_slots: 2
+2026-07-19 00:02:09,280 [trainer.py] => device: [device(type='cuda', index=0)]
+2026-07-19 00:02:09,280 [trainer.py] => prefix: stream_smoke_cifar224_sketchlora
+2026-07-19 00:02:09,280 [trainer.py] => boundary_mode: sample
+2026-07-19 00:02:09,280 [trainer.py] => stream_budget_mb: 538.33
+2026-07-19 00:02:09,280 [trainer.py] => stop_after_tasks: 5
+Files already downloaded and verified
+Files already downloaded and verified
+2026-07-19 00:02:10,972 [data_manager.py] => [68, 56, 78, 8, 23, 84, 90, 65, 74, 76, 40, 89, 3, 92, 55, 9, 26, 80, 43, 38, 58, 70, 77, 1, 85, 19, 17, 50, 28, 53, 13, 81, 45, 82, 6, 59, 83, 16, 15, 44, 91, 41, 72, 60, 79, 52, 20, 10, 31, 54, 37, 95, 14, 71, 96, 98, 97, 2, 64, 66, 42, 22, 35, 86, 24, 34, 87, 21, 99, 0, 88, 27, 18, 94, 11, 12, 47, 25, 30, 46, 62, 69, 36, 61, 7, 63, 75, 5, 32, 4, 51, 48, 73, 93, 39, 67, 29, 49, 57, 33]
+This is for the BaseNet initialization.
+I'm using ViT with per-task LoRA (q,v).
+_IncompatibleKeys(missing_keys=['blocks.0.attn.cur_matrix', 'blocks.0.attn.frozen_delta_q', 'blocks.0.attn.frozen_delta_v', 'blocks.0.attn.lora_A_q.0.weight', 'blocks.0.attn.lora_A_q.1.weight', 'blocks.0.attn.lora_B_q.0.weight', 'blocks.0.attn.lora_B_q.1.weight', 'blocks.0.attn.lora_A_v.0.weight', 'blocks.0.attn.lora_A_v.1.weight', 'blocks.0.attn.lora_B_v.0.weight', 'blocks.0.attn.lora_B_v.1.weight', 'blocks.1.attn.cur_matrix', 'blocks.1.attn.frozen_delta_q', 'blocks.1.attn.frozen_delta_v', 'blocks.1.attn.lora_A_q.0.weight', 'blocks.1.attn.lora_A_q.1.weight', 'blocks.1.attn.lora_B_q.0.weight', 'blocks.1.attn.lora_B_q.1.weight', 'blocks.1.attn.lora_A_v.0.weight', 'blocks.1.attn.lora_A_v.1.weight', 'blocks.1.attn.lora_B_v.0.weight', 'blocks.1.attn.lora_B_v.1.weight', 'blocks.2.attn.cur_matrix', 'blocks.2.attn.frozen_delta_q', 'blocks.2.attn.frozen_delta_v', 'blocks.2.attn.lora_A_q.0.weight', 'blocks.2.attn.lora_A_q.1.weight', 'blocks.2.attn.lora_B_q.0.weight', 'blocks.2.attn.lora_B_q.1.weight', 'blocks.2.attn.lora_A_v.0.weight', 'blocks.2.attn.lora_A_v.1.weight', 'blocks.2.attn.lora_B_v.0.weight', 'blocks.2.attn.lora_B_v.1.weight', 'blocks.3.attn.cur_matrix', 'blocks.3.attn.frozen_delta_q', 'blocks.3.attn.frozen_delta_v', 'blocks.3.attn.lora_A_q.0.weight', 'blocks.3.attn.lora_A_q.1.weight', 'blocks.3.attn.lora_B_q.0.weight', 'blocks.3.attn.lora_B_q.1.weight', 'blocks.3.attn.lora_A_v.0.weight', 'blocks.3.attn.lora_A_v.1.weight', 'blocks.3.attn.lora_B_v.0.weight', 'blocks.3.attn.lora_B_v.1.weight', 'blocks.4.attn.cur_matrix', 'blocks.4.attn.frozen_delta_q', 'blocks.4.attn.frozen_delta_v', 'blocks.4.attn.lora_A_q.0.weight', 'blocks.4.attn.lora_A_q.1.weight', 'blocks.4.attn.lora_B_q.0.weight', 'blocks.4.attn.lora_B_q.1.weight', 'blocks.4.attn.lora_A_v.0.weight', 'blocks.4.attn.lora_A_v.1.weight', 'blocks.4.attn.lora_B_v.0.weight', 'blocks.4.attn.lora_B_v.1.weight', 'blocks.5.attn.cur_matrix', 'blocks.5.attn.frozen_delta_q', 'blocks.5.attn.frozen_delta_v', 'blocks.5.attn.lora_A_q.0.weight', 'blocks.5.attn.lora_A_q.1.weight', 'blocks.5.attn.lora_B_q.0.weight', 'blocks.5.attn.lora_B_q.1.weight', 'blocks.5.attn.lora_A_v.0.weight', 'blocks.5.attn.lora_A_v.1.weight', 'blocks.5.attn.lora_B_v.0.weight', 'blocks.5.attn.lora_B_v.1.weight', 'blocks.6.attn.cur_matrix', 'blocks.6.attn.frozen_delta_q', 'blocks.6.attn.frozen_delta_v', 'blocks.6.attn.lora_A_q.0.weight', 'blocks.6.attn.lora_A_q.1.weight', 'blocks.6.attn.lora_B_q.0.weight', 'blocks.6.attn.lora_B_q.1.weight', 'blocks.6.attn.lora_A_v.0.weight', 'blocks.6.attn.lora_A_v.1.weight', 'blocks.6.attn.lora_B_v.0.weight', 'blocks.6.attn.lora_B_v.1.weight', 'blocks.7.attn.cur_matrix', 'blocks.7.attn.frozen_delta_q', 'blocks.7.attn.frozen_delta_v', 'blocks.7.attn.lora_A_q.0.weight', 'blocks.7.attn.lora_A_q.1.weight', 'blocks.7.attn.lora_B_q.0.weight', 'blocks.7.attn.lora_B_q.1.weight', 'blocks.7.attn.lora_A_v.0.weight', 'blocks.7.attn.lora_A_v.1.weight', 'blocks.7.attn.lora_B_v.0.weight', 'blocks.7.attn.lora_B_v.1.weight', 'blocks.8.attn.cur_matrix', 'blocks.8.attn.frozen_delta_q', 'blocks.8.attn.frozen_delta_v', 'blocks.8.attn.lora_A_q.0.weight', 'blocks.8.attn.lora_A_q.1.weight', 'blocks.8.attn.lora_B_q.0.weight', 'blocks.8.attn.lora_B_q.1.weight', 'blocks.8.attn.lora_A_v.0.weight', 'blocks.8.attn.lora_A_v.1.weight', 'blocks.8.attn.lora_B_v.0.weight', 'blocks.8.attn.lora_B_v.1.weight', 'blocks.9.attn.cur_matrix', 'blocks.9.attn.frozen_delta_q', 'blocks.9.attn.frozen_delta_v', 'blocks.9.attn.lora_A_q.0.weight', 'blocks.9.attn.lora_A_q.1.weight', 'blocks.9.attn.lora_B_q.0.weight', 'blocks.9.attn.lora_B_q.1.weight', 'blocks.9.attn.lora_A_v.0.weight', 'blocks.9.attn.lora_A_v.1.weight', 'blocks.9.attn.lora_B_v.0.weight', 'blocks.9.attn.lora_B_v.1.weight', 'blocks.10.attn.cur_matrix', 'blocks.10.attn.frozen_delta_q', 'blocks.10.attn.frozen_delta_v', 'blocks.10.attn.lora_A_q.0.weight', 'blocks.10.attn.lora_A_q.1.weight', 'blocks.10.attn.lora_B_q.0.weight', 'blocks.10.attn.lora_B_q.1.weight', 'blocks.10.attn.lora_A_v.0.weight', 'blocks.10.attn.lora_A_v.1.weight', 'blocks.10.attn.lora_B_v.0.weight', 'blocks.10.attn.lora_B_v.1.weight', 'blocks.11.attn.cur_matrix', 'blocks.11.attn.frozen_delta_q', 'blocks.11.attn.frozen_delta_v', 'blocks.11.attn.lora_A_q.0.weight', 'blocks.11.attn.lora_A_q.1.weight', 'blocks.11.attn.lora_B_q.0.weight', 'blocks.11.attn.lora_B_q.1.weight', 'blocks.11.attn.lora_A_v.0.weight', 'blocks.11.attn.lora_A_v.1.weight', 'blocks.11.attn.lora_B_v.0.weight', 'blocks.11.attn.lora_B_v.1.weight'], unexpected_keys=[])
+After BaseNet initialization.
+2026-07-19 00:02:13,691 [stream_mixin.py] => [stream] stop_after_tasks=5 (of 20 total)
+2026-07-19 00:02:13,691 [stream_mixin.py] => [stream] adapter event every 3750 samples (memory constraint 538.33MB); eval after each fold on completed tasks
+Target rank: 8
+Target rank: 8
+Target rank: 8
+Target rank: 7
+Target rank: 8
+Target rank: 8
+Target rank: 8
+Target rank: 8
+Target rank: 8
+Target rank: 8
+Target rank: 8
+Target rank: 8
+Target rank: 8
+Target rank: 8
+Target rank: 8
+Target rank: 8
+Target rank: 7
+Target rank: 8
+Target rank: 7
+Target rank: 8
+Target rank: 8
+Target rank: 8
+Target rank: 4
+Target rank: 7
+2026-07-19 00:02:48,392 [sketchlora.py] => [SketchDiag] task 0: retained-energy mean=0.998 min=0.991 | ||ΔW||_F mean=0.253 | r_hat mean=7.7 total=184

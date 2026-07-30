@@ -1,0 +1,49 @@
+2026-07-19 14:40:18,326 [trainer.py] => config: exps/review/stream_smoke/food101_500mb_treelora.json
+2026-07-19 14:40:18,326 [trainer.py] => dataset: food101
+2026-07-19 14:40:18,326 [trainer.py] => memory_size: 0
+2026-07-19 14:40:18,326 [trainer.py] => memory_per_class: 0
+2026-07-19 14:40:18,326 [trainer.py] => fixed_memory: False
+2026-07-19 14:40:18,326 [trainer.py] => shuffle: True
+2026-07-19 14:40:18,326 [trainer.py] => init_cls: 6
+2026-07-19 14:40:18,326 [trainer.py] => increment: 5
+2026-07-19 14:40:18,326 [trainer.py] => seed: 1993
+2026-07-19 14:40:18,326 [trainer.py] => scenario: cil
+2026-07-19 14:40:18,326 [trainer.py] => pretrained: True
+2026-07-19 14:40:18,326 [trainer.py] => print_forget: True
+2026-07-19 14:40:18,326 [trainer.py] => final_metrics: True
+2026-07-19 14:40:18,326 [trainer.py] => backbone_type: vit_base_patch16_224_lora
+2026-07-19 14:40:18,326 [trainer.py] => lora_rank: 8
+2026-07-19 14:40:18,326 [trainer.py] => lora_alpha: 32
+2026-07-19 14:40:18,326 [trainer.py] => tuned_epoch: 10
+2026-07-19 14:40:18,327 [trainer.py] => init_lr: 0.0005
+2026-07-19 14:40:18,327 [trainer.py] => batch_size: 48
+2026-07-19 14:40:18,327 [trainer.py] => weight_decay: 0.0005
+2026-07-19 14:40:18,327 [trainer.py] => min_lr: 0.0
+2026-07-19 14:40:18,327 [trainer.py] => model_name: treelora
+2026-07-19 14:40:18,327 [trainer.py] => reg: 0.5
+2026-07-19 14:40:18,327 [trainer.py] => device: [device(type='cuda', index=0)]
+2026-07-19 14:40:18,327 [trainer.py] => prefix: stream_smoke_food101_500mb_treelora
+2026-07-19 14:40:18,327 [trainer.py] => boundary_mode: sample
+2026-07-19 14:40:18,327 [trainer.py] => stream_budget_mb: 500
+2026-07-19 14:40:18,327 [trainer.py] => stop_after_tasks: 5
+2026-07-19 14:40:18,604 [data_manager.py] => [68, 56, 78, 8, 23, 84, 90, 65, 74, 76, 40, 89, 3, 92, 55, 9, 26, 80, 43, 38, 58, 70, 77, 1, 85, 19, 17, 50, 28, 53, 13, 81, 45, 82, 6, 59, 83, 16, 15, 44, 91, 41, 72, 60, 79, 52, 20, 10, 31, 54, 37, 95, 14, 71, 96, 99, 98, 2, 64, 66, 42, 22, 35, 86, 24, 34, 87, 21, 100, 0, 88, 27, 18, 94, 11, 12, 47, 25, 30, 46, 62, 69, 36, 61, 7, 63, 75, 5, 32, 4, 51, 48, 73, 93, 39, 67, 29, 97, 49, 57, 33]
+This is for the BaseNet initialization.
+I'm using ViT with per-task LoRA (q,v).
+_IncompatibleKeys(missing_keys=['blocks.0.attn.cur_matrix', 'blocks.0.attn.frozen_delta_q', 'blocks.0.attn.frozen_delta_v', 'blocks.0.attn.lora_A_q.0.weight', 'blocks.0.attn.lora_B_q.0.weight', 'blocks.0.attn.lora_A_v.0.weight', 'blocks.0.attn.lora_B_v.0.weight', 'blocks.1.attn.cur_matrix', 'blocks.1.attn.frozen_delta_q', 'blocks.1.attn.frozen_delta_v', 'blocks.1.attn.lora_A_q.0.weight', 'blocks.1.attn.lora_B_q.0.weight', 'blocks.1.attn.lora_A_v.0.weight', 'blocks.1.attn.lora_B_v.0.weight', 'blocks.2.attn.cur_matrix', 'blocks.2.attn.frozen_delta_q', 'blocks.2.attn.frozen_delta_v', 'blocks.2.attn.lora_A_q.0.weight', 'blocks.2.attn.lora_B_q.0.weight', 'blocks.2.attn.lora_A_v.0.weight', 'blocks.2.attn.lora_B_v.0.weight', 'blocks.3.attn.cur_matrix', 'blocks.3.attn.frozen_delta_q', 'blocks.3.attn.frozen_delta_v', 'blocks.3.attn.lora_A_q.0.weight', 'blocks.3.attn.lora_B_q.0.weight', 'blocks.3.attn.lora_A_v.0.weight', 'blocks.3.attn.lora_B_v.0.weight', 'blocks.4.attn.cur_matrix', 'blocks.4.attn.frozen_delta_q', 'blocks.4.attn.frozen_delta_v', 'blocks.4.attn.lora_A_q.0.weight', 'blocks.4.attn.lora_B_q.0.weight', 'blocks.4.attn.lora_A_v.0.weight', 'blocks.4.attn.lora_B_v.0.weight', 'blocks.5.attn.cur_matrix', 'blocks.5.attn.frozen_delta_q', 'blocks.5.attn.frozen_delta_v', 'blocks.5.attn.lora_A_q.0.weight', 'blocks.5.attn.lora_B_q.0.weight', 'blocks.5.attn.lora_A_v.0.weight', 'blocks.5.attn.lora_B_v.0.weight', 'blocks.6.attn.cur_matrix', 'blocks.6.attn.frozen_delta_q', 'blocks.6.attn.frozen_delta_v', 'blocks.6.attn.lora_A_q.0.weight', 'blocks.6.attn.lora_B_q.0.weight', 'blocks.6.attn.lora_A_v.0.weight', 'blocks.6.attn.lora_B_v.0.weight', 'blocks.7.attn.cur_matrix', 'blocks.7.attn.frozen_delta_q', 'blocks.7.attn.frozen_delta_v', 'blocks.7.attn.lora_A_q.0.weight', 'blocks.7.attn.lora_B_q.0.weight', 'blocks.7.attn.lora_A_v.0.weight', 'blocks.7.attn.lora_B_v.0.weight', 'blocks.8.attn.cur_matrix', 'blocks.8.attn.frozen_delta_q', 'blocks.8.attn.frozen_delta_v', 'blocks.8.attn.lora_A_q.0.weight', 'blocks.8.attn.lora_B_q.0.weight', 'blocks.8.attn.lora_A_v.0.weight', 'blocks.8.attn.lora_B_v.0.weight', 'blocks.9.attn.cur_matrix', 'blocks.9.attn.frozen_delta_q', 'blocks.9.attn.frozen_delta_v', 'blocks.9.attn.lora_A_q.0.weight', 'blocks.9.attn.lora_B_q.0.weight', 'blocks.9.attn.lora_A_v.0.weight', 'blocks.9.attn.lora_B_v.0.weight', 'blocks.10.attn.cur_matrix', 'blocks.10.attn.frozen_delta_q', 'blocks.10.attn.frozen_delta_v', 'blocks.10.attn.lora_A_q.0.weight', 'blocks.10.attn.lora_B_q.0.weight', 'blocks.10.attn.lora_A_v.0.weight', 'blocks.10.attn.lora_B_v.0.weight', 'blocks.11.attn.cur_matrix', 'blocks.11.attn.frozen_delta_q', 'blocks.11.attn.frozen_delta_v', 'blocks.11.attn.lora_A_q.0.weight', 'blocks.11.attn.lora_B_q.0.weight', 'blocks.11.attn.lora_A_v.0.weight', 'blocks.11.attn.lora_B_v.0.weight'], unexpected_keys=[])
+After BaseNet initialization.
+2026-07-19 14:40:21,299 [stream_mixin.py] => [stream] stop_after_tasks=5 (of 20 total)
+2026-07-19 14:40:21,299 [stream_mixin.py] => [stream] adapter event every 3483 samples (memory constraint 500.0MB); eval after each fold on completed tasks
+2026-07-19 14:45:41,653 [stream_mixin.py] => [stream eval] completed  1 | chunk   9 | CIL 98.80 | TIL 98.80 | TIL/task [98.8]
+2026-07-19 14:50:21,314 [stream_mixin.py] => [stream eval] completed  2 | chunk  19 | CIL 89.85 | TIL 98.95 | TIL/task [98.47, 99.52]
+2026-07-19 14:55:09,729 [stream_mixin.py] => [stream eval] completed  3 | chunk  29 | CIL 88.20 | TIL 97.85 | TIL/task [95.93, 99.04, 98.96]
+2026-07-19 15:00:06,252 [stream_mixin.py] => [stream eval] completed  4 | chunk  39 | CIL 83.71 | TIL 98.08 | TIL/task [97.0, 99.12, 98.0, 98.4]
+2026-07-19 15:05:12,537 [stream_mixin.py] => [stream eval] completed  5 | chunk  49 | CIL 77.31 | TIL 96.82 | TIL/task [95.27, 98.24, 96.8, 97.52, 96.56]
+2026-07-19 15:05:12,576 [trainer.py] => [stream] completed-task checkpoints: [1, 2, 3, 4, 5]
+2026-07-19 15:05:12,576 [trainer.py] => [stream] CIL curve: [98.8, 89.85, 88.2, 83.71, 77.31]
+2026-07-19 15:05:12,576 [trainer.py] => [stream] TIL curve: [98.8, 98.95, 97.85, 98.08, 96.82]
+2026-07-19 15:05:12,576 [trainer.py] => [stream] FINAL  CIL 77.31 | TIL 96.82  (over 5 tasks)
+[stream] checkpoints (completed tasks): [1, 2, 3, 4, 5]
+[stream] CIL: [98.8, 89.85, 88.2, 83.71, 77.31]
+[stream] TIL: [98.8, 98.95, 97.85, 98.08, 96.82]
+[stream] FINAL CIL 77.31 | TIL 96.82
+[stream] wrote run_logs/stream_treelora_stream_smoke_food101_500mb_treelora_s1993.json

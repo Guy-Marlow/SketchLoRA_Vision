@@ -1,0 +1,151 @@
+2026-07-19 21:04:07,333 [trainer.py] => config: exps/review/three_task_check_bs48_lr3e4/imagenetr_tuna.json
+2026-07-19 21:04:07,334 [trainer.py] => dataset: imagenetr
+2026-07-19 21:04:07,334 [trainer.py] => memory_size: 0
+2026-07-19 21:04:07,334 [trainer.py] => memory_per_class: 0
+2026-07-19 21:04:07,334 [trainer.py] => fixed_memory: False
+2026-07-19 21:04:07,334 [trainer.py] => shuffle: True
+2026-07-19 21:04:07,334 [trainer.py] => init_cls: 10
+2026-07-19 21:04:07,334 [trainer.py] => increment: 10
+2026-07-19 21:04:07,334 [trainer.py] => seed: 1993
+2026-07-19 21:04:07,334 [trainer.py] => scenario: cil
+2026-07-19 21:04:07,334 [trainer.py] => stop_after_tasks: 3
+2026-07-19 21:04:07,334 [trainer.py] => pretrained: True
+2026-07-19 21:04:07,334 [trainer.py] => print_forget: True
+2026-07-19 21:04:07,334 [trainer.py] => final_metrics: True
+2026-07-19 21:04:07,334 [trainer.py] => backbone_type: vit_base_patch16_224_in21k_tuna
+2026-07-19 21:04:07,334 [trainer.py] => tuned_epoch: 10
+2026-07-19 21:04:07,334 [trainer.py] => init_lr: 0.0003
+2026-07-19 21:04:07,334 [trainer.py] => batch_size: 48
+2026-07-19 21:04:07,334 [trainer.py] => weight_decay: 0.0005
+2026-07-19 21:04:07,334 [trainer.py] => min_lr: 0
+2026-07-19 21:04:07,334 [trainer.py] => optimizer: adamw
+2026-07-19 21:04:07,334 [trainer.py] => scheduler: cosine
+2026-07-19 21:04:07,334 [trainer.py] => reinit_optimizer: True
+2026-07-19 21:04:07,334 [trainer.py] => init_milestones: [10]
+2026-07-19 21:04:07,335 [trainer.py] => init_lr_decay: 0.1
+2026-07-19 21:04:07,335 [trainer.py] => model_name: tuna
+2026-07-19 21:04:07,335 [trainer.py] => reg: 0.001
+2026-07-19 21:04:07,335 [trainer.py] => use_orth: True
+2026-07-19 21:04:07,335 [trainer.py] => crct_epochs: 30
+2026-07-19 21:04:07,335 [trainer.py] => ca_lr: 0.005
+2026-07-19 21:04:07,335 [trainer.py] => ca_storage_efficient_method: covariance
+2026-07-19 21:04:07,335 [trainer.py] => ca_storage_efficient_method_choices: ['covariance', 'variance']
+2026-07-19 21:04:07,335 [trainer.py] => decay: True
+2026-07-19 21:04:07,335 [trainer.py] => drop: 0.0
+2026-07-19 21:04:07,335 [trainer.py] => drop_path: 0.0
+2026-07-19 21:04:07,335 [trainer.py] => r: 8
+2026-07-19 21:04:07,335 [trainer.py] => scale: 20.0
+2026-07-19 21:04:07,335 [trainer.py] => m: 0.0
+2026-07-19 21:04:07,335 [trainer.py] => device: [device(type='cuda', index=1)]
+2026-07-19 21:04:07,335 [trainer.py] => prefix: three_task_check_bs48lr3e4_imagenetr_tuna
+2026-07-19 21:04:07,421 [data_manager.py] => [168, 136, 51, 9, 183, 101, 171, 99, 42, 159, 191, 70, 16, 188, 27, 10, 175, 26, 68, 187, 98, 6, 85, 35, 112, 43, 100, 0, 103, 181, 88, 59, 4, 2, 116, 174, 94, 80, 106, 1, 147, 17, 141, 131, 72, 23, 173, 54, 197, 118, 87, 32, 79, 104, 91, 19, 135, 107, 178, 36, 11, 199, 142, 8, 122, 3, 28, 57, 153, 172, 190, 56, 49, 44, 97, 62, 151, 169, 194, 55, 192, 12, 189, 78, 66, 180, 15, 137, 109, 134, 92, 119, 126, 52, 170, 40, 148, 65, 144, 64, 138, 45, 77, 89, 154, 90, 71, 193, 74, 30, 113, 143, 96, 84, 67, 50, 186, 156, 69, 21, 18, 111, 108, 58, 125, 157, 150, 110, 182, 129, 166, 83, 81, 60, 13, 165, 14, 176, 63, 117, 5, 22, 145, 121, 38, 41, 82, 127, 114, 20, 31, 53, 37, 163, 196, 130, 152, 162, 86, 76, 24, 34, 184, 149, 33, 128, 198, 155, 146, 167, 139, 120, 140, 102, 47, 25, 158, 123, 46, 164, 61, 7, 115, 75, 133, 160, 105, 132, 179, 124, 48, 73, 93, 39, 95, 195, 29, 177, 185, 161]
+I'm using ViT with adapters.
+2026-07-19 21:04:10,530 [tuna.py] => 86,256,776 model total parameters.
+2026-07-19 21:04:10,531 [tuna.py] => 458,120 model training parameters.
+2026-07-19 21:04:10,531 [tuna.py] => backbone.head.weight: 153600
+2026-07-19 21:04:10,531 [tuna.py] => backbone.head.bias: 200
+2026-07-19 21:04:10,531 [tuna.py] => backbone.cur_adapter.0.down_proj.weight: 12288
+2026-07-19 21:04:10,531 [tuna.py] => backbone.cur_adapter.0.down_proj.bias: 16
+2026-07-19 21:04:10,531 [tuna.py] => backbone.cur_adapter.0.up_proj.weight: 12288
+2026-07-19 21:04:10,531 [tuna.py] => backbone.cur_adapter.0.up_proj.bias: 768
+2026-07-19 21:04:10,531 [tuna.py] => backbone.cur_adapter.1.down_proj.weight: 12288
+2026-07-19 21:04:10,531 [tuna.py] => backbone.cur_adapter.1.down_proj.bias: 16
+2026-07-19 21:04:10,532 [tuna.py] => backbone.cur_adapter.1.up_proj.weight: 12288
+2026-07-19 21:04:10,532 [tuna.py] => backbone.cur_adapter.1.up_proj.bias: 768
+2026-07-19 21:04:10,532 [tuna.py] => backbone.cur_adapter.2.down_proj.weight: 12288
+2026-07-19 21:04:10,532 [tuna.py] => backbone.cur_adapter.2.down_proj.bias: 16
+2026-07-19 21:04:10,532 [tuna.py] => backbone.cur_adapter.2.up_proj.weight: 12288
+2026-07-19 21:04:10,532 [tuna.py] => backbone.cur_adapter.2.up_proj.bias: 768
+2026-07-19 21:04:10,532 [tuna.py] => backbone.cur_adapter.3.down_proj.weight: 12288
+2026-07-19 21:04:10,532 [tuna.py] => backbone.cur_adapter.3.down_proj.bias: 16
+2026-07-19 21:04:10,532 [tuna.py] => backbone.cur_adapter.3.up_proj.weight: 12288
+2026-07-19 21:04:10,532 [tuna.py] => backbone.cur_adapter.3.up_proj.bias: 768
+2026-07-19 21:04:10,532 [tuna.py] => backbone.cur_adapter.4.down_proj.weight: 12288
+2026-07-19 21:04:10,532 [tuna.py] => backbone.cur_adapter.4.down_proj.bias: 16
+2026-07-19 21:04:10,532 [tuna.py] => backbone.cur_adapter.4.up_proj.weight: 12288
+2026-07-19 21:04:10,532 [tuna.py] => backbone.cur_adapter.4.up_proj.bias: 768
+2026-07-19 21:04:10,532 [tuna.py] => backbone.cur_adapter.5.down_proj.weight: 12288
+2026-07-19 21:04:10,532 [tuna.py] => backbone.cur_adapter.5.down_proj.bias: 16
+2026-07-19 21:04:10,532 [tuna.py] => backbone.cur_adapter.5.up_proj.weight: 12288
+2026-07-19 21:04:10,532 [tuna.py] => backbone.cur_adapter.5.up_proj.bias: 768
+2026-07-19 21:04:10,532 [tuna.py] => backbone.cur_adapter.6.down_proj.weight: 12288
+2026-07-19 21:04:10,532 [tuna.py] => backbone.cur_adapter.6.down_proj.bias: 16
+2026-07-19 21:04:10,532 [tuna.py] => backbone.cur_adapter.6.up_proj.weight: 12288
+2026-07-19 21:04:10,532 [tuna.py] => backbone.cur_adapter.6.up_proj.bias: 768
+2026-07-19 21:04:10,533 [tuna.py] => backbone.cur_adapter.7.down_proj.weight: 12288
+2026-07-19 21:04:10,533 [tuna.py] => backbone.cur_adapter.7.down_proj.bias: 16
+2026-07-19 21:04:10,533 [tuna.py] => backbone.cur_adapter.7.up_proj.weight: 12288
+2026-07-19 21:04:10,533 [tuna.py] => backbone.cur_adapter.7.up_proj.bias: 768
+2026-07-19 21:04:10,533 [tuna.py] => backbone.cur_adapter.8.down_proj.weight: 12288
+2026-07-19 21:04:10,533 [tuna.py] => backbone.cur_adapter.8.down_proj.bias: 16
+2026-07-19 21:04:10,533 [tuna.py] => backbone.cur_adapter.8.up_proj.weight: 12288
+2026-07-19 21:04:10,533 [tuna.py] => backbone.cur_adapter.8.up_proj.bias: 768
+2026-07-19 21:04:10,533 [tuna.py] => backbone.cur_adapter.9.down_proj.weight: 12288
+2026-07-19 21:04:10,533 [tuna.py] => backbone.cur_adapter.9.down_proj.bias: 16
+2026-07-19 21:04:10,533 [tuna.py] => backbone.cur_adapter.9.up_proj.weight: 12288
+2026-07-19 21:04:10,533 [tuna.py] => backbone.cur_adapter.9.up_proj.bias: 768
+2026-07-19 21:04:10,533 [tuna.py] => backbone.cur_adapter.10.down_proj.weight: 12288
+2026-07-19 21:04:10,533 [tuna.py] => backbone.cur_adapter.10.down_proj.bias: 16
+2026-07-19 21:04:10,533 [tuna.py] => backbone.cur_adapter.10.up_proj.weight: 12288
+2026-07-19 21:04:10,533 [tuna.py] => backbone.cur_adapter.10.up_proj.bias: 768
+2026-07-19 21:04:10,533 [tuna.py] => backbone.cur_adapter.11.down_proj.weight: 12288
+2026-07-19 21:04:10,533 [tuna.py] => backbone.cur_adapter.11.down_proj.bias: 16
+2026-07-19 21:04:10,533 [tuna.py] => backbone.cur_adapter.11.up_proj.weight: 12288
+2026-07-19 21:04:10,533 [tuna.py] => backbone.cur_adapter.11.up_proj.bias: 768
+2026-07-19 21:04:10,533 [trainer.py] => stop_after_tasks=3 (of 20 total)
+2026-07-19 21:04:10,534 [trainer.py] => All params: 86256776
+2026-07-19 21:04:10,535 [trainer.py] => Trainable params: 458120
+2026-07-19 21:04:10,535 [tuna.py] => Learning on 0-10
+  0%|          | 0/10 [00:00<?, ?it/s]Task 0, Epoch 1/10 => Loss 1.991, Train_accy 32.56:   0%|          | 0/10 [00:09<?, ?it/s]Task 0, Epoch 1/10 => Loss 1.991, Train_accy 32.56:  10%|█         | 1/10 [00:09<01:24,  9.38s/it]Task 0, Epoch 2/10 => Loss 1.206, Train_accy 67.67:  10%|█         | 1/10 [00:17<01:24,  9.38s/it]Task 0, Epoch 2/10 => Loss 1.206, Train_accy 67.67:  20%|██        | 2/10 [00:17<01:11,  8.91s/it]Task 0, Epoch 3/10 => Loss 0.714, Train_accy 81.94:  20%|██        | 2/10 [00:26<01:11,  8.91s/it]Task 0, Epoch 3/10 => Loss 0.714, Train_accy 81.94:  30%|███       | 3/10 [00:26<01:01,  8.77s/it]Task 0, Epoch 4/10 => Loss 0.507, Train_accy 86.82:  30%|███       | 3/10 [00:35<01:01,  8.77s/it]Task 0, Epoch 4/10 => Loss 0.507, Train_accy 86.82:  40%|████      | 4/10 [00:35<00:52,  8.70s/it]Task 0, Epoch 5/10 => Loss 0.423, Train_accy 89.84:  40%|████      | 4/10 [00:43<00:52,  8.70s/it]Task 0, Epoch 5/10 => Loss 0.423, Train_accy 89.84:  50%|█████     | 5/10 [00:43<00:43,  8.68s/it]Task 0, Epoch 6/10 => Loss 0.389, Train_accy 88.99:  50%|█████     | 5/10 [00:52<00:43,  8.68s/it]Task 0, Epoch 6/10 => Loss 0.389, Train_accy 88.99:  60%|██████    | 6/10 [00:52<00:34,  8.65s/it]Task 0, Epoch 7/10 => Loss 0.347, Train_accy 89.53:  60%|██████    | 6/10 [01:00<00:34,  8.65s/it]Task 0, Epoch 7/10 => Loss 0.347, Train_accy 89.53:  70%|███████   | 7/10 [01:00<00:25,  8.62s/it]Task 0, Epoch 8/10 => Loss 0.333, Train_accy 90.54:  70%|███████   | 7/10 [01:09<00:25,  8.62s/it]Task 0, Epoch 8/10 => Loss 0.333, Train_accy 90.54:  80%|████████  | 8/10 [01:09<00:17,  8.61s/it]Task 0, Epoch 9/10 => Loss 0.340, Train_accy 89.69:  80%|████████  | 8/10 [01:18<00:17,  8.61s/it]Task 0, Epoch 9/10 => Loss 0.340, Train_accy 89.69:  90%|█████████ | 9/10 [01:18<00:08,  8.61s/it]Task 0, Epoch 10/10 => Loss 0.358, Train_accy 89.15:  90%|█████████ | 9/10 [01:26<00:08,  8.61s/it]Task 0, Epoch 10/10 => Loss 0.358, Train_accy 89.15: 100%|██████████| 10/10 [01:26<00:00,  8.60s/it]Task 0, Epoch 10/10 => Loss 0.358, Train_accy 89.15: 100%|██████████| 10/10 [01:26<00:00,  8.67s/it]
+2026-07-19 21:05:37,386 [tuna.py] => Task 0, Epoch 10/10 => Loss 0.358, Train_accy 89.15
+2026-07-19 21:05:52,886 [trainer.py] => No NME accuracy.
+2026-07-19 21:05:52,886 [trainer.py] => CNN: {'total': 95.25, '00-09': 95.25, 'old': 0, 'new': 95.25}
+2026-07-19 21:05:52,886 [trainer.py] => CNN top1 curve: [95.25]
+2026-07-19 21:05:52,886 [trainer.py] => CNN top5 curve: [99.68]
+
+Average Accuracy (CNN): 95.25
+2026-07-19 21:05:52,886 [trainer.py] => Average Accuracy (CNN): 95.25 
+
+2026-07-19 21:05:52,886 [trainer.py] => All params: 86568776
+2026-07-19 21:05:52,887 [trainer.py] => Trainable params: 770120
+2026-07-19 21:05:52,888 [tuna.py] => Learning on 10-20
+  0%|          | 0/10 [00:00<?, ?it/s]Task 1, Epoch 1/10 => Loss 1.511, Train_accy 28.82:   0%|          | 0/10 [00:10<?, ?it/s]Task 1, Epoch 1/10 => Loss 1.511, Train_accy 28.82:  10%|█         | 1/10 [00:10<01:33, 10.38s/it]Task 1, Epoch 2/10 => Loss 0.657, Train_accy 69.27:  10%|█         | 1/10 [00:20<01:33, 10.38s/it]Task 1, Epoch 2/10 => Loss 0.657, Train_accy 69.27:  20%|██        | 2/10 [00:20<01:23, 10.45s/it]Task 1, Epoch 3/10 => Loss 0.452, Train_accy 80.37:  20%|██        | 2/10 [00:31<01:23, 10.45s/it]Task 1, Epoch 3/10 => Loss 0.452, Train_accy 80.37:  30%|███       | 3/10 [00:31<01:13, 10.45s/it]Task 1, Epoch 4/10 => Loss 0.394, Train_accy 84.34:  30%|███       | 3/10 [00:41<01:13, 10.45s/it]Task 1, Epoch 4/10 => Loss 0.394, Train_accy 84.34:  40%|████      | 4/10 [00:41<01:02, 10.43s/it]Task 1, Epoch 5/10 => Loss 0.370, Train_accy 85.92:  40%|████      | 4/10 [00:52<01:02, 10.43s/it]Task 1, Epoch 5/10 => Loss 0.370, Train_accy 85.92:  50%|█████     | 5/10 [00:52<00:52, 10.45s/it]Task 1, Epoch 6/10 => Loss 0.317, Train_accy 87.51:  50%|█████     | 5/10 [01:02<00:52, 10.45s/it]Task 1, Epoch 6/10 => Loss 0.317, Train_accy 87.51:  60%|██████    | 6/10 [01:02<00:41, 10.45s/it]Task 1, Epoch 7/10 => Loss 0.331, Train_accy 87.84:  60%|██████    | 6/10 [01:13<00:41, 10.45s/it]Task 1, Epoch 7/10 => Loss 0.331, Train_accy 87.84:  70%|███████   | 7/10 [01:13<00:31, 10.45s/it]Task 1, Epoch 8/10 => Loss 0.290, Train_accy 89.23:  70%|███████   | 7/10 [01:23<00:31, 10.45s/it]Task 1, Epoch 8/10 => Loss 0.290, Train_accy 89.23:  80%|████████  | 8/10 [01:23<00:20, 10.44s/it]Task 1, Epoch 9/10 => Loss 0.302, Train_accy 89.49:  80%|████████  | 8/10 [01:34<00:20, 10.44s/it]Task 1, Epoch 9/10 => Loss 0.302, Train_accy 89.49:  90%|█████████ | 9/10 [01:34<00:10, 10.45s/it]Task 1, Epoch 10/10 => Loss 0.294, Train_accy 88.76:  90%|█████████ | 9/10 [01:44<00:10, 10.45s/it]Task 1, Epoch 10/10 => Loss 0.294, Train_accy 88.76: 100%|██████████| 10/10 [01:44<00:00, 10.46s/it]Task 1, Epoch 10/10 => Loss 0.294, Train_accy 88.76: 100%|██████████| 10/10 [01:44<00:00, 10.45s/it]
+2026-07-19 21:07:37,371 [tuna.py] => Task 1, Epoch 10/10 => Loss 0.294, Train_accy 88.76
+  0%|          | 0/30 [00:00<?, ?it/s]/home/gmar762/research/continuous_learning/svd_sketching_vision/LAMDA-PILOT/models/tuna.py:351: UserWarning: To copy construct from a tensor, it is recommended to use sourceTensor.clone().detach() or sourceTensor.clone().detach().requires_grad_(True), rather than torch.tensor(sourceTensor).
+  mean = torch.tensor(self.cls_mean[class_idx], dtype=torch.float64).to(self._device) * (
+Task 1, Epoch 1/30 => Loss 0.195, CA_accy 98.69:   0%|          | 0/30 [00:00<?, ?it/s]Task 1, Epoch 1/30 => Loss 0.195, CA_accy 98.69:   3%|▎         | 1/30 [00:00<00:05,  5.20it/s]Task 1, Epoch 2/30 => Loss 0.098, CA_accy 99.25:   3%|▎         | 1/30 [00:00<00:05,  5.20it/s]Task 1, Epoch 3/30 => Loss 0.074, CA_accy 99.35:   3%|▎         | 1/30 [00:00<00:05,  5.20it/s]Task 1, Epoch 3/30 => Loss 0.074, CA_accy 99.35:  10%|█         | 3/30 [00:00<00:02,  9.34it/s]Task 1, Epoch 4/30 => Loss 0.064, CA_accy 99.38:  10%|█         | 3/30 [00:00<00:02,  9.34it/s]Task 1, Epoch 5/30 => Loss 0.064, CA_accy 99.46:  10%|█         | 3/30 [00:00<00:02,  9.34it/s]Task 1, Epoch 5/30 => Loss 0.064, CA_accy 99.46:  17%|█▋        | 5/30 [00:00<00:02, 10.85it/s]Task 1, Epoch 6/30 => Loss 0.066, CA_accy 99.21:  17%|█▋        | 5/30 [00:00<00:02, 10.85it/s]Task 1, Epoch 7/30 => Loss 0.064, CA_accy 99.44:  17%|█▋        | 5/30 [00:00<00:02, 10.85it/s]Task 1, Epoch 7/30 => Loss 0.064, CA_accy 99.44:  23%|██▎       | 7/30 [00:00<00:01, 11.69it/s]Task 1, Epoch 8/30 => Loss 0.061, CA_accy 99.48:  23%|██▎       | 7/30 [00:00<00:01, 11.69it/s]Task 1, Epoch 9/30 => Loss 0.055, CA_accy 99.48:  23%|██▎       | 7/30 [00:00<00:01, 11.69it/s]Task 1, Epoch 9/30 => Loss 0.055, CA_accy 99.48:  30%|███       | 9/30 [00:00<00:01, 11.85it/s]Task 1, Epoch 10/30 => Loss 0.053, CA_accy 99.50:  30%|███       | 9/30 [00:00<00:01, 11.85it/s]Task 1, Epoch 11/30 => Loss 0.048, CA_accy 99.62:  30%|███       | 9/30 [00:00<00:01, 11.85it/s]Task 1, Epoch 11/30 => Loss 0.048, CA_accy 99.62:  37%|███▋      | 11/30 [00:00<00:01, 12.06it/s]Task 1, Epoch 12/30 => Loss 0.043, CA_accy 99.58:  37%|███▋      | 11/30 [00:01<00:01, 12.06it/s]Task 1, Epoch 13/30 => Loss 0.049, CA_accy 99.52:  37%|███▋      | 11/30 [00:01<00:01, 12.06it/s]Task 1, Epoch 13/30 => Loss 0.049, CA_accy 99.52:  43%|████▎     | 13/30 [00:01<00:01, 12.12it/s]Task 1, Epoch 14/30 => Loss 0.040, CA_accy 99.60:  43%|████▎     | 13/30 [00:01<00:01, 12.12it/s]Task 1, Epoch 15/30 => Loss 0.039, CA_accy 99.62:  43%|████▎     | 13/30 [00:01<00:01, 12.12it/s]Task 1, Epoch 15/30 => Loss 0.039, CA_accy 99.62:  50%|█████     | 15/30 [00:01<00:01, 12.09it/s]Task 1, Epoch 16/30 => Loss 0.040, CA_accy 99.67:  50%|█████     | 15/30 [00:01<00:01, 12.09it/s]Task 1, Epoch 17/30 => Loss 0.040, CA_accy 99.54:  50%|█████     | 15/30 [00:01<00:01, 12.09it/s]Task 1, Epoch 17/30 => Loss 0.040, CA_accy 99.54:  57%|█████▋    | 17/30 [00:01<00:01, 12.02it/s]Task 1, Epoch 18/30 => Loss 0.040, CA_accy 99.58:  57%|█████▋    | 17/30 [00:01<00:01, 12.02it/s]Task 1, Epoch 19/30 => Loss 0.040, CA_accy 99.71:  57%|█████▋    | 17/30 [00:01<00:01, 12.02it/s]Task 1, Epoch 19/30 => Loss 0.040, CA_accy 99.71:  63%|██████▎   | 19/30 [00:01<00:00, 11.98it/s]Task 1, Epoch 20/30 => Loss 0.033, CA_accy 99.79:  63%|██████▎   | 19/30 [00:01<00:00, 11.98it/s]Task 1, Epoch 21/30 => Loss 0.036, CA_accy 99.58:  63%|██████▎   | 19/30 [00:01<00:00, 11.98it/s]Task 1, Epoch 21/30 => Loss 0.036, CA_accy 99.58:  70%|███████   | 21/30 [00:01<00:00, 12.15it/s]Task 1, Epoch 22/30 => Loss 0.036, CA_accy 99.65:  70%|███████   | 21/30 [00:01<00:00, 12.15it/s]Task 1, Epoch 23/30 => Loss 0.032, CA_accy 99.52:  70%|███████   | 21/30 [00:01<00:00, 12.15it/s]Task 1, Epoch 23/30 => Loss 0.032, CA_accy 99.52:  77%|███████▋  | 23/30 [00:01<00:00, 12.25it/s]Task 1, Epoch 24/30 => Loss 0.031, CA_accy 99.79:  77%|███████▋  | 23/30 [00:02<00:00, 12.25it/s]Task 1, Epoch 25/30 => Loss 0.031, CA_accy 99.75:  77%|███████▋  | 23/30 [00:02<00:00, 12.25it/s]Task 1, Epoch 25/30 => Loss 0.031, CA_accy 99.75:  83%|████████▎ | 25/30 [00:02<00:00, 12.39it/s]Task 1, Epoch 26/30 => Loss 0.030, CA_accy 99.77:  83%|████████▎ | 25/30 [00:02<00:00, 12.39it/s]Task 1, Epoch 27/30 => Loss 0.035, CA_accy 99.56:  83%|████████▎ | 25/30 [00:02<00:00, 12.39it/s]Task 1, Epoch 27/30 => Loss 0.035, CA_accy 99.56:  90%|█████████ | 27/30 [00:02<00:00, 12.39it/s]Task 1, Epoch 28/30 => Loss 0.028, CA_accy 99.75:  90%|█████████ | 27/30 [00:02<00:00, 12.39it/s]Task 1, Epoch 29/30 => Loss 0.028, CA_accy 99.77:  90%|█████████ | 27/30 [00:02<00:00, 12.39it/s]Task 1, Epoch 29/30 => Loss 0.028, CA_accy 99.77:  97%|█████████▋| 29/30 [00:02<00:00, 12.22it/s]Task 1, Epoch 30/30 => Loss 0.030, CA_accy 99.73:  97%|█████████▋| 29/30 [00:02<00:00, 12.22it/s]Task 1, Epoch 30/30 => Loss 0.030, CA_accy 99.73: 100%|██████████| 30/30 [00:02<00:00, 11.83it/s]
+sampled data shape:  torch.Size([4800, 768])
+2026-07-19 21:07:53,219 [tuna.py] => Task 1, Epoch 30/30 => Loss 0.030, CA_accy 99.73
+/home/gmar762/research/continuous_learning/svd_sketching_vision/LAMDA-PILOT/models/tuna.py:467: UserWarning: Creating a tensor from a list of numpy.ndarrays is extremely slow. Please consider converting the list to a single numpy.ndarray with numpy.array() before converting to a tensor. (Triggered internally at ../torch/csrc/utils/tensor_new.cpp:278.)
+  all_entropies = torch.tensor(all_entropies)
+2026-07-19 21:07:59,932 [trainer.py] => No NME accuracy.
+2026-07-19 21:07:59,932 [trainer.py] => CNN: {'total': 92.46, '00-09': 91.46, '10-19': 93.32, 'old': 91.46, 'new': 93.32}
+2026-07-19 21:07:59,932 [trainer.py] => CNN top1 curve: [95.25, 92.46]
+2026-07-19 21:07:59,933 [trainer.py] => CNN top5 curve: [99.68, 98.26]
+
+Average Accuracy (CNN): 93.85499999999999
+2026-07-19 21:07:59,933 [trainer.py] => Average Accuracy (CNN): 93.85499999999999 
+
+2026-07-19 21:07:59,933 [trainer.py] => All params: 87185096
+2026-07-19 21:07:59,934 [trainer.py] => Trainable params: 1386440
+2026-07-19 21:07:59,935 [tuna.py] => Learning on 20-30
+  0%|          | 0/10 [00:00<?, ?it/s]Task 2, Epoch 1/10 => Loss 1.695, Train_accy 7.37:   0%|          | 0/10 [00:08<?, ?it/s]Task 2, Epoch 1/10 => Loss 1.695, Train_accy 7.37:  10%|█         | 1/10 [00:08<01:19,  8.83s/it]Task 2, Epoch 2/10 => Loss 0.771, Train_accy 36.36:  10%|█         | 1/10 [00:17<01:19,  8.83s/it]Task 2, Epoch 2/10 => Loss 0.771, Train_accy 36.36:  20%|██        | 2/10 [00:17<01:10,  8.87s/it]Task 2, Epoch 3/10 => Loss 0.520, Train_accy 53.97:  20%|██        | 2/10 [00:26<01:10,  8.87s/it]Task 2, Epoch 3/10 => Loss 0.520, Train_accy 53.97:  30%|███       | 3/10 [00:26<01:02,  8.88s/it]Task 2, Epoch 4/10 => Loss 0.433, Train_accy 61.75:  30%|███       | 3/10 [00:35<01:02,  8.88s/it]Task 2, Epoch 4/10 => Loss 0.433, Train_accy 61.75:  40%|████      | 4/10 [00:35<00:53,  8.90s/it]Task 2, Epoch 5/10 => Loss 0.422, Train_accy 64.46:  40%|████      | 4/10 [00:44<00:53,  8.90s/it]Task 2, Epoch 5/10 => Loss 0.422, Train_accy 64.46:  50%|█████     | 5/10 [00:44<00:44,  8.90s/it]Task 2, Epoch 6/10 => Loss 0.391, Train_accy 67.73:  50%|█████     | 5/10 [00:53<00:44,  8.90s/it]Task 2, Epoch 6/10 => Loss 0.391, Train_accy 67.73:  60%|██████    | 6/10 [00:53<00:35,  8.85s/it]Task 2, Epoch 7/10 => Loss 0.401, Train_accy 68.47:  60%|██████    | 6/10 [01:01<00:35,  8.85s/it]Task 2, Epoch 7/10 => Loss 0.401, Train_accy 68.47:  70%|███████   | 7/10 [01:01<00:26,  8.83s/it]Task 2, Epoch 8/10 => Loss 0.352, Train_accy 69.86:  70%|███████   | 7/10 [01:10<00:26,  8.83s/it]Task 2, Epoch 8/10 => Loss 0.352, Train_accy 69.86:  80%|████████  | 8/10 [01:10<00:17,  8.84s/it]Task 2, Epoch 9/10 => Loss 0.329, Train_accy 69.53:  80%|████████  | 8/10 [01:19<00:17,  8.84s/it]Task 2, Epoch 9/10 => Loss 0.329, Train_accy 69.53:  90%|█████████ | 9/10 [01:19<00:08,  8.82s/it]Task 2, Epoch 10/10 => Loss 0.351, Train_accy 71.42:  90%|█████████ | 9/10 [01:28<00:08,  8.82s/it]Task 2, Epoch 10/10 => Loss 0.351, Train_accy 71.42: 100%|██████████| 10/10 [01:28<00:00,  8.83s/it]Task 2, Epoch 10/10 => Loss 0.351, Train_accy 71.42: 100%|██████████| 10/10 [01:28<00:00,  8.85s/it]
+2026-07-19 21:09:28,421 [tuna.py] => Task 2, Epoch 10/10 => Loss 0.351, Train_accy 71.42
+  0%|          | 0/30 [00:00<?, ?it/s]Task 2, Epoch 1/30 => Loss 0.134, CA_accy 97.40:   0%|          | 0/30 [00:00<?, ?it/s]Task 2, Epoch 1/30 => Loss 0.134, CA_accy 97.40:   3%|▎         | 1/30 [00:00<00:04,  6.72it/s]Task 2, Epoch 2/30 => Loss 0.063, CA_accy 99.35:   3%|▎         | 1/30 [00:00<00:04,  6.72it/s]Task 2, Epoch 2/30 => Loss 0.063, CA_accy 99.35:   7%|▋         | 2/30 [00:00<00:04,  6.49it/s]Task 2, Epoch 3/30 => Loss 0.050, CA_accy 99.58:   7%|▋         | 2/30 [00:00<00:04,  6.49it/s]Task 2, Epoch 3/30 => Loss 0.050, CA_accy 99.58:  10%|█         | 3/30 [00:00<00:04,  6.25it/s]Task 2, Epoch 4/30 => Loss 0.046, CA_accy 99.58:  10%|█         | 3/30 [00:00<00:04,  6.25it/s]Task 2, Epoch 4/30 => Loss 0.046, CA_accy 99.58:  13%|█▎        | 4/30 [00:00<00:04,  6.23it/s]Task 2, Epoch 5/30 => Loss 0.048, CA_accy 99.47:  13%|█▎        | 4/30 [00:00<00:04,  6.23it/s]Task 2, Epoch 5/30 => Loss 0.048, CA_accy 99.47:  17%|█▋        | 5/30 [00:00<00:04,  6.22it/s]Task 2, Epoch 6/30 => Loss 0.044, CA_accy 99.62:  17%|█▋        | 5/30 [00:00<00:04,  6.22it/s]Task 2, Epoch 6/30 => Loss 0.044, CA_accy 99.62:  20%|██        | 6/30 [00:00<00:03,  6.25it/s]Task 2, Epoch 7/30 => Loss 0.050, CA_accy 99.53:  20%|██        | 6/30 [00:01<00:03,  6.25it/s]Task 2, Epoch 7/30 => Loss 0.050, CA_accy 99.53:  23%|██▎       | 7/30 [00:01<00:03,  6.50it/s]Task 2, Epoch 8/30 => Loss 0.045, CA_accy 99.56:  23%|██▎       | 7/30 [00:01<00:03,  6.50it/s]Task 2, Epoch 8/30 => Loss 0.045, CA_accy 99.56:  27%|██▋       | 8/30 [00:01<00:03,  6.88it/s]Task 2, Epoch 9/30 => Loss 0.043, CA_accy 99.65:  27%|██▋       | 8/30 [00:01<00:03,  6.88it/s]Task 2, Epoch 9/30 => Loss 0.043, CA_accy 99.65:  30%|███       | 9/30 [00:01<00:02,  7.16it/s]Task 2, Epoch 10/30 => Loss 0.043, CA_accy 99.56:  30%|███       | 9/30 [00:01<00:02,  7.16it/s]Task 2, Epoch 10/30 => Loss 0.043, CA_accy 99.56:  33%|███▎      | 10/30 [00:01<00:02,  7.34it/s]Task 2, Epoch 11/30 => Loss 0.039, CA_accy 99.62:  33%|███▎      | 10/30 [00:01<00:02,  7.34it/s]Task 2, Epoch 11/30 => Loss 0.039, CA_accy 99.62:  37%|███▋      | 11/30 [00:01<00:02,  7.47it/s]Task 2, Epoch 12/30 => Loss 0.038, CA_accy 99.57:  37%|███▋      | 11/30 [00:01<00:02,  7.47it/s]Task 2, Epoch 12/30 => Loss 0.038, CA_accy 99.57:  40%|████      | 12/30 [00:01<00:02,  7.56it/s]Task 2, Epoch 13/30 => Loss 0.037, CA_accy 99.67:  40%|████      | 12/30 [00:01<00:02,  7.56it/s]Task 2, Epoch 13/30 => Loss 0.037, CA_accy 99.67:  43%|████▎     | 13/30 [00:01<00:02,  7.32it/s]Task 2, Epoch 14/30 => Loss 0.036, CA_accy 99.67:  43%|████▎     | 13/30 [00:02<00:02,  7.32it/s]Task 2, Epoch 14/30 => Loss 0.036, CA_accy 99.67:  47%|████▋     | 14/30 [00:02<00:02,  6.93it/s]Task 2, Epoch 15/30 => Loss 0.033, CA_accy 99.72:  47%|████▋     | 14/30 [00:02<00:02,  6.93it/s]Task 2, Epoch 15/30 => Loss 0.033, CA_accy 99.72:  50%|█████     | 15/30 [00:02<00:02,  6.70it/s]Task 2, Epoch 16/30 => Loss 0.035, CA_accy 99.69:  50%|█████     | 15/30 [00:02<00:02,  6.70it/s]Task 2, Epoch 16/30 => Loss 0.035, CA_accy 99.69:  53%|█████▎    | 16/30 [00:02<00:02,  6.51it/s]Task 2, Epoch 17/30 => Loss 0.035, CA_accy 99.82:  53%|█████▎    | 16/30 [00:02<00:02,  6.51it/s]Task 2, Epoch 17/30 => Loss 0.035, CA_accy 99.82:  57%|█████▋    | 17/30 [00:02<00:02,  6.39it/s]Task 2, Epoch 18/30 => Loss 0.034, CA_accy 99.68:  57%|█████▋    | 17/30 [00:02<00:02,  6.39it/s]Task 2, Epoch 18/30 => Loss 0.034, CA_accy 99.68:  60%|██████    | 18/30 [00:02<00:01,  6.33it/s]Task 2, Epoch 19/30 => Loss 0.033, CA_accy 99.69:  60%|██████    | 18/30 [00:02<00:01,  6.33it/s]Task 2, Epoch 19/30 => Loss 0.033, CA_accy 99.69:  63%|██████▎   | 19/30 [00:02<00:01,  6.31it/s]Task 2, Epoch 20/30 => Loss 0.034, CA_accy 99.72:  63%|██████▎   | 19/30 [00:03<00:01,  6.31it/s]Task 2, Epoch 20/30 => Loss 0.034, CA_accy 99.72:  67%|██████▋   | 20/30 [00:03<00:01,  6.25it/s]Task 2, Epoch 21/30 => Loss 0.032, CA_accy 99.64:  67%|██████▋   | 20/30 [00:03<00:01,  6.25it/s]Task 2, Epoch 21/30 => Loss 0.032, CA_accy 99.64:  70%|███████   | 21/30 [00:03<00:01,  6.23it/s]Task 2, Epoch 22/30 => Loss 0.031, CA_accy 99.81:  70%|███████   | 21/30 [00:03<00:01,  6.23it/s]Task 2, Epoch 22/30 => Loss 0.031, CA_accy 99.81:  73%|███████▎  | 22/30 [00:03<00:01,  6.22it/s]Task 2, Epoch 23/30 => Loss 0.027, CA_accy 99.78:  73%|███████▎  | 22/30 [00:03<00:01,  6.22it/s]Task 2, Epoch 23/30 => Loss 0.027, CA_accy 99.78:  77%|███████▋  | 23/30 [00:03<00:01,  6.20it/s]Task 2, Epoch 24/30 => Loss 0.029, CA_accy 99.74:  77%|███████▋  | 23/30 [00:03<00:01,  6.20it/s]Task 2, Epoch 24/30 => Loss 0.029, CA_accy 99.74:  80%|████████  | 24/30 [00:03<00:00,  6.31it/s]Task 2, Epoch 25/30 => Loss 0.028, CA_accy 99.81:  80%|████████  | 24/30 [00:03<00:00,  6.31it/s]Task 2, Epoch 25/30 => Loss 0.028, CA_accy 99.81:  83%|████████▎ | 25/30 [00:03<00:00,  6.30it/s]Task 2, Epoch 26/30 => Loss 0.032, CA_accy 99.72:  83%|████████▎ | 25/30 [00:03<00:00,  6.30it/s]Task 2, Epoch 26/30 => Loss 0.032, CA_accy 99.72:  87%|████████▋ | 26/30 [00:03<00:00,  6.25it/s]Task 2, Epoch 27/30 => Loss 0.031, CA_accy 99.67:  87%|████████▋ | 26/30 [00:04<00:00,  6.25it/s]Task 2, Epoch 27/30 => Loss 0.031, CA_accy 99.67:  90%|█████████ | 27/30 [00:04<00:00,  6.20it/s]Task 2, Epoch 28/30 => Loss 0.030, CA_accy 99.75:  90%|█████████ | 27/30 [00:04<00:00,  6.20it/s]Task 2, Epoch 28/30 => Loss 0.030, CA_accy 99.75:  93%|█████████▎| 28/30 [00:04<00:00,  6.14it/s]Task 2, Epoch 29/30 => Loss 0.028, CA_accy 99.86:  93%|█████████▎| 28/30 [00:04<00:00,  6.14it/s]Task 2, Epoch 29/30 => Loss 0.028, CA_accy 99.86:  97%|█████████▋| 29/30 [00:04<00:00,  6.11it/s]Task 2, Epoch 30/30 => Loss 0.027, CA_accy 99.78:  97%|█████████▋| 29/30 [00:04<00:00,  6.11it/s]Task 2, Epoch 30/30 => Loss 0.027, CA_accy 99.78: 100%|██████████| 30/30 [00:04<00:00,  6.10it/s]Task 2, Epoch 30/30 => Loss 0.027, CA_accy 99.78: 100%|██████████| 30/30 [00:04<00:00,  6.47it/s]
+sampled data shape:  torch.Size([7200, 768])
+2026-07-19 21:09:46,046 [tuna.py] => Task 2, Epoch 30/30 => Loss 0.027, CA_accy 99.78
+2026-07-19 21:09:58,092 [trainer.py] => No NME accuracy.
+2026-07-19 21:09:58,092 [trainer.py] => CNN: {'total': 89.61, '00-09': 87.97, '10-19': 90.11, '20-29': 90.7, 'old': 89.13, 'new': 90.7}
+2026-07-19 21:09:58,092 [trainer.py] => CNN top1 curve: [95.25, 92.46, 89.61]
+2026-07-19 21:09:58,092 [trainer.py] => CNN top5 curve: [99.68, 98.26, 96.87]
+
+Average Accuracy (CNN): 92.44
+2026-07-19 21:09:58,093 [trainer.py] => Average Accuracy (CNN): 92.44 
+
+2026-07-19 21:10:05,425 [metrics_logger.py] => [metrics] wrote run_logs/final/tuna/metrics_tuna_imagenetr_three_task_check_bs48lr3e4_imagenetr_tuna_s1993.json
+Accuracy Matrix (CNN):
+[[95.25 91.46 87.97]
+ [ 0.   93.32 90.11]
+ [ 0.    0.   90.7 ]]
+2026-07-19 21:10:05,425 [trainer.py] => Forgetting (CNN): 5.244999999999997
+2026-07-19 21:10:05,426 [trainer.py] => Forgetting (NME): 5.244999999999997

@@ -1,0 +1,62 @@
+2026-07-19 22:01:57,303 [trainer.py] => config: exps/review/three_task_check_bs48_lr3e4/food101_progprompt.json
+2026-07-19 22:01:57,304 [trainer.py] => dataset: food101
+2026-07-19 22:01:57,304 [trainer.py] => memory_size: 0
+2026-07-19 22:01:57,304 [trainer.py] => memory_per_class: 0
+2026-07-19 22:01:57,304 [trainer.py] => fixed_memory: False
+2026-07-19 22:01:57,304 [trainer.py] => shuffle: True
+2026-07-19 22:01:57,304 [trainer.py] => init_cls: 6
+2026-07-19 22:01:57,304 [trainer.py] => increment: 5
+2026-07-19 22:01:57,304 [trainer.py] => seed: 1993
+2026-07-19 22:01:57,304 [trainer.py] => scenario: cil
+2026-07-19 22:01:57,304 [trainer.py] => stop_after_tasks: 3
+2026-07-19 22:01:57,304 [trainer.py] => pretrained: True
+2026-07-19 22:01:57,304 [trainer.py] => print_forget: True
+2026-07-19 22:01:57,304 [trainer.py] => final_metrics: True
+2026-07-19 22:01:57,304 [trainer.py] => backbone_type: vit_base_patch16_224_progprompt
+2026-07-19 22:01:57,304 [trainer.py] => tuned_epoch: 5
+2026-07-19 22:01:57,304 [trainer.py] => init_lr: 0.0003
+2026-07-19 22:01:57,304 [trainer.py] => batch_size: 48
+2026-07-19 22:01:57,304 [trainer.py] => weight_decay: 0.0
+2026-07-19 22:01:57,304 [trainer.py] => min_lr: 0.0
+2026-07-19 22:01:57,304 [trainer.py] => model_name: progprompt
+2026-07-19 22:01:57,304 [trainer.py] => prompt_len: 10
+2026-07-19 22:01:57,304 [trainer.py] => device: [device(type='cuda', index=2)]
+2026-07-19 22:01:57,304 [trainer.py] => prefix: three_task_check_bs48lr3e4_food101_progprompt
+2026-07-19 22:01:57,582 [data_manager.py] => [68, 56, 78, 8, 23, 84, 90, 65, 74, 76, 40, 89, 3, 92, 55, 9, 26, 80, 43, 38, 58, 70, 77, 1, 85, 19, 17, 50, 28, 53, 13, 81, 45, 82, 6, 59, 83, 16, 15, 44, 91, 41, 72, 60, 79, 52, 20, 10, 31, 54, 37, 95, 14, 71, 96, 99, 98, 2, 64, 66, 42, 22, 35, 86, 24, 34, 87, 21, 100, 0, 88, 27, 18, 94, 11, 12, 47, 25, 30, 46, 62, 69, 36, 61, 7, 63, 75, 5, 32, 4, 51, 48, 73, 93, 39, 67, 29, 97, 49, 57, 33]
+2026-07-19 22:02:00,256 [trainer.py] => stop_after_tasks=3 (of 20 total)
+2026-07-19 22:02:00,820 [trainer.py] => All params: 85952256
+2026-07-19 22:02:00,821 [trainer.py] => Trainable params: 153600
+2026-07-19 22:02:00,821 [progprompt.py] => [ProgPrompt] Learning on 0-6
+2026-07-19 22:04:19,052 [progprompt.py] => [ProgPrompt] Task 0 done. Acc 91.27
+2026-07-19 22:04:24,113 [trainer.py] => No NME accuracy.
+2026-07-19 22:04:24,113 [trainer.py] => CNN: {'total': 95.53, '00-05': 95.53, 'old': 0, 'new': 95.53}
+2026-07-19 22:04:24,113 [trainer.py] => CNN top1 curve: [95.53]
+2026-07-19 22:04:24,113 [trainer.py] => CNN top5 curve: [100.0]
+
+2026-07-19 22:04:24,113 [trainer.py] => Average Accuracy (CNN): 95.53 
+
+2026-07-19 22:04:24,114 [trainer.py] => All params: 85956870
+2026-07-19 22:04:24,115 [trainer.py] => Trainable params: 12294
+2026-07-19 22:04:24,117 [progprompt.py] => [ProgPrompt] Learning on 6-11
+2026-07-19 22:06:27,127 [progprompt.py] => [ProgPrompt] Task 1 done. Acc 95.73
+2026-07-19 22:06:36,411 [trainer.py] => No NME accuracy.
+2026-07-19 22:06:36,411 [trainer.py] => CNN: {'total': 86.69, '00-05': 84.6, '06-10': 89.2, 'old': 84.6, 'new': 89.2}
+2026-07-19 22:06:36,411 [trainer.py] => CNN top1 curve: [95.53, 86.69]
+2026-07-19 22:06:36,411 [trainer.py] => CNN top5 curve: [100.0, 99.42]
+
+2026-07-19 22:06:36,411 [trainer.py] => Average Accuracy (CNN): 91.11 
+
+2026-07-19 22:06:36,412 [trainer.py] => All params: 85960715
+2026-07-19 22:06:36,412 [trainer.py] => Trainable params: 16139
+2026-07-19 22:06:36,413 [progprompt.py] => [ProgPrompt] Learning on 11-16
+2026-07-19 22:08:42,357 [progprompt.py] => [ProgPrompt] Task 2 done. Acc 90.99
+2026-07-19 22:08:55,837 [trainer.py] => No NME accuracy.
+2026-07-19 22:08:55,837 [trainer.py] => CNN: {'total': 76.38, '00-05': 74.67, '06-10': 89.68, '11-15': 65.12, 'old': 81.49, 'new': 65.12}
+2026-07-19 22:08:55,837 [trainer.py] => CNN top1 curve: [95.53, 86.69, 76.38]
+2026-07-19 22:08:55,837 [trainer.py] => CNN top5 curve: [100.0, 99.42, 97.58]
+
+2026-07-19 22:08:55,838 [trainer.py] => Average Accuracy (CNN): 86.2 
+
+2026-07-19 22:08:58,754 [metrics_logger.py] => [metrics] wrote run_logs/final/progprompt/metrics_progprompt_food101_three_task_check_bs48lr3e4_food101_progprompt_s1993.json
+2026-07-19 22:08:58,754 [trainer.py] => Forgetting (CNN): 10.43
+2026-07-19 22:08:58,754 [trainer.py] => Forgetting (NME): 10.43

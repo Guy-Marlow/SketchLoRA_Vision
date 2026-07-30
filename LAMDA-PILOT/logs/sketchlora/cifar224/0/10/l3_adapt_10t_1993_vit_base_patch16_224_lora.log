@@ -1,0 +1,184 @@
+2026-06-21 04:12:06,336 [trainer.py] => config: ./exps/sketchlora_l3_adapt_10t.json
+2026-06-21 04:12:06,336 [trainer.py] => prefix: l3_adapt_10t
+2026-06-21 04:12:06,336 [trainer.py] => dataset: cifar224
+2026-06-21 04:12:06,336 [trainer.py] => memory_size: 0
+2026-06-21 04:12:06,336 [trainer.py] => memory_per_class: 0
+2026-06-21 04:12:06,336 [trainer.py] => fixed_memory: False
+2026-06-21 04:12:06,336 [trainer.py] => shuffle: True
+2026-06-21 04:12:06,336 [trainer.py] => init_cls: 10
+2026-06-21 04:12:06,336 [trainer.py] => increment: 10
+2026-06-21 04:12:06,336 [trainer.py] => model_name: sketchlora
+2026-06-21 04:12:06,336 [trainer.py] => backbone_type: vit_base_patch16_224_lora
+2026-06-21 04:12:06,336 [trainer.py] => device: [device(type='cuda', index=0)]
+2026-06-21 04:12:06,336 [trainer.py] => seed: 1993
+2026-06-21 04:12:06,336 [trainer.py] => scenario: both
+2026-06-21 04:12:06,336 [trainer.py] => lora_rank: 10
+2026-06-21 04:12:06,336 [trainer.py] => lora_alpha: None
+2026-06-21 04:12:06,336 [trainer.py] => lora_merge: True
+2026-06-21 04:12:06,336 [trainer.py] => lora_train_merge: True
+2026-06-21 04:12:06,336 [trainer.py] => svd_rank: 10
+2026-06-21 04:12:06,336 [trainer.py] => svd_oversampling: 10
+2026-06-21 04:12:06,336 [trainer.py] => svd_energy_target: 0.005
+2026-06-21 04:12:06,336 [trainer.py] => lora_n_slots: 2
+2026-06-21 04:12:06,336 [trainer.py] => n_lora_blocks: 3
+2026-06-21 04:12:06,337 [trainer.py] => tuned_epoch: 10
+2026-06-21 04:12:06,337 [trainer.py] => init_lr: 0.0003
+2026-06-21 04:12:06,337 [trainer.py] => batch_size: 48
+2026-06-21 04:12:06,337 [trainer.py] => weight_decay: 0.0005
+2026-06-21 04:12:06,337 [trainer.py] => min_lr: 0.0
+2026-06-21 04:12:06,337 [trainer.py] => pretrained: True
+2026-06-21 04:12:06,337 [trainer.py] => print_forget: True
+2026-06-21 04:12:08,011 [data_manager.py] => [68, 56, 78, 8, 23, 84, 90, 65, 74, 76, 40, 89, 3, 92, 55, 9, 26, 80, 43, 38, 58, 70, 77, 1, 85, 19, 17, 50, 28, 53, 13, 81, 45, 82, 6, 59, 83, 16, 15, 44, 91, 41, 72, 60, 79, 52, 20, 10, 31, 54, 37, 95, 14, 71, 96, 98, 97, 2, 64, 66, 42, 22, 35, 86, 24, 34, 87, 21, 99, 0, 88, 27, 18, 94, 11, 12, 47, 25, 30, 46, 62, 69, 36, 61, 7, 63, 75, 5, 32, 4, 51, 48, 73, 93, 39, 67, 29, 49, 57, 33]
+2026-06-21 04:12:10,864 [trainer.py] => All params: 86535936
+2026-06-21 04:12:10,865 [trainer.py] => Trainable params: 737280
+2026-06-21 04:12:11,823 [lora.py] => Learning on 0-10
+2026-06-21 04:12:11,825 [lora.py] => Trainable params this task: 376,330 / 86,543,626
+2026-06-21 04:23:03,534 [lora.py] => Task 0 finished. Train_accy 91.30
+2026-06-21 04:23:05,341 [sketchlora.py] => [SketchDiag] task 0: retained-energy mean=0.997 min=0.996 | ||ΔW||_F mean=0.847 | r_hat mean=7.0 total=42
+2026-06-21 04:23:18,923 [til_base.py] => TIL top1: 95.9
+2026-06-21 04:23:18,923 [til_base.py] => CIL top1: 95.9 | TIL top1: 95.9
+2026-06-21 04:23:18,923 [trainer.py] => No NME accuracy.
+2026-06-21 04:23:18,924 [trainer.py] => CNN: {'total': np.float64(95.9), '00-09': np.float64(95.9), 'old': 0, 'new': np.float64(95.9)}
+2026-06-21 04:23:18,924 [trainer.py] => CNN top1 curve: [np.float64(95.9)]
+2026-06-21 04:23:18,924 [trainer.py] => CNN top5 curve: [np.float64(99.9)]
+
+2026-06-21 04:23:18,924 [trainer.py] => Average Accuracy (CNN): 95.9 
+
+2026-06-21 04:23:18,925 [trainer.py] => All params: 86515978
+2026-06-21 04:23:18,925 [trainer.py] => Trainable params: 99850
+2026-06-21 04:23:18,931 [lora.py] => Learning on 10-20
+2026-06-21 04:23:18,932 [lora.py] => Trainable params this task: 384,020 / 86,523,668
+2026-06-21 04:34:16,622 [lora.py] => Task 1 finished. Train_accy 88.44
+2026-06-21 04:34:18,413 [sketchlora.py] => [SketchDiag] task 1: retained-energy mean=0.996 min=0.995 | ||ΔW||_F mean=1.152 | r_hat mean=12.3 total=74
+2026-06-21 04:34:42,729 [til_base.py] => TIL top1: 97.1
+2026-06-21 04:34:42,729 [til_base.py] => CIL top1: 92.25 | TIL top1: 97.1
+2026-06-21 04:34:42,729 [trainer.py] => No NME accuracy.
+2026-06-21 04:34:42,729 [trainer.py] => CNN: {'total': np.float64(92.25), '00-09': np.float64(93.6), '10-19': np.float64(90.9), 'old': np.float64(93.6), 'new': np.float64(90.9)}
+2026-06-21 04:34:42,729 [trainer.py] => CNN top1 curve: [np.float64(95.9), np.float64(92.25)]
+2026-06-21 04:34:42,730 [trainer.py] => CNN top5 curve: [np.float64(99.9), np.float64(99.2)]
+
+2026-06-21 04:34:42,730 [trainer.py] => Average Accuracy (CNN): 94.075 
+
+2026-06-21 04:34:42,730 [trainer.py] => All params: 86572820
+2026-06-21 04:34:42,731 [trainer.py] => Trainable params: 107540
+2026-06-21 04:34:42,733 [lora.py] => Learning on 20-30
+2026-06-21 04:34:42,735 [lora.py] => Trainable params this task: 391,710 / 86,580,510
+2026-06-21 04:45:44,439 [lora.py] => Task 2 finished. Train_accy 93.02
+2026-06-21 04:45:45,739 [sketchlora.py] => [SketchDiag] task 2: retained-energy mean=0.996 min=0.995 | ||ΔW||_F mean=1.319 | r_hat mean=16.8 total=101
+2026-06-21 04:46:23,363 [til_base.py] => TIL top1: 97.43
+2026-06-21 04:46:23,363 [til_base.py] => CIL top1: 90.17 | TIL top1: 97.43
+2026-06-21 04:46:23,363 [trainer.py] => No NME accuracy.
+2026-06-21 04:46:23,363 [trainer.py] => CNN: {'total': np.float64(90.17), '00-09': np.float64(88.9), '10-19': np.float64(86.7), '20-29': np.float64(94.9), 'old': np.float64(87.8), 'new': np.float64(94.9)}
+2026-06-21 04:46:23,363 [trainer.py] => CNN top1 curve: [np.float64(95.9), np.float64(92.25), np.float64(90.17)]
+2026-06-21 04:46:23,363 [trainer.py] => CNN top5 curve: [np.float64(99.9), np.float64(99.2), np.float64(98.73)]
+
+2026-06-21 04:46:23,364 [trainer.py] => Average Accuracy (CNN): 92.77333333333333 
+
+2026-06-21 04:46:23,365 [trainer.py] => All params: 86621982
+2026-06-21 04:46:23,366 [trainer.py] => Trainable params: 115230
+2026-06-21 04:46:23,367 [lora.py] => Learning on 30-40
+2026-06-21 04:46:23,370 [lora.py] => Trainable params this task: 399,400 / 86,629,672
+2026-06-21 04:57:22,684 [lora.py] => Task 3 finished. Train_accy 89.74
+2026-06-21 04:57:24,652 [sketchlora.py] => [SketchDiag] task 3: retained-energy mean=0.996 min=0.996 | ||ΔW||_F mean=1.506 | r_hat mean=20.8 total=125
+2026-06-21 04:58:15,146 [til_base.py] => TIL top1: 97.0
+2026-06-21 04:58:15,147 [til_base.py] => CIL top1: 86.5 | TIL top1: 97.0
+2026-06-21 04:58:15,147 [trainer.py] => No NME accuracy.
+2026-06-21 04:58:15,147 [trainer.py] => CNN: {'total': np.float64(86.5), '00-09': np.float64(83.6), '10-19': np.float64(83.4), '20-29': np.float64(92.8), '30-39': np.float64(86.2), 'old': np.float64(86.6), 'new': np.float64(86.2)}
+2026-06-21 04:58:15,147 [trainer.py] => CNN top1 curve: [np.float64(95.9), np.float64(92.25), np.float64(90.17), np.float64(86.5)]
+2026-06-21 04:58:15,147 [trainer.py] => CNN top5 curve: [np.float64(99.9), np.float64(99.2), np.float64(98.73), np.float64(98.1)]
+
+2026-06-21 04:58:15,147 [trainer.py] => Average Accuracy (CNN): 91.205 
+
+2026-06-21 04:58:15,148 [trainer.py] => All params: 86666536
+2026-06-21 04:58:15,148 [trainer.py] => Trainable params: 122920
+2026-06-21 04:58:15,151 [lora.py] => Learning on 40-50
+2026-06-21 04:58:15,153 [lora.py] => Trainable params this task: 407,090 / 86,674,226
+2026-06-21 05:09:11,608 [lora.py] => Task 4 finished. Train_accy 93.64
+2026-06-21 05:09:13,639 [sketchlora.py] => [SketchDiag] task 4: retained-energy mean=0.996 min=0.995 | ||ΔW||_F mean=1.620 | r_hat mean=23.7 total=142
+2026-06-21 05:10:18,124 [til_base.py] => TIL top1: 97.24
+2026-06-21 05:10:18,124 [til_base.py] => CIL top1: 82.12 | TIL top1: 97.24
+2026-06-21 05:10:18,124 [trainer.py] => No NME accuracy.
+2026-06-21 05:10:18,124 [trainer.py] => CNN: {'total': np.float64(82.12), '00-09': np.float64(76.9), '10-19': np.float64(72.5), '20-29': np.float64(87.3), '30-39': np.float64(78.8), '40-49': np.float64(95.1), 'old': np.float64(78.88), 'new': np.float64(95.1)}
+2026-06-21 05:10:18,124 [trainer.py] => CNN top1 curve: [np.float64(95.9), np.float64(92.25), np.float64(90.17), np.float64(86.5), np.float64(82.12)]
+2026-06-21 05:10:18,124 [trainer.py] => CNN top5 curve: [np.float64(99.9), np.float64(99.2), np.float64(98.73), np.float64(98.1), np.float64(97.54)]
+
+2026-06-21 05:10:18,124 [trainer.py] => Average Accuracy (CNN): 89.388 
+
+2026-06-21 05:10:18,125 [trainer.py] => All params: 86700338
+2026-06-21 05:10:18,126 [trainer.py] => Trainable params: 130610
+2026-06-21 05:10:18,129 [lora.py] => Learning on 50-60
+2026-06-21 05:10:18,131 [lora.py] => Trainable params this task: 414,780 / 86,708,028
+2026-06-21 05:21:14,320 [lora.py] => Task 5 finished. Train_accy 91.18
+2026-06-21 05:21:16,411 [sketchlora.py] => [SketchDiag] task 5: retained-energy mean=0.996 min=0.995 | ||ΔW||_F mean=1.747 | r_hat mean=26.7 total=160
+2026-06-21 05:22:34,180 [til_base.py] => TIL top1: 97.35
+2026-06-21 05:22:34,180 [til_base.py] => CIL top1: 80.4 | TIL top1: 97.35
+2026-06-21 05:22:34,180 [trainer.py] => No NME accuracy.
+2026-06-21 05:22:34,180 [trainer.py] => CNN: {'total': np.float64(80.4), '00-09': np.float64(72.8), '10-19': np.float64(73.7), '20-29': np.float64(87.3), '30-39': np.float64(78.8), '40-49': np.float64(94.0), '50-59': np.float64(75.8), 'old': np.float64(81.32), 'new': np.float64(75.8)}
+2026-06-21 05:22:34,180 [trainer.py] => CNN top1 curve: [np.float64(95.9), np.float64(92.25), np.float64(90.17), np.float64(86.5), np.float64(82.12), np.float64(80.4)]
+2026-06-21 05:22:34,180 [trainer.py] => CNN top5 curve: [np.float64(99.9), np.float64(99.2), np.float64(98.73), np.float64(98.1), np.float64(97.54), np.float64(97.12)]
+
+2026-06-21 05:22:34,180 [trainer.py] => Average Accuracy (CNN): 87.89 
+
+2026-06-21 05:22:34,182 [trainer.py] => All params: 86735676
+2026-06-21 05:22:34,183 [trainer.py] => Trainable params: 138300
+2026-06-21 05:22:34,186 [lora.py] => Learning on 60-70
+2026-06-21 05:22:34,189 [lora.py] => Trainable params this task: 422,470 / 86,743,366
+2026-06-21 05:33:23,016 [lora.py] => Task 6 finished. Train_accy 93.12
+2026-06-21 05:33:25,103 [sketchlora.py] => [SketchDiag] task 6: retained-energy mean=0.996 min=0.995 | ||ΔW||_F mean=1.833 | r_hat mean=29.2 total=175
+2026-06-21 05:34:56,266 [til_base.py] => TIL top1: 96.84
+2026-06-21 05:34:56,266 [til_base.py] => CIL top1: 76.6 | TIL top1: 96.84
+2026-06-21 05:34:56,266 [trainer.py] => No NME accuracy.
+2026-06-21 05:34:56,267 [trainer.py] => CNN: {'total': np.float64(76.6), '00-09': np.float64(68.1), '10-19': np.float64(62.3), '20-29': np.float64(83.9), '30-39': np.float64(75.1), '40-49': np.float64(90.8), '50-59': np.float64(59.0), '60-69': np.float64(97.0), 'old': np.float64(73.2), 'new': np.float64(97.0)}
+2026-06-21 05:34:56,267 [trainer.py] => CNN top1 curve: [np.float64(95.9), np.float64(92.25), np.float64(90.17), np.float64(86.5), np.float64(82.12), np.float64(80.4), np.float64(76.6)]
+2026-06-21 05:34:56,267 [trainer.py] => CNN top5 curve: [np.float64(99.9), np.float64(99.2), np.float64(98.73), np.float64(98.1), np.float64(97.54), np.float64(97.12), np.float64(95.89)]
+
+2026-06-21 05:34:56,267 [trainer.py] => Average Accuracy (CNN): 86.27714285714286 
+
+2026-06-21 05:34:56,267 [trainer.py] => All params: 86766406
+2026-06-21 05:34:56,268 [trainer.py] => Trainable params: 145990
+2026-06-21 05:34:56,271 [lora.py] => Learning on 70-80
+2026-06-21 05:34:56,273 [lora.py] => Trainable params this task: 430,160 / 86,774,096
+2026-06-21 05:45:47,537 [lora.py] => Task 7 finished. Train_accy 91.14
+2026-06-21 05:45:49,642 [sketchlora.py] => [SketchDiag] task 7: retained-energy mean=0.996 min=0.995 | ||ΔW||_F mean=1.926 | r_hat mean=31.3 total=188
+2026-06-21 05:47:33,768 [til_base.py] => TIL top1: 96.94
+2026-06-21 05:47:33,768 [til_base.py] => CIL top1: 72.28 | TIL top1: 96.94
+2026-06-21 05:47:33,768 [trainer.py] => No NME accuracy.
+2026-06-21 05:47:33,768 [trainer.py] => CNN: {'total': np.float64(72.28), '00-09': np.float64(68.2), '10-19': np.float64(64.4), '20-29': np.float64(84.7), '30-39': np.float64(74.0), '40-49': np.float64(89.2), '50-59': np.float64(54.7), '60-69': np.float64(95.9), '70-79': np.float64(47.1), 'old': np.float64(75.87), 'new': np.float64(47.1)}
+2026-06-21 05:47:33,768 [trainer.py] => CNN top1 curve: [np.float64(95.9), np.float64(92.25), np.float64(90.17), np.float64(86.5), np.float64(82.12), np.float64(80.4), np.float64(76.6), np.float64(72.28)]
+2026-06-21 05:47:33,768 [trainer.py] => CNN top5 curve: [np.float64(99.9), np.float64(99.2), np.float64(98.73), np.float64(98.1), np.float64(97.54), np.float64(97.12), np.float64(95.89), np.float64(95.11)]
+
+2026-06-21 05:47:33,769 [trainer.py] => Average Accuracy (CNN): 84.5275 
+
+2026-06-21 05:47:33,770 [trainer.py] => All params: 86794064
+2026-06-21 05:47:33,772 [trainer.py] => Trainable params: 153680
+2026-06-21 05:47:33,774 [lora.py] => Learning on 80-90
+2026-06-21 05:47:33,778 [lora.py] => Trainable params this task: 437,850 / 86,801,754
+2026-06-21 05:58:18,924 [lora.py] => Task 8 finished. Train_accy 90.32
+2026-06-21 05:58:20,999 [sketchlora.py] => [SketchDiag] task 8: retained-energy mean=0.996 min=0.995 | ||ΔW||_F mean=1.996 | r_hat mean=33.5 total=201
+2026-06-21 06:00:18,280 [til_base.py] => TIL top1: 96.93
+2026-06-21 06:00:18,281 [til_base.py] => CIL top1: 71.07 | TIL top1: 96.93
+2026-06-21 06:00:18,281 [trainer.py] => No NME accuracy.
+2026-06-21 06:00:18,281 [trainer.py] => CNN: {'total': np.float64(71.07), '00-09': np.float64(65.9), '10-19': np.float64(57.5), '20-29': np.float64(83.0), '30-39': np.float64(73.4), '40-49': np.float64(88.5), '50-59': np.float64(57.1), '60-69': np.float64(94.9), '70-79': np.float64(39.7), '80-89': np.float64(79.6), 'old': np.float64(70.0), 'new': np.float64(79.6)}
+2026-06-21 06:00:18,281 [trainer.py] => CNN top1 curve: [np.float64(95.9), np.float64(92.25), np.float64(90.17), np.float64(86.5), np.float64(82.12), np.float64(80.4), np.float64(76.6), np.float64(72.28), np.float64(71.07)]
+2026-06-21 06:00:18,281 [trainer.py] => CNN top5 curve: [np.float64(99.9), np.float64(99.2), np.float64(98.73), np.float64(98.1), np.float64(97.54), np.float64(97.12), np.float64(95.89), np.float64(95.11), np.float64(94.76)]
+
+2026-06-21 06:00:18,281 [trainer.py] => Average Accuracy (CNN): 83.03222222222222 
+
+2026-06-21 06:00:18,283 [trainer.py] => All params: 86821722
+2026-06-21 06:00:18,284 [trainer.py] => Trainable params: 161370
+2026-06-21 06:00:18,287 [lora.py] => Learning on 90-100
+2026-06-21 06:00:18,291 [lora.py] => Trainable params this task: 445,540 / 86,829,412
+2026-06-21 06:07:04,333 [lora.py] => Task 9 finished. Train_accy 90.76
+2026-06-21 06:07:05,101 [sketchlora.py] => [SketchDiag] task 9: retained-energy mean=0.996 min=0.996 | ||ΔW||_F mean=2.084 | r_hat mean=35.7 total=214
+2026-06-21 06:08:12,050 [til_base.py] => TIL top1: 97.11
+2026-06-21 06:08:12,051 [til_base.py] => CIL top1: 70.3 | TIL top1: 97.11
+2026-06-21 06:08:12,051 [trainer.py] => No NME accuracy.
+2026-06-21 06:08:12,051 [trainer.py] => CNN: {'total': np.float64(70.3), '00-09': np.float64(65.3), '10-19': np.float64(57.4), '20-29': np.float64(81.5), '30-39': np.float64(71.6), '40-49': np.float64(90.0), '50-59': np.float64(55.7), '60-69': np.float64(93.2), '70-79': np.float64(38.9), '80-89': np.float64(75.1), '90-99': np.float64(74.3), 'old': np.float64(69.86), 'new': np.float64(74.3)}
+2026-06-21 06:08:12,051 [trainer.py] => CNN top1 curve: [np.float64(95.9), np.float64(92.25), np.float64(90.17), np.float64(86.5), np.float64(82.12), np.float64(80.4), np.float64(76.6), np.float64(72.28), np.float64(71.07), np.float64(70.3)]
+2026-06-21 06:08:12,051 [trainer.py] => CNN top5 curve: [np.float64(99.9), np.float64(99.2), np.float64(98.73), np.float64(98.1), np.float64(97.54), np.float64(97.12), np.float64(95.89), np.float64(95.11), np.float64(94.76), np.float64(94.25)]
+
+2026-06-21 06:08:12,051 [trainer.py] => Average Accuracy (CNN): 81.75899999999999 
+
+2026-06-21 06:08:12,053 [trainer.py] => Forgetting (CNN): 14.866666666666667
+2026-06-21 06:08:12,053 [trainer.py] => Forgetting (NME): 14.866666666666667
+2026-06-21 06:08:12,055 [trainer.py] => Forgetting (TIL): 0.4222222222222219

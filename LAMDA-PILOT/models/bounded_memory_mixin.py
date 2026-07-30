@@ -72,6 +72,7 @@ from torch.nn import functional as F
 from torch.utils.data import DataLoader
 
 from utils.metrics_logger import MetricsLogger
+from utils.ops_ledger import OpsLedger, measure_step_macs
 
 num_workers = 8
 BYTES_PER_IMAGE = 224 * 224 * 3   # same accounting convention as budget_stream.py / stream_mixin.py
@@ -364,12 +365,22 @@ class BoundedMemoryMixin:
         _metrics_tag = "{}_{}_s{}".format(args["model_name"], args.get("prefix", "run"), seed0)
         mlog = MetricsLogger(os.path.join("run_logs", "final", args["model_name"]), _metrics_tag, args)
         self._bounded_metrics_path = mlog.out_path
+        # Computational Efficiency (CE) metric (impl_plan_7.27.2026 Part 2) --
+        # always on, same rationale as MetricsLogger above (no other track sharing
+        # this driver to protect from the overhead, and per the plan's own cost
+        # estimate this is logging, not compute: ~0 extra GPU-h beyond one profiler
+        # measurement per run). N = cycle count under bounded-memory (sec 2.1),
+        # so one ledger record per CYCLE, not per checkpoint.
+        ce_ledger = OpsLedger(os.path.join("run_logs", "final", args["model_name"]), _metrics_tag)
+        self._bounded_ce_ledger_path = ce_ledger.out_path
+        _ce_step_macs = None   # (fwd, bwd) MACs, measured once on cycle 0, reused every cycle
 
         results = []
         cum_images = 0
         next_ckpt_idx = 0
         cycle_idx = -1
         _prev_param_hash = None   # Round 2 §2.2 eval-routing identity check
+        _prev_cycle_idx = None    # only compare hashes ACROSS a cycle boundary -- see below
         mlog.begin_task()   # starts timing the FIRST checkpoint-interval
         while cum_images < total_images:
             cycle_idx += 1
@@ -396,9 +407,40 @@ class BoundedMemoryMixin:
             self._stream_begin_chunk(loader)
             self._bounded_new_optimizer()   # Round-2 §1.2: head weight_decay=0, uniform
             optimizer, scheduler = self._stream_optim, self._stream_sched
+
+            if _ce_step_macs is None:
+                # One-time Ops_fb measurement (impl_plan_7.27.2026 sec 2.2: "measured,
+                # not assumed"), AFTER _stream_begin_chunk so trainability/slot routing
+                # match real training exactly. Two separate profiled calls (fwd-only,
+                # fwd+bwd) on one real batch -- see utils/ops_ledger.py::measure_step_macs
+                # for why. zero_grad() after: this is a throwaway measurement, must not
+                # leak into the real optimizer's first step.
+                _probe_inputs, _probe_targets = next(iter(loader))[1:]
+                _probe_inputs = _probe_inputs.to(self._device)
+                _probe_targets = _probe_targets.to(self._device)
+                _slot, _merge = self._stream_slot(), self._stream_train_merge()
+
+                def _fwd_only():
+                    with torch.no_grad():
+                        self._network(_probe_inputs, task=_slot, merge=_merge)
+
+                def _fwd_bwd():
+                    output = self._network(_probe_inputs, task=_slot, merge=_merge)
+                    loss = F.cross_entropy(output["logits"] + cycle_class_mask, _probe_targets)
+                    loss.backward()
+
+                _ce_step_macs = measure_step_macs(_fwd_only, _fwd_bwd, self._device)
+                self._network.zero_grad()
+
             for _ep in range(epochs):
                 self._bounded_train_epoch(loader, optimizer, scheduler, cycle_class_mask)
             self._stream_end_chunk(loader)
+
+            ce_ledger.record_unit(
+                unit_idx=cycle_idx, steps_per_epoch=len(loader), n_epochs=epochs,
+                step_macs_fwd=_ce_step_macs[0], step_macs_bwd=_ce_step_macs[1],
+                aux_macs_per_step=self._ce_aux_macs_per_step(),
+                boundary_macs=self._ce_boundary_macs_this_cycle(len(chunk_data)))
 
             cum_images = c_end
             # CHECKPOINT-interval granularity, not per-cycle: a checkpoint spans
@@ -422,13 +464,24 @@ class BoundedMemoryMixin:
                     all_data, all_targets, cum_images, data_manager, task_class_cumends)
                 nearest_task = int(np.searchsorted(task_image_cumends, cum_images))
                 param_hash = self._bounded_param_hash()
-                if _prev_param_hash is not None:
+                # FIXED (2026-07-28): the real invariant is "params changed ACROSS a
+                # cycle boundary" (real training happened, so a stale/frozen eval state
+                # would be a bug) -- NOT "params changed between any two consecutive
+                # checkpoints." When checkpoint density exceeds cycle count (e.g.
+                # ImageNet-R at 200MB budget: 18 cycles vs the dataset's 20 requested
+                # checkpoint fractions), multiple checkpoints legitimately land on the
+                # SAME cycle with no training in between -- an unchanged hash there is
+                # CORRECT, not a bug (confirmed via a crash on exactly this: "cycle 3 ->
+                # 3" in the old message format, which already anticipated printing the
+                # same cycle twice without ever guarding against it).
+                if _prev_param_hash is not None and cycle_idx != _prev_cycle_idx:
                     assert param_hash != _prev_param_hash, (
                         "Round 2 §2.2 eval-routing identity check FAILED: parameter-state "
-                        "hash did not change between consecutive checkpoints (cycle {} -> "
-                        "{}) -- eval may be reading a stale/frozen state instead of the "
-                        "just-trained one.".format(cycle_idx, cycle_idx))
+                        "hash did not change across a cycle boundary (cycle {} -> {}) -- "
+                        "eval may be reading a stale/frozen state instead of the "
+                        "just-trained one.".format(_prev_cycle_idx, cycle_idx))
                 _prev_param_hash = param_hash
+                _prev_cycle_idx = cycle_idx
                 cnn_accy = {"top1": acc}   # feeds mlog.record_task below, once per checkpoint
                 logging.info(
                     "[bounded_mem eval] volume {:.2f} | cycle {} | classes_seen {} | "
@@ -473,6 +526,15 @@ class BoundedMemoryMixin:
                                        num_workers=num_workers)
         mlog.record_inference_cost(self, final_test_loader)
         mlog.finalize(None, None, cycle_idx)
+
+        # CE metric summary (impl_plan_7.27.2026 sec 2.1): eps = self.epochs, the
+        # shared epoch budget (E=20 in this campaign) -- computed OFFLINE from the
+        # just-written ledger, logged here for quick reference; the ledger itself
+        # (ce_ledger.out_path) is the artifact anything downstream should read from.
+        from utils.ops_ledger import compute_ce
+        ce_value = compute_ce(ce_ledger.records, eps=self.epochs)
+        logging.info("[CE metric] {} = {} (eps={}, N={} cycles)".format(
+            args["model_name"], ce_value, self.epochs, len(ce_ledger.records)))
 
         self._bounded_results = results
         return results

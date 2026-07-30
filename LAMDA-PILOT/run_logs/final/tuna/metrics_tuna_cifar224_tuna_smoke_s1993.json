@@ -1,0 +1,97 @@
+{
+  "args_subset": {
+    "model_name": "tuna",
+    "dataset": "cifar224",
+    "init_cls": 5,
+    "increment": 5,
+    "seed": 1993,
+    "scenario": "cil",
+    "boundary_mode": null,
+    "budget_mb": null,
+    "n_lora_blocks": null,
+    "lora_rank": null,
+    "lora_alpha": null,
+    "svd_energy_target": null,
+    "svd_rank": null,
+    "svd_period": null,
+    "merge_op": null,
+    "cs_rank": null,
+    "lamda_1": null,
+    "lamda_2": null,
+    "lamb": null,
+    "lame": null
+  },
+  "status": "done",
+  "per_task": [
+    {
+      "task": 0,
+      "train_seconds": 94.286,
+      "eval_seconds": 3.816,
+      "boundary_seconds": 0.0,
+      "cil_top1": 99.0,
+      "til_top1": null,
+      "persistent_params": 308160,
+      "persistent_mb": 1.1755,
+      "persistent_state_breakdown": {
+        "adapters": 1217280,
+        "fc": 15360
+      },
+      "peak_vram_mb": 1691.6
+    },
+    {
+      "task": 1,
+      "train_seconds": 94.527,
+      "eval_seconds": 18.964,
+      "boundary_seconds": 0.0,
+      "cil_top1": 97.2,
+      "til_top1": null,
+      "persistent_params": 616320,
+      "persistent_mb": 2.3511,
+      "persistent_state_breakdown": {
+        "adapters": 2434560,
+        "fc": 30720
+      },
+      "peak_vram_mb": 1705.5
+    },
+    {
+      "task": 2,
+      "train_seconds": 95.798,
+      "eval_seconds": 37.028,
+      "boundary_seconds": 0.0,
+      "cil_top1": 96.4,
+      "til_top1": null,
+      "persistent_params": 924480,
+      "persistent_mb": 3.5266,
+      "persistent_state_breakdown": {
+        "adapters": 3651840,
+        "fc": 46080
+      },
+      "peak_vram_mb": 1718.1
+    },
+    {
+      "task": 3,
+      "train_seconds": 88.066,
+      "eval_seconds": 30.061,
+      "boundary_seconds": 0.0,
+      "cil_top1": 95.7,
+      "til_top1": null,
+      "persistent_params": 1232640,
+      "persistent_mb": 4.7021,
+      "persistent_state_breakdown": {
+        "adapters": 4869120,
+        "fc": 61440
+      },
+      "peak_vram_mb": 1731.0
+    }
+  ],
+  "train_seconds_total": 372.67686343193054,
+  "eval_seconds_total": 89.86918663978577,
+  "boundary_seconds_total": 0.0,
+  "cil_summary": {
+    "final_average_accuracy": 95.7,
+    "average_incremental_accuracy": 97.075,
+    "forgetting": 0.2667,
+    "backward_transfer": -0.2667,
+    "last_task_accuracy": 93.6
+  }
+}

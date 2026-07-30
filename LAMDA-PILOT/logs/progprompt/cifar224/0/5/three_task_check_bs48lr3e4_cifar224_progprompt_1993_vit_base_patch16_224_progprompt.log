@@ -1,0 +1,62 @@
+2026-07-19 21:20:30,695 [trainer.py] => config: exps/review/three_task_check_bs48_lr3e4/cifar224_progprompt.json
+2026-07-19 21:20:30,696 [trainer.py] => dataset: cifar224
+2026-07-19 21:20:30,696 [trainer.py] => memory_size: 0
+2026-07-19 21:20:30,696 [trainer.py] => memory_per_class: 0
+2026-07-19 21:20:30,696 [trainer.py] => fixed_memory: False
+2026-07-19 21:20:30,696 [trainer.py] => shuffle: True
+2026-07-19 21:20:30,696 [trainer.py] => init_cls: 5
+2026-07-19 21:20:30,696 [trainer.py] => increment: 5
+2026-07-19 21:20:30,696 [trainer.py] => seed: 1993
+2026-07-19 21:20:30,696 [trainer.py] => scenario: cil
+2026-07-19 21:20:30,696 [trainer.py] => stop_after_tasks: 3
+2026-07-19 21:20:30,696 [trainer.py] => pretrained: True
+2026-07-19 21:20:30,696 [trainer.py] => print_forget: True
+2026-07-19 21:20:30,696 [trainer.py] => final_metrics: True
+2026-07-19 21:20:30,696 [trainer.py] => backbone_type: vit_base_patch16_224_progprompt
+2026-07-19 21:20:30,696 [trainer.py] => tuned_epoch: 5
+2026-07-19 21:20:30,696 [trainer.py] => init_lr: 0.0003
+2026-07-19 21:20:30,696 [trainer.py] => batch_size: 48
+2026-07-19 21:20:30,696 [trainer.py] => weight_decay: 0.0
+2026-07-19 21:20:30,696 [trainer.py] => min_lr: 0.0
+2026-07-19 21:20:30,696 [trainer.py] => model_name: progprompt
+2026-07-19 21:20:30,696 [trainer.py] => prompt_len: 10
+2026-07-19 21:20:30,696 [trainer.py] => device: [device(type='cuda', index=0)]
+2026-07-19 21:20:30,696 [trainer.py] => prefix: three_task_check_bs48lr3e4_cifar224_progprompt
+2026-07-19 21:20:32,368 [data_manager.py] => [68, 56, 78, 8, 23, 84, 90, 65, 74, 76, 40, 89, 3, 92, 55, 9, 26, 80, 43, 38, 58, 70, 77, 1, 85, 19, 17, 50, 28, 53, 13, 81, 45, 82, 6, 59, 83, 16, 15, 44, 91, 41, 72, 60, 79, 52, 20, 10, 31, 54, 37, 95, 14, 71, 96, 98, 97, 2, 64, 66, 42, 22, 35, 86, 24, 34, 87, 21, 99, 0, 88, 27, 18, 94, 11, 12, 47, 25, 30, 46, 62, 69, 36, 61, 7, 63, 75, 5, 32, 4, 51, 48, 73, 93, 39, 67, 29, 49, 57, 33]
+2026-07-19 21:20:34,887 [trainer.py] => stop_after_tasks=3 (of 20 total)
+2026-07-19 21:20:35,151 [trainer.py] => All params: 85952256
+2026-07-19 21:20:35,152 [trainer.py] => Trainable params: 153600
+2026-07-19 21:20:35,464 [progprompt.py] => [ProgPrompt] Learning on 0-5
+2026-07-19 21:21:53,312 [progprompt.py] => [ProgPrompt] Task 0 done. Acc 86.96
+2026-07-19 21:21:55,358 [trainer.py] => No NME accuracy.
+2026-07-19 21:21:55,358 [trainer.py] => CNN: {'total': 95.8, '00-04': 95.8, 'old': 0, 'new': 95.8}
+2026-07-19 21:21:55,358 [trainer.py] => CNN top1 curve: [95.8]
+2026-07-19 21:21:55,358 [trainer.py] => CNN top5 curve: [100.0]
+
+2026-07-19 21:21:55,358 [trainer.py] => Average Accuracy (CNN): 95.8 
+
+2026-07-19 21:21:55,359 [trainer.py] => All params: 85956101
+2026-07-19 21:21:55,359 [trainer.py] => Trainable params: 11525
+2026-07-19 21:21:55,360 [progprompt.py] => [ProgPrompt] Learning on 5-10
+2026-07-19 21:23:17,867 [progprompt.py] => [ProgPrompt] Task 1 done. Acc 79.40
+2026-07-19 21:23:21,562 [trainer.py] => No NME accuracy.
+2026-07-19 21:23:21,562 [trainer.py] => CNN: {'total': 55.2, '00-04': 76.0, '05-09': 34.4, 'old': 76.0, 'new': 34.4}
+2026-07-19 21:23:21,562 [trainer.py] => CNN top1 curve: [95.8, 55.2]
+2026-07-19 21:23:21,562 [trainer.py] => CNN top5 curve: [100.0, 95.5]
+
+2026-07-19 21:23:21,562 [trainer.py] => Average Accuracy (CNN): 75.5 
+
+2026-07-19 21:23:21,563 [trainer.py] => All params: 85959946
+2026-07-19 21:23:21,564 [trainer.py] => Trainable params: 15370
+2026-07-19 21:23:21,566 [progprompt.py] => [ProgPrompt] Learning on 10-15
+2026-07-19 21:24:45,824 [progprompt.py] => [ProgPrompt] Task 2 done. Acc 80.52
+2026-07-19 21:24:51,128 [trainer.py] => No NME accuracy.
+2026-07-19 21:24:51,128 [trainer.py] => CNN: {'total': 42.2, '00-04': 74.6, '05-09': 26.6, '10-14': 25.4, 'old': 50.6, 'new': 25.4}
+2026-07-19 21:24:51,128 [trainer.py] => CNN top1 curve: [95.8, 55.2, 42.2]
+2026-07-19 21:24:51,128 [trainer.py] => CNN top5 curve: [100.0, 95.5, 88.0]
+
+2026-07-19 21:24:51,128 [trainer.py] => Average Accuracy (CNN): 64.39999999999999 
+
+2026-07-19 21:24:53,704 [metrics_logger.py] => [metrics] wrote run_logs/final/progprompt/metrics_progprompt_cifar224_three_task_check_bs48lr3e4_cifar224_progprompt_s1993.json
+2026-07-19 21:24:53,705 [trainer.py] => Forgetting (CNN): 14.5
+2026-07-19 21:24:53,705 [trainer.py] => Forgetting (NME): 14.5

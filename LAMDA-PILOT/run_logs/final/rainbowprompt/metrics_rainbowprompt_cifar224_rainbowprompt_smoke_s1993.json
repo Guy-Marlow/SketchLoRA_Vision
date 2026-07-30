@@ -1,0 +1,80 @@
+{
+  "args_subset": {
+    "model_name": "rainbowprompt",
+    "dataset": "cifar224",
+    "init_cls": 5,
+    "increment": 5,
+    "seed": 1993,
+    "scenario": "both",
+    "boundary_mode": null,
+    "budget_mb": null,
+    "n_lora_blocks": null,
+    "lora_rank": null,
+    "lora_alpha": null,
+    "svd_energy_target": null,
+    "svd_rank": null,
+    "svd_period": null,
+    "merge_op": null,
+    "cs_rank": null,
+    "lamda_1": null,
+    "lamda_2": null,
+    "lamb": null,
+    "lame": null
+  },
+  "status": "done",
+  "per_task": [
+    {
+      "task": 0,
+      "train_seconds": 456.302,
+      "eval_seconds": 6.88,
+      "boundary_seconds": 0.0,
+      "cil_top1": 99.8,
+      "til_top1": 99.8,
+      "persistent_params": 9993269,
+      "persistent_mb": 38.1213,
+      "persistent_state_breakdown": {
+        "base_knowledge": 14745600,
+        "base_key": 61440,
+        "stored_prompts": 14745600,
+        "head": 15380,
+        "evolve_sublayers": 10405056
+      },
+      "peak_vram_mb": 4823.2
+    },
+    {
+      "task": 1,
+      "train_seconds": 458.237,
+      "eval_seconds": 12.946,
+      "boundary_seconds": 0.0,
+      "cil_top1": 98.0,
+      "til_top1": 99.2,
+      "persistent_params": 9997114,
+      "persistent_mb": 38.136,
+      "persistent_state_breakdown": {
+        "base_knowledge": 14745600,
+        "base_key": 61440,
+        "stored_prompts": 14745600,
+        "head": 30760,
+        "evolve_sublayers": 10405056
+      },
+      "peak_vram_mb": 4823.2
+    }
+  ],
+  "train_seconds_total": 914.5398669242859,
+  "eval_seconds_total": 19.826244592666626,
+  "boundary_seconds_total": 0.0,
+  "cil_summary": {
+    "final_average_accuracy": 98.0,
+    "average_incremental_accuracy": 98.9,
+    "forgetting": 1.2,
+    "backward_transfer": -1.2,
+    "last_task_accuracy": 97.4
+  },
+  "til_summary": {
+    "final_average_accuracy": 99.2,
+    "average_incremental_accuracy": 99.5,
+    "forgetting": 0.0,
+    "backward_transfer": 0.0,
+    "last_task_accuracy": 98.6
+  }
+}

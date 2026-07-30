@@ -1,0 +1,338 @@
+2026-06-18 15:29:50,188 [trainer.py] => config: ./exps/inflora.json
+2026-06-18 15:29:50,188 [trainer.py] => prefix: reproduce
+2026-06-18 15:29:50,189 [trainer.py] => dataset: cifar224
+2026-06-18 15:29:50,189 [trainer.py] => memory_size: 0
+2026-06-18 15:29:50,189 [trainer.py] => memory_per_class: 0
+2026-06-18 15:29:50,189 [trainer.py] => fixed_memory: False
+2026-06-18 15:29:50,189 [trainer.py] => shuffle: True
+2026-06-18 15:29:50,189 [trainer.py] => init_cls: 10
+2026-06-18 15:29:50,189 [trainer.py] => increment: 10
+2026-06-18 15:29:50,189 [trainer.py] => model_name: inflora
+2026-06-18 15:29:50,189 [trainer.py] => backbone_type: vit_base_patch16_224_lora
+2026-06-18 15:29:50,189 [trainer.py] => device: [device(type='cuda', index=0)]
+2026-06-18 15:29:50,189 [trainer.py] => seed: 1993
+2026-06-18 15:29:50,189 [trainer.py] => scenario: both
+2026-06-18 15:29:50,189 [trainer.py] => lora_rank: 10
+2026-06-18 15:29:50,189 [trainer.py] => lora_alpha: None
+2026-06-18 15:29:50,189 [trainer.py] => lora_merge: True
+2026-06-18 15:29:50,189 [trainer.py] => lamb: 0.95
+2026-06-18 15:29:50,189 [trainer.py] => lame: 1.0
+2026-06-18 15:29:50,189 [trainer.py] => tuned_epoch: 10
+2026-06-18 15:29:50,189 [trainer.py] => init_lr: 0.0005
+2026-06-18 15:29:50,189 [trainer.py] => batch_size: 48
+2026-06-18 15:29:50,189 [trainer.py] => weight_decay: 0.0005
+2026-06-18 15:29:50,189 [trainer.py] => min_lr: 0.0
+2026-06-18 15:29:50,189 [trainer.py] => pretrained: True
+2026-06-18 15:29:50,189 [trainer.py] => print_forget: True
+Files already downloaded and verified
+Files already downloaded and verified
+2026-06-18 15:29:51,851 [data_manager.py] => [68, 56, 78, 8, 23, 84, 90, 65, 74, 76, 40, 89, 3, 92, 55, 9, 26, 80, 43, 38, 58, 70, 77, 1, 85, 19, 17, 50, 28, 53, 13, 81, 45, 82, 6, 59, 83, 16, 15, 44, 91, 41, 72, 60, 79, 52, 20, 10, 31, 54, 37, 95, 14, 71, 96, 98, 97, 2, 64, 66, 42, 22, 35, 86, 24, 34, 87, 21, 99, 0, 88, 27, 18, 94, 11, 12, 47, 25, 30, 46, 62, 69, 36, 61, 7, 63, 75, 5, 32, 4, 51, 48, 73, 93, 39, 67, 29, 49, 57, 33]
+/home/gmar762/research/continuous_learning/svd_sketching_vision/LAMDA-PILOT/models/base.py:8: UserWarning: A NumPy version >=1.23.5 and <2.3.0 is required for this version of SciPy (detected version 2.4.6)
+  from scipy.spatial.distance import cdist
+This is for the BaseNet initialization.
+I'm using ViT with per-task LoRA (q,v).
+_IncompatibleKeys(missing_keys=['blocks.0.attn.lora_A_q.0.weight', 'blocks.0.attn.lora_A_q.1.weight', 'blocks.0.attn.lora_A_q.2.weight', 'blocks.0.attn.lora_A_q.3.weight', 'blocks.0.attn.lora_A_q.4.weight', 'blocks.0.attn.lora_A_q.5.weight', 'blocks.0.attn.lora_A_q.6.weight', 'blocks.0.attn.lora_A_q.7.weight', 'blocks.0.attn.lora_A_q.8.weight', 'blocks.0.attn.lora_A_q.9.weight', 'blocks.0.attn.lora_B_q.0.weight', 'blocks.0.attn.lora_B_q.1.weight', 'blocks.0.attn.lora_B_q.2.weight', 'blocks.0.attn.lora_B_q.3.weight', 'blocks.0.attn.lora_B_q.4.weight', 'blocks.0.attn.lora_B_q.5.weight', 'blocks.0.attn.lora_B_q.6.weight', 'blocks.0.attn.lora_B_q.7.weight', 'blocks.0.attn.lora_B_q.8.weight', 'blocks.0.attn.lora_B_q.9.weight', 'blocks.0.attn.lora_A_v.0.weight', 'blocks.0.attn.lora_A_v.1.weight', 'blocks.0.attn.lora_A_v.2.weight', 'blocks.0.attn.lora_A_v.3.weight', 'blocks.0.attn.lora_A_v.4.weight', 'blocks.0.attn.lora_A_v.5.weight', 'blocks.0.attn.lora_A_v.6.weight', 'blocks.0.attn.lora_A_v.7.weight', 'blocks.0.attn.lora_A_v.8.weight', 'blocks.0.attn.lora_A_v.9.weight', 'blocks.0.attn.lora_B_v.0.weight', 'blocks.0.attn.lora_B_v.1.weight', 'blocks.0.attn.lora_B_v.2.weight', 'blocks.0.attn.lora_B_v.3.weight', 'blocks.0.attn.lora_B_v.4.weight', 'blocks.0.attn.lora_B_v.5.weight', 'blocks.0.attn.lora_B_v.6.weight', 'blocks.0.attn.lora_B_v.7.weight', 'blocks.0.attn.lora_B_v.8.weight', 'blocks.0.attn.lora_B_v.9.weight', 'blocks.1.attn.lora_A_q.0.weight', 'blocks.1.attn.lora_A_q.1.weight', 'blocks.1.attn.lora_A_q.2.weight', 'blocks.1.attn.lora_A_q.3.weight', 'blocks.1.attn.lora_A_q.4.weight', 'blocks.1.attn.lora_A_q.5.weight', 'blocks.1.attn.lora_A_q.6.weight', 'blocks.1.attn.lora_A_q.7.weight', 'blocks.1.attn.lora_A_q.8.weight', 'blocks.1.attn.lora_A_q.9.weight', 'blocks.1.attn.lora_B_q.0.weight', 'blocks.1.attn.lora_B_q.1.weight', 'blocks.1.attn.lora_B_q.2.weight', 'blocks.1.attn.lora_B_q.3.weight', 'blocks.1.attn.lora_B_q.4.weight', 'blocks.1.attn.lora_B_q.5.weight', 'blocks.1.attn.lora_B_q.6.weight', 'blocks.1.attn.lora_B_q.7.weight', 'blocks.1.attn.lora_B_q.8.weight', 'blocks.1.attn.lora_B_q.9.weight', 'blocks.1.attn.lora_A_v.0.weight', 'blocks.1.attn.lora_A_v.1.weight', 'blocks.1.attn.lora_A_v.2.weight', 'blocks.1.attn.lora_A_v.3.weight', 'blocks.1.attn.lora_A_v.4.weight', 'blocks.1.attn.lora_A_v.5.weight', 'blocks.1.attn.lora_A_v.6.weight', 'blocks.1.attn.lora_A_v.7.weight', 'blocks.1.attn.lora_A_v.8.weight', 'blocks.1.attn.lora_A_v.9.weight', 'blocks.1.attn.lora_B_v.0.weight', 'blocks.1.attn.lora_B_v.1.weight', 'blocks.1.attn.lora_B_v.2.weight', 'blocks.1.attn.lora_B_v.3.weight', 'blocks.1.attn.lora_B_v.4.weight', 'blocks.1.attn.lora_B_v.5.weight', 'blocks.1.attn.lora_B_v.6.weight', 'blocks.1.attn.lora_B_v.7.weight', 'blocks.1.attn.lora_B_v.8.weight', 'blocks.1.attn.lora_B_v.9.weight', 'blocks.2.attn.lora_A_q.0.weight', 'blocks.2.attn.lora_A_q.1.weight', 'blocks.2.attn.lora_A_q.2.weight', 'blocks.2.attn.lora_A_q.3.weight', 'blocks.2.attn.lora_A_q.4.weight', 'blocks.2.attn.lora_A_q.5.weight', 'blocks.2.attn.lora_A_q.6.weight', 'blocks.2.attn.lora_A_q.7.weight', 'blocks.2.attn.lora_A_q.8.weight', 'blocks.2.attn.lora_A_q.9.weight', 'blocks.2.attn.lora_B_q.0.weight', 'blocks.2.attn.lora_B_q.1.weight', 'blocks.2.attn.lora_B_q.2.weight', 'blocks.2.attn.lora_B_q.3.weight', 'blocks.2.attn.lora_B_q.4.weight', 'blocks.2.attn.lora_B_q.5.weight', 'blocks.2.attn.lora_B_q.6.weight', 'blocks.2.attn.lora_B_q.7.weight', 'blocks.2.attn.lora_B_q.8.weight', 'blocks.2.attn.lora_B_q.9.weight', 'blocks.2.attn.lora_A_v.0.weight', 'blocks.2.attn.lora_A_v.1.weight', 'blocks.2.attn.lora_A_v.2.weight', 'blocks.2.attn.lora_A_v.3.weight', 'blocks.2.attn.lora_A_v.4.weight', 'blocks.2.attn.lora_A_v.5.weight', 'blocks.2.attn.lora_A_v.6.weight', 'blocks.2.attn.lora_A_v.7.weight', 'blocks.2.attn.lora_A_v.8.weight', 'blocks.2.attn.lora_A_v.9.weight', 'blocks.2.attn.lora_B_v.0.weight', 'blocks.2.attn.lora_B_v.1.weight', 'blocks.2.attn.lora_B_v.2.weight', 'blocks.2.attn.lora_B_v.3.weight', 'blocks.2.attn.lora_B_v.4.weight', 'blocks.2.attn.lora_B_v.5.weight', 'blocks.2.attn.lora_B_v.6.weight', 'blocks.2.attn.lora_B_v.7.weight', 'blocks.2.attn.lora_B_v.8.weight', 'blocks.2.attn.lora_B_v.9.weight', 'blocks.3.attn.lora_A_q.0.weight', 'blocks.3.attn.lora_A_q.1.weight', 'blocks.3.attn.lora_A_q.2.weight', 'blocks.3.attn.lora_A_q.3.weight', 'blocks.3.attn.lora_A_q.4.weight', 'blocks.3.attn.lora_A_q.5.weight', 'blocks.3.attn.lora_A_q.6.weight', 'blocks.3.attn.lora_A_q.7.weight', 'blocks.3.attn.lora_A_q.8.weight', 'blocks.3.attn.lora_A_q.9.weight', 'blocks.3.attn.lora_B_q.0.weight', 'blocks.3.attn.lora_B_q.1.weight', 'blocks.3.attn.lora_B_q.2.weight', 'blocks.3.attn.lora_B_q.3.weight', 'blocks.3.attn.lora_B_q.4.weight', 'blocks.3.attn.lora_B_q.5.weight', 'blocks.3.attn.lora_B_q.6.weight', 'blocks.3.attn.lora_B_q.7.weight', 'blocks.3.attn.lora_B_q.8.weight', 'blocks.3.attn.lora_B_q.9.weight', 'blocks.3.attn.lora_A_v.0.weight', 'blocks.3.attn.lora_A_v.1.weight', 'blocks.3.attn.lora_A_v.2.weight', 'blocks.3.attn.lora_A_v.3.weight', 'blocks.3.attn.lora_A_v.4.weight', 'blocks.3.attn.lora_A_v.5.weight', 'blocks.3.attn.lora_A_v.6.weight', 'blocks.3.attn.lora_A_v.7.weight', 'blocks.3.attn.lora_A_v.8.weight', 'blocks.3.attn.lora_A_v.9.weight', 'blocks.3.attn.lora_B_v.0.weight', 'blocks.3.attn.lora_B_v.1.weight', 'blocks.3.attn.lora_B_v.2.weight', 'blocks.3.attn.lora_B_v.3.weight', 'blocks.3.attn.lora_B_v.4.weight', 'blocks.3.attn.lora_B_v.5.weight', 'blocks.3.attn.lora_B_v.6.weight', 'blocks.3.attn.lora_B_v.7.weight', 'blocks.3.attn.lora_B_v.8.weight', 'blocks.3.attn.lora_B_v.9.weight', 'blocks.4.attn.lora_A_q.0.weight', 'blocks.4.attn.lora_A_q.1.weight', 'blocks.4.attn.lora_A_q.2.weight', 'blocks.4.attn.lora_A_q.3.weight', 'blocks.4.attn.lora_A_q.4.weight', 'blocks.4.attn.lora_A_q.5.weight', 'blocks.4.attn.lora_A_q.6.weight', 'blocks.4.attn.lora_A_q.7.weight', 'blocks.4.attn.lora_A_q.8.weight', 'blocks.4.attn.lora_A_q.9.weight', 'blocks.4.attn.lora_B_q.0.weight', 'blocks.4.attn.lora_B_q.1.weight', 'blocks.4.attn.lora_B_q.2.weight', 'blocks.4.attn.lora_B_q.3.weight', 'blocks.4.attn.lora_B_q.4.weight', 'blocks.4.attn.lora_B_q.5.weight', 'blocks.4.attn.lora_B_q.6.weight', 'blocks.4.attn.lora_B_q.7.weight', 'blocks.4.attn.lora_B_q.8.weight', 'blocks.4.attn.lora_B_q.9.weight', 'blocks.4.attn.lora_A_v.0.weight', 'blocks.4.attn.lora_A_v.1.weight', 'blocks.4.attn.lora_A_v.2.weight', 'blocks.4.attn.lora_A_v.3.weight', 'blocks.4.attn.lora_A_v.4.weight', 'blocks.4.attn.lora_A_v.5.weight', 'blocks.4.attn.lora_A_v.6.weight', 'blocks.4.attn.lora_A_v.7.weight', 'blocks.4.attn.lora_A_v.8.weight', 'blocks.4.attn.lora_A_v.9.weight', 'blocks.4.attn.lora_B_v.0.weight', 'blocks.4.attn.lora_B_v.1.weight', 'blocks.4.attn.lora_B_v.2.weight', 'blocks.4.attn.lora_B_v.3.weight', 'blocks.4.attn.lora_B_v.4.weight', 'blocks.4.attn.lora_B_v.5.weight', 'blocks.4.attn.lora_B_v.6.weight', 'blocks.4.attn.lora_B_v.7.weight', 'blocks.4.attn.lora_B_v.8.weight', 'blocks.4.attn.lora_B_v.9.weight', 'blocks.5.attn.lora_A_q.0.weight', 'blocks.5.attn.lora_A_q.1.weight', 'blocks.5.attn.lora_A_q.2.weight', 'blocks.5.attn.lora_A_q.3.weight', 'blocks.5.attn.lora_A_q.4.weight', 'blocks.5.attn.lora_A_q.5.weight', 'blocks.5.attn.lora_A_q.6.weight', 'blocks.5.attn.lora_A_q.7.weight', 'blocks.5.attn.lora_A_q.8.weight', 'blocks.5.attn.lora_A_q.9.weight', 'blocks.5.attn.lora_B_q.0.weight', 'blocks.5.attn.lora_B_q.1.weight', 'blocks.5.attn.lora_B_q.2.weight', 'blocks.5.attn.lora_B_q.3.weight', 'blocks.5.attn.lora_B_q.4.weight', 'blocks.5.attn.lora_B_q.5.weight', 'blocks.5.attn.lora_B_q.6.weight', 'blocks.5.attn.lora_B_q.7.weight', 'blocks.5.attn.lora_B_q.8.weight', 'blocks.5.attn.lora_B_q.9.weight', 'blocks.5.attn.lora_A_v.0.weight', 'blocks.5.attn.lora_A_v.1.weight', 'blocks.5.attn.lora_A_v.2.weight', 'blocks.5.attn.lora_A_v.3.weight', 'blocks.5.attn.lora_A_v.4.weight', 'blocks.5.attn.lora_A_v.5.weight', 'blocks.5.attn.lora_A_v.6.weight', 'blocks.5.attn.lora_A_v.7.weight', 'blocks.5.attn.lora_A_v.8.weight', 'blocks.5.attn.lora_A_v.9.weight', 'blocks.5.attn.lora_B_v.0.weight', 'blocks.5.attn.lora_B_v.1.weight', 'blocks.5.attn.lora_B_v.2.weight', 'blocks.5.attn.lora_B_v.3.weight', 'blocks.5.attn.lora_B_v.4.weight', 'blocks.5.attn.lora_B_v.5.weight', 'blocks.5.attn.lora_B_v.6.weight', 'blocks.5.attn.lora_B_v.7.weight', 'blocks.5.attn.lora_B_v.8.weight', 'blocks.5.attn.lora_B_v.9.weight', 'blocks.6.attn.lora_A_q.0.weight', 'blocks.6.attn.lora_A_q.1.weight', 'blocks.6.attn.lora_A_q.2.weight', 'blocks.6.attn.lora_A_q.3.weight', 'blocks.6.attn.lora_A_q.4.weight', 'blocks.6.attn.lora_A_q.5.weight', 'blocks.6.attn.lora_A_q.6.weight', 'blocks.6.attn.lora_A_q.7.weight', 'blocks.6.attn.lora_A_q.8.weight', 'blocks.6.attn.lora_A_q.9.weight', 'blocks.6.attn.lora_B_q.0.weight', 'blocks.6.attn.lora_B_q.1.weight', 'blocks.6.attn.lora_B_q.2.weight', 'blocks.6.attn.lora_B_q.3.weight', 'blocks.6.attn.lora_B_q.4.weight', 'blocks.6.attn.lora_B_q.5.weight', 'blocks.6.attn.lora_B_q.6.weight', 'blocks.6.attn.lora_B_q.7.weight', 'blocks.6.attn.lora_B_q.8.weight', 'blocks.6.attn.lora_B_q.9.weight', 'blocks.6.attn.lora_A_v.0.weight', 'blocks.6.attn.lora_A_v.1.weight', 'blocks.6.attn.lora_A_v.2.weight', 'blocks.6.attn.lora_A_v.3.weight', 'blocks.6.attn.lora_A_v.4.weight', 'blocks.6.attn.lora_A_v.5.weight', 'blocks.6.attn.lora_A_v.6.weight', 'blocks.6.attn.lora_A_v.7.weight', 'blocks.6.attn.lora_A_v.8.weight', 'blocks.6.attn.lora_A_v.9.weight', 'blocks.6.attn.lora_B_v.0.weight', 'blocks.6.attn.lora_B_v.1.weight', 'blocks.6.attn.lora_B_v.2.weight', 'blocks.6.attn.lora_B_v.3.weight', 'blocks.6.attn.lora_B_v.4.weight', 'blocks.6.attn.lora_B_v.5.weight', 'blocks.6.attn.lora_B_v.6.weight', 'blocks.6.attn.lora_B_v.7.weight', 'blocks.6.attn.lora_B_v.8.weight', 'blocks.6.attn.lora_B_v.9.weight', 'blocks.7.attn.lora_A_q.0.weight', 'blocks.7.attn.lora_A_q.1.weight', 'blocks.7.attn.lora_A_q.2.weight', 'blocks.7.attn.lora_A_q.3.weight', 'blocks.7.attn.lora_A_q.4.weight', 'blocks.7.attn.lora_A_q.5.weight', 'blocks.7.attn.lora_A_q.6.weight', 'blocks.7.attn.lora_A_q.7.weight', 'blocks.7.attn.lora_A_q.8.weight', 'blocks.7.attn.lora_A_q.9.weight', 'blocks.7.attn.lora_B_q.0.weight', 'blocks.7.attn.lora_B_q.1.weight', 'blocks.7.attn.lora_B_q.2.weight', 'blocks.7.attn.lora_B_q.3.weight', 'blocks.7.attn.lora_B_q.4.weight', 'blocks.7.attn.lora_B_q.5.weight', 'blocks.7.attn.lora_B_q.6.weight', 'blocks.7.attn.lora_B_q.7.weight', 'blocks.7.attn.lora_B_q.8.weight', 'blocks.7.attn.lora_B_q.9.weight', 'blocks.7.attn.lora_A_v.0.weight', 'blocks.7.attn.lora_A_v.1.weight', 'blocks.7.attn.lora_A_v.2.weight', 'blocks.7.attn.lora_A_v.3.weight', 'blocks.7.attn.lora_A_v.4.weight', 'blocks.7.attn.lora_A_v.5.weight', 'blocks.7.attn.lora_A_v.6.weight', 'blocks.7.attn.lora_A_v.7.weight', 'blocks.7.attn.lora_A_v.8.weight', 'blocks.7.attn.lora_A_v.9.weight', 'blocks.7.attn.lora_B_v.0.weight', 'blocks.7.attn.lora_B_v.1.weight', 'blocks.7.attn.lora_B_v.2.weight', 'blocks.7.attn.lora_B_v.3.weight', 'blocks.7.attn.lora_B_v.4.weight', 'blocks.7.attn.lora_B_v.5.weight', 'blocks.7.attn.lora_B_v.6.weight', 'blocks.7.attn.lora_B_v.7.weight', 'blocks.7.attn.lora_B_v.8.weight', 'blocks.7.attn.lora_B_v.9.weight', 'blocks.8.attn.lora_A_q.0.weight', 'blocks.8.attn.lora_A_q.1.weight', 'blocks.8.attn.lora_A_q.2.weight', 'blocks.8.attn.lora_A_q.3.weight', 'blocks.8.attn.lora_A_q.4.weight', 'blocks.8.attn.lora_A_q.5.weight', 'blocks.8.attn.lora_A_q.6.weight', 'blocks.8.attn.lora_A_q.7.weight', 'blocks.8.attn.lora_A_q.8.weight', 'blocks.8.attn.lora_A_q.9.weight', 'blocks.8.attn.lora_B_q.0.weight', 'blocks.8.attn.lora_B_q.1.weight', 'blocks.8.attn.lora_B_q.2.weight', 'blocks.8.attn.lora_B_q.3.weight', 'blocks.8.attn.lora_B_q.4.weight', 'blocks.8.attn.lora_B_q.5.weight', 'blocks.8.attn.lora_B_q.6.weight', 'blocks.8.attn.lora_B_q.7.weight', 'blocks.8.attn.lora_B_q.8.weight', 'blocks.8.attn.lora_B_q.9.weight', 'blocks.8.attn.lora_A_v.0.weight', 'blocks.8.attn.lora_A_v.1.weight', 'blocks.8.attn.lora_A_v.2.weight', 'blocks.8.attn.lora_A_v.3.weight', 'blocks.8.attn.lora_A_v.4.weight', 'blocks.8.attn.lora_A_v.5.weight', 'blocks.8.attn.lora_A_v.6.weight', 'blocks.8.attn.lora_A_v.7.weight', 'blocks.8.attn.lora_A_v.8.weight', 'blocks.8.attn.lora_A_v.9.weight', 'blocks.8.attn.lora_B_v.0.weight', 'blocks.8.attn.lora_B_v.1.weight', 'blocks.8.attn.lora_B_v.2.weight', 'blocks.8.attn.lora_B_v.3.weight', 'blocks.8.attn.lora_B_v.4.weight', 'blocks.8.attn.lora_B_v.5.weight', 'blocks.8.attn.lora_B_v.6.weight', 'blocks.8.attn.lora_B_v.7.weight', 'blocks.8.attn.lora_B_v.8.weight', 'blocks.8.attn.lora_B_v.9.weight', 'blocks.9.attn.lora_A_q.0.weight', 'blocks.9.attn.lora_A_q.1.weight', 'blocks.9.attn.lora_A_q.2.weight', 'blocks.9.attn.lora_A_q.3.weight', 'blocks.9.attn.lora_A_q.4.weight', 'blocks.9.attn.lora_A_q.5.weight', 'blocks.9.attn.lora_A_q.6.weight', 'blocks.9.attn.lora_A_q.7.weight', 'blocks.9.attn.lora_A_q.8.weight', 'blocks.9.attn.lora_A_q.9.weight', 'blocks.9.attn.lora_B_q.0.weight', 'blocks.9.attn.lora_B_q.1.weight', 'blocks.9.attn.lora_B_q.2.weight', 'blocks.9.attn.lora_B_q.3.weight', 'blocks.9.attn.lora_B_q.4.weight', 'blocks.9.attn.lora_B_q.5.weight', 'blocks.9.attn.lora_B_q.6.weight', 'blocks.9.attn.lora_B_q.7.weight', 'blocks.9.attn.lora_B_q.8.weight', 'blocks.9.attn.lora_B_q.9.weight', 'blocks.9.attn.lora_A_v.0.weight', 'blocks.9.attn.lora_A_v.1.weight', 'blocks.9.attn.lora_A_v.2.weight', 'blocks.9.attn.lora_A_v.3.weight', 'blocks.9.attn.lora_A_v.4.weight', 'blocks.9.attn.lora_A_v.5.weight', 'blocks.9.attn.lora_A_v.6.weight', 'blocks.9.attn.lora_A_v.7.weight', 'blocks.9.attn.lora_A_v.8.weight', 'blocks.9.attn.lora_A_v.9.weight', 'blocks.9.attn.lora_B_v.0.weight', 'blocks.9.attn.lora_B_v.1.weight', 'blocks.9.attn.lora_B_v.2.weight', 'blocks.9.attn.lora_B_v.3.weight', 'blocks.9.attn.lora_B_v.4.weight', 'blocks.9.attn.lora_B_v.5.weight', 'blocks.9.attn.lora_B_v.6.weight', 'blocks.9.attn.lora_B_v.7.weight', 'blocks.9.attn.lora_B_v.8.weight', 'blocks.9.attn.lora_B_v.9.weight', 'blocks.10.attn.lora_A_q.0.weight', 'blocks.10.attn.lora_A_q.1.weight', 'blocks.10.attn.lora_A_q.2.weight', 'blocks.10.attn.lora_A_q.3.weight', 'blocks.10.attn.lora_A_q.4.weight', 'blocks.10.attn.lora_A_q.5.weight', 'blocks.10.attn.lora_A_q.6.weight', 'blocks.10.attn.lora_A_q.7.weight', 'blocks.10.attn.lora_A_q.8.weight', 'blocks.10.attn.lora_A_q.9.weight', 'blocks.10.attn.lora_B_q.0.weight', 'blocks.10.attn.lora_B_q.1.weight', 'blocks.10.attn.lora_B_q.2.weight', 'blocks.10.attn.lora_B_q.3.weight', 'blocks.10.attn.lora_B_q.4.weight', 'blocks.10.attn.lora_B_q.5.weight', 'blocks.10.attn.lora_B_q.6.weight', 'blocks.10.attn.lora_B_q.7.weight', 'blocks.10.attn.lora_B_q.8.weight', 'blocks.10.attn.lora_B_q.9.weight', 'blocks.10.attn.lora_A_v.0.weight', 'blocks.10.attn.lora_A_v.1.weight', 'blocks.10.attn.lora_A_v.2.weight', 'blocks.10.attn.lora_A_v.3.weight', 'blocks.10.attn.lora_A_v.4.weight', 'blocks.10.attn.lora_A_v.5.weight', 'blocks.10.attn.lora_A_v.6.weight', 'blocks.10.attn.lora_A_v.7.weight', 'blocks.10.attn.lora_A_v.8.weight', 'blocks.10.attn.lora_A_v.9.weight', 'blocks.10.attn.lora_B_v.0.weight', 'blocks.10.attn.lora_B_v.1.weight', 'blocks.10.attn.lora_B_v.2.weight', 'blocks.10.attn.lora_B_v.3.weight', 'blocks.10.attn.lora_B_v.4.weight', 'blocks.10.attn.lora_B_v.5.weight', 'blocks.10.attn.lora_B_v.6.weight', 'blocks.10.attn.lora_B_v.7.weight', 'blocks.10.attn.lora_B_v.8.weight', 'blocks.10.attn.lora_B_v.9.weight', 'blocks.11.attn.lora_A_q.0.weight', 'blocks.11.attn.lora_A_q.1.weight', 'blocks.11.attn.lora_A_q.2.weight', 'blocks.11.attn.lora_A_q.3.weight', 'blocks.11.attn.lora_A_q.4.weight', 'blocks.11.attn.lora_A_q.5.weight', 'blocks.11.attn.lora_A_q.6.weight', 'blocks.11.attn.lora_A_q.7.weight', 'blocks.11.attn.lora_A_q.8.weight', 'blocks.11.attn.lora_A_q.9.weight', 'blocks.11.attn.lora_B_q.0.weight', 'blocks.11.attn.lora_B_q.1.weight', 'blocks.11.attn.lora_B_q.2.weight', 'blocks.11.attn.lora_B_q.3.weight', 'blocks.11.attn.lora_B_q.4.weight', 'blocks.11.attn.lora_B_q.5.weight', 'blocks.11.attn.lora_B_q.6.weight', 'blocks.11.attn.lora_B_q.7.weight', 'blocks.11.attn.lora_B_q.8.weight', 'blocks.11.attn.lora_B_q.9.weight', 'blocks.11.attn.lora_A_v.0.weight', 'blocks.11.attn.lora_A_v.1.weight', 'blocks.11.attn.lora_A_v.2.weight', 'blocks.11.attn.lora_A_v.3.weight', 'blocks.11.attn.lora_A_v.4.weight', 'blocks.11.attn.lora_A_v.5.weight', 'blocks.11.attn.lora_A_v.6.weight', 'blocks.11.attn.lora_A_v.7.weight', 'blocks.11.attn.lora_A_v.8.weight', 'blocks.11.attn.lora_A_v.9.weight', 'blocks.11.attn.lora_B_v.0.weight', 'blocks.11.attn.lora_B_v.1.weight', 'blocks.11.attn.lora_B_v.2.weight', 'blocks.11.attn.lora_B_v.3.weight', 'blocks.11.attn.lora_B_v.4.weight', 'blocks.11.attn.lora_B_v.5.weight', 'blocks.11.attn.lora_B_v.6.weight', 'blocks.11.attn.lora_B_v.7.weight', 'blocks.11.attn.lora_B_v.8.weight', 'blocks.11.attn.lora_B_v.9.weight'], unexpected_keys=[])
+After BaseNet initialization.
+2026-06-18 15:29:54,609 [trainer.py] => All params: 89485056
+2026-06-18 15:29:54,610 [trainer.py] => Trainable params: 3686400
+2026-06-18 15:29:55,884 [inflora.py] => [InfLoRA] Learning on 0-10
+2026-06-18 15:30:14,698 [lora.py] => Trainable params this task: 192,010 / 89,492,746
+  0%|          | 0/10 [00:00<?, ?it/s]Task 0, Epoch 1/10 => Loss 0.899, Train_accy 73.28:   0%|          | 0/10 [00:30<?, ?it/s]Task 0, Epoch 1/10 => Loss 0.899, Train_accy 73.28:  10%|█         | 1/10 [00:30<04:33, 30.35s/it]Task 0, Epoch 2/10 => Loss 0.331, Train_accy 89.08:  10%|█         | 1/10 [01:00<04:33, 30.35s/it]Task 0, Epoch 2/10 => Loss 0.331, Train_accy 89.08:  20%|██        | 2/10 [01:00<04:02, 30.33s/it]Task 0, Epoch 3/10 => Loss 0.266, Train_accy 91.14:  20%|██        | 2/10 [01:31<04:02, 30.33s/it]Task 0, Epoch 3/10 => Loss 0.266, Train_accy 91.14:  30%|███       | 3/10 [01:31<03:32, 30.39s/it]Task 0, Epoch 4/10 => Loss 0.273, Train_accy 91.20:  30%|███       | 3/10 [02:01<03:32, 30.39s/it]Task 0, Epoch 4/10 => Loss 0.273, Train_accy 91.20:  40%|████      | 4/10 [02:01<03:02, 30.47s/it]Task 0, Epoch 5/10 => Loss 0.214, Train_accy 92.58:  40%|████      | 4/10 [02:32<03:02, 30.47s/it]Task 0, Epoch 5/10 => Loss 0.214, Train_accy 92.58:  50%|█████     | 5/10 [02:32<02:32, 30.53s/it]Task 0, Epoch 6/10 => Loss 0.210, Train_accy 92.94:  50%|█████     | 5/10 [03:03<02:32, 30.53s/it]Task 0, Epoch 6/10 => Loss 0.210, Train_accy 92.94:  60%|██████    | 6/10 [03:03<02:02, 30.58s/it]Task 0, Epoch 7/10 => Loss 0.196, Train_accy 93.38:  60%|██████    | 6/10 [03:33<02:02, 30.58s/it]Task 0, Epoch 7/10 => Loss 0.196, Train_accy 93.38:  70%|███████   | 7/10 [03:33<01:31, 30.61s/it]Task 0, Epoch 8/10 => Loss 0.212, Train_accy 93.42:  70%|███████   | 7/10 [04:04<01:31, 30.61s/it]Task 0, Epoch 8/10 => Loss 0.212, Train_accy 93.42:  80%|████████  | 8/10 [04:04<01:01, 30.64s/it]Task 0, Epoch 9/10 => Loss 0.191, Train_accy 93.98:  80%|████████  | 8/10 [04:35<01:01, 30.64s/it]Task 0, Epoch 9/10 => Loss 0.191, Train_accy 93.98:  90%|█████████ | 9/10 [04:35<00:30, 30.67s/it]Task 0, Epoch 10/10 => Loss 0.183, Train_accy 94.22:  90%|█████████ | 9/10 [05:05<00:30, 30.67s/it]Task 0, Epoch 10/10 => Loss 0.183, Train_accy 94.22: 100%|██████████| 10/10 [05:05<00:00, 30.70s/it]Task 0, Epoch 10/10 => Loss 0.183, Train_accy 94.22: 100%|██████████| 10/10 [05:05<00:00, 30.59s/it]
+2026-06-18 15:35:20,618 [lora.py] => Task 0 finished. Train_accy 94.22
+2026-06-18 15:35:37,567 [inflora.py] => [InfLoRA] DualGPM threshold: 0.9500
+2026-06-18 15:35:39,713 [inflora.py] => [InfLoRA] Layer 1: 6/768 type remove
+2026-06-18 15:35:39,713 [inflora.py] => [InfLoRA] Layer 2: 8/768 type remove
+2026-06-18 15:35:39,713 [inflora.py] => [InfLoRA] Layer 3: 12/768 type remove
+2026-06-18 15:35:39,713 [inflora.py] => [InfLoRA] Layer 4: 11/768 type remove
+2026-06-18 15:35:39,713 [inflora.py] => [InfLoRA] Layer 5: 16/768 type remove
+2026-06-18 15:35:39,713 [inflora.py] => [InfLoRA] Layer 6: 18/768 type remove
+2026-06-18 15:35:39,713 [inflora.py] => [InfLoRA] Layer 7: 16/768 type remove
+2026-06-18 15:35:39,713 [inflora.py] => [InfLoRA] Layer 8: 19/768 type remove
+2026-06-18 15:35:39,713 [inflora.py] => [InfLoRA] Layer 9: 14/768 type remove
+2026-06-18 15:35:39,713 [inflora.py] => [InfLoRA] Layer 10: 11/768 type remove
+2026-06-18 15:35:39,713 [inflora.py] => [InfLoRA] Layer 11: 3/768 type remove
+2026-06-18 15:35:39,713 [inflora.py] => [InfLoRA] Layer 12: 8/768 type remove
+2026-06-18 15:35:46,814 [til_base.py] => TIL top1: 98.4
+2026-06-18 15:35:46,814 [til_base.py] => CIL top1: 98.4 | TIL top1: 98.4
+2026-06-18 15:35:46,814 [trainer.py] => No NME accuracy.
+2026-06-18 15:35:46,814 [trainer.py] => CNN: {'total': np.float64(98.4), '00-09': np.float64(98.4), 'old': 0, 'new': np.float64(98.4)}
+2026-06-18 15:35:46,814 [trainer.py] => CNN top1 curve: [np.float64(98.4)]
+2026-06-18 15:35:46,814 [trainer.py] => CNN top5 curve: [np.float64(100.0)]
+
+Average Accuracy (CNN): 98.4
+2026-06-18 15:35:46,815 [trainer.py] => Average Accuracy (CNN): 98.4 
+
+2026-06-18 15:35:46,817 [trainer.py] => All params: 89492746
+2026-06-18 15:35:46,820 [trainer.py] => Trainable params: 192010
+2026-06-18 15:35:46,821 [inflora.py] => [InfLoRA] Learning on 10-20
+2026-06-18 15:36:05,504 [lora.py] => Trainable params this task: 199,700 / 89,500,436
+  0%|          | 0/10 [00:00<?, ?it/s]Task 1, Epoch 1/10 => Loss 0.758, Train_accy 76.02:   0%|          | 0/10 [00:31<?, ?it/s]Task 1, Epoch 1/10 => Loss 0.758, Train_accy 76.02:  10%|█         | 1/10 [00:31<04:44, 31.62s/it]Task 1, Epoch 2/10 => Loss 0.368, Train_accy 87.58:  10%|█         | 1/10 [01:03<04:44, 31.62s/it]Task 1, Epoch 2/10 => Loss 0.368, Train_accy 87.58:  20%|██        | 2/10 [01:03<04:12, 31.58s/it]Task 1, Epoch 3/10 => Loss 0.301, Train_accy 89.58:  20%|██        | 2/10 [01:34<04:12, 31.58s/it]Task 1, Epoch 3/10 => Loss 0.301, Train_accy 89.58:  30%|███       | 3/10 [01:34<03:41, 31.58s/it]Task 1, Epoch 4/10 => Loss 0.261, Train_accy 90.90:  30%|███       | 3/10 [02:06<03:41, 31.58s/it]Task 1, Epoch 4/10 => Loss 0.261, Train_accy 90.90:  40%|████      | 4/10 [02:06<03:09, 31.57s/it]Task 1, Epoch 5/10 => Loss 0.280, Train_accy 90.82:  40%|████      | 4/10 [02:37<03:09, 31.57s/it]Task 1, Epoch 5/10 => Loss 0.280, Train_accy 90.82:  50%|█████     | 5/10 [02:37<02:37, 31.59s/it]Task 1, Epoch 6/10 => Loss 0.245, Train_accy 91.80:  50%|█████     | 5/10 [03:09<02:37, 31.59s/it]Task 1, Epoch 6/10 => Loss 0.245, Train_accy 91.80:  60%|██████    | 6/10 [03:09<02:06, 31.59s/it]Task 1, Epoch 7/10 => Loss 0.242, Train_accy 91.62:  60%|██████    | 6/10 [03:41<02:06, 31.59s/it]Task 1, Epoch 7/10 => Loss 0.242, Train_accy 91.62:  70%|███████   | 7/10 [03:41<01:34, 31.62s/it]Task 1, Epoch 8/10 => Loss 0.254, Train_accy 91.72:  70%|███████   | 7/10 [04:12<01:34, 31.62s/it]Task 1, Epoch 8/10 => Loss 0.254, Train_accy 91.72:  80%|████████  | 8/10 [04:12<01:03, 31.63s/it]Task 1, Epoch 9/10 => Loss 0.240, Train_accy 91.98:  80%|████████  | 8/10 [04:44<01:03, 31.63s/it]Task 1, Epoch 9/10 => Loss 0.240, Train_accy 91.98:  90%|█████████ | 9/10 [04:44<00:31, 31.64s/it]Task 1, Epoch 10/10 => Loss 0.220, Train_accy 92.54:  90%|█████████ | 9/10 [05:16<00:31, 31.64s/it]Task 1, Epoch 10/10 => Loss 0.220, Train_accy 92.54: 100%|██████████| 10/10 [05:16<00:00, 31.65s/it]Task 1, Epoch 10/10 => Loss 0.220, Train_accy 92.54: 100%|██████████| 10/10 [05:16<00:00, 31.62s/it]
+2026-06-18 15:41:21,692 [lora.py] => Task 1 finished. Train_accy 92.54
+2026-06-18 15:41:39,715 [inflora.py] => [InfLoRA] DualGPM threshold: 0.9550
+2026-06-18 15:41:43,951 [inflora.py] => [InfLoRA] Layer 1: 7/768 type remove
+2026-06-18 15:41:43,952 [inflora.py] => [InfLoRA] Layer 2: 10/768 type remove
+2026-06-18 15:41:43,952 [inflora.py] => [InfLoRA] Layer 3: 15/768 type remove
+2026-06-18 15:41:43,952 [inflora.py] => [InfLoRA] Layer 4: 15/768 type remove
+2026-06-18 15:41:43,952 [inflora.py] => [InfLoRA] Layer 5: 21/768 type remove
+2026-06-18 15:41:43,952 [inflora.py] => [InfLoRA] Layer 6: 24/768 type remove
+2026-06-18 15:41:43,952 [inflora.py] => [InfLoRA] Layer 7: 22/768 type remove
+2026-06-18 15:41:43,952 [inflora.py] => [InfLoRA] Layer 8: 27/768 type remove
+2026-06-18 15:41:43,952 [inflora.py] => [InfLoRA] Layer 9: 25/768 type remove
+2026-06-18 15:41:43,952 [inflora.py] => [InfLoRA] Layer 10: 23/768 type remove
+2026-06-18 15:41:43,952 [inflora.py] => [InfLoRA] Layer 11: 8/768 type remove
+2026-06-18 15:41:43,952 [inflora.py] => [InfLoRA] Layer 12: 16/768 type remove
+2026-06-18 15:41:57,983 [til_base.py] => TIL top1: 98.4
+2026-06-18 15:41:57,983 [til_base.py] => CIL top1: 95.55 | TIL top1: 98.4
+2026-06-18 15:41:57,984 [trainer.py] => No NME accuracy.
+2026-06-18 15:41:57,984 [trainer.py] => CNN: {'total': np.float64(95.55), '00-09': np.float64(94.4), '10-19': np.float64(96.7), 'old': np.float64(94.4), 'new': np.float64(96.7)}
+2026-06-18 15:41:57,984 [trainer.py] => CNN top1 curve: [np.float64(98.4), np.float64(95.55)]
+2026-06-18 15:41:57,984 [trainer.py] => CNN top5 curve: [np.float64(100.0), np.float64(99.65)]
+
+Average Accuracy (CNN): 96.975
+2026-06-18 15:41:57,984 [trainer.py] => Average Accuracy (CNN): 96.975 
+
+2026-06-18 15:41:57,986 [trainer.py] => All params: 89500436
+2026-06-18 15:41:57,988 [trainer.py] => Trainable params: 199700
+2026-06-18 15:41:57,990 [inflora.py] => [InfLoRA] Learning on 20-30
+2026-06-18 15:42:17,441 [lora.py] => Trainable params this task: 207,390 / 89,508,126
+  0%|          | 0/10 [00:00<?, ?it/s]Task 2, Epoch 1/10 => Loss 0.584, Train_accy 83.16:   0%|          | 0/10 [00:32<?, ?it/s]Task 2, Epoch 1/10 => Loss 0.584, Train_accy 83.16:  10%|█         | 1/10 [00:32<04:52, 32.51s/it]Task 2, Epoch 2/10 => Loss 0.210, Train_accy 93.18:  10%|█         | 1/10 [01:04<04:52, 32.51s/it]Task 2, Epoch 2/10 => Loss 0.210, Train_accy 93.18:  20%|██        | 2/10 [01:04<04:19, 32.48s/it]Task 2, Epoch 3/10 => Loss 0.173, Train_accy 94.36:  20%|██        | 2/10 [01:37<04:19, 32.48s/it]Task 2, Epoch 3/10 => Loss 0.173, Train_accy 94.36:  30%|███       | 3/10 [01:37<03:47, 32.48s/it]Task 2, Epoch 4/10 => Loss 0.169, Train_accy 94.50:  30%|███       | 3/10 [02:09<03:47, 32.48s/it]Task 2, Epoch 4/10 => Loss 0.169, Train_accy 94.50:  40%|████      | 4/10 [02:09<03:14, 32.42s/it]Task 2, Epoch 5/10 => Loss 0.156, Train_accy 94.96:  40%|████      | 4/10 [02:42<03:14, 32.42s/it]Task 2, Epoch 5/10 => Loss 0.156, Train_accy 94.96:  50%|█████     | 5/10 [02:42<02:42, 32.40s/it]Task 2, Epoch 6/10 => Loss 0.165, Train_accy 94.84:  50%|█████     | 5/10 [03:14<02:42, 32.40s/it]Task 2, Epoch 6/10 => Loss 0.165, Train_accy 94.84:  60%|██████    | 6/10 [03:14<02:09, 32.39s/it]Task 2, Epoch 7/10 => Loss 0.169, Train_accy 94.58:  60%|██████    | 6/10 [03:46<02:09, 32.39s/it]Task 2, Epoch 7/10 => Loss 0.169, Train_accy 94.58:  70%|███████   | 7/10 [03:46<01:37, 32.38s/it]Task 2, Epoch 8/10 => Loss 0.143, Train_accy 95.36:  70%|███████   | 7/10 [04:19<01:37, 32.38s/it]Task 2, Epoch 8/10 => Loss 0.143, Train_accy 95.36:  80%|████████  | 8/10 [04:19<01:04, 32.37s/it]Task 2, Epoch 9/10 => Loss 0.152, Train_accy 94.94:  80%|████████  | 8/10 [04:51<01:04, 32.37s/it]Task 2, Epoch 9/10 => Loss 0.152, Train_accy 94.94:  90%|█████████ | 9/10 [04:51<00:32, 32.36s/it]Task 2, Epoch 10/10 => Loss 0.132, Train_accy 95.60:  90%|█████████ | 9/10 [05:23<00:32, 32.36s/it]Task 2, Epoch 10/10 => Loss 0.132, Train_accy 95.60: 100%|██████████| 10/10 [05:23<00:00, 32.35s/it]Task 2, Epoch 10/10 => Loss 0.132, Train_accy 95.60: 100%|██████████| 10/10 [05:23<00:00, 32.39s/it]
+2026-06-18 15:47:41,339 [lora.py] => Task 2 finished. Train_accy 95.60
+2026-06-18 15:47:59,209 [inflora.py] => [InfLoRA] DualGPM threshold: 0.9600
+2026-06-18 15:48:03,553 [inflora.py] => [InfLoRA] Layer 1: 8/768 type remove
+2026-06-18 15:48:03,553 [inflora.py] => [InfLoRA] Layer 2: 11/768 type remove
+2026-06-18 15:48:03,553 [inflora.py] => [InfLoRA] Layer 3: 17/768 type remove
+2026-06-18 15:48:03,553 [inflora.py] => [InfLoRA] Layer 4: 18/768 type remove
+2026-06-18 15:48:03,553 [inflora.py] => [InfLoRA] Layer 5: 25/768 type remove
+2026-06-18 15:48:03,553 [inflora.py] => [InfLoRA] Layer 6: 29/768 type remove
+2026-06-18 15:48:03,553 [inflora.py] => [InfLoRA] Layer 7: 29/768 type remove
+2026-06-18 15:48:03,553 [inflora.py] => [InfLoRA] Layer 8: 36/768 type remove
+2026-06-18 15:48:03,553 [inflora.py] => [InfLoRA] Layer 9: 38/768 type remove
+2026-06-18 15:48:03,553 [inflora.py] => [InfLoRA] Layer 10: 36/768 type remove
+2026-06-18 15:48:03,553 [inflora.py] => [InfLoRA] Layer 11: 16/768 type remove
+2026-06-18 15:48:03,554 [inflora.py] => [InfLoRA] Layer 12: 26/768 type remove
+2026-06-18 15:48:24,767 [til_base.py] => TIL top1: 98.67
+2026-06-18 15:48:24,767 [til_base.py] => CIL top1: 93.33 | TIL top1: 98.67
+2026-06-18 15:48:24,767 [trainer.py] => No NME accuracy.
+2026-06-18 15:48:24,767 [trainer.py] => CNN: {'total': np.float64(93.33), '00-09': np.float64(87.8), '10-19': np.float64(93.7), '20-29': np.float64(98.5), 'old': np.float64(90.75), 'new': np.float64(98.5)}
+2026-06-18 15:48:24,767 [trainer.py] => CNN top1 curve: [np.float64(98.4), np.float64(95.55), np.float64(93.33)]
+2026-06-18 15:48:24,767 [trainer.py] => CNN top5 curve: [np.float64(100.0), np.float64(99.65), np.float64(99.23)]
+
+Average Accuracy (CNN): 95.75999999999999
+2026-06-18 15:48:24,767 [trainer.py] => Average Accuracy (CNN): 95.75999999999999 
+
+2026-06-18 15:48:24,770 [trainer.py] => All params: 89508126
+2026-06-18 15:48:24,772 [trainer.py] => Trainable params: 207390
+2026-06-18 15:48:24,773 [inflora.py] => [InfLoRA] Learning on 30-40
+2026-06-18 15:48:44,421 [lora.py] => Trainable params this task: 215,080 / 89,515,816
+  0%|          | 0/10 [00:00<?, ?it/s]Task 3, Epoch 1/10 => Loss 0.596, Train_accy 80.94:   0%|          | 0/10 [00:33<?, ?it/s]Task 3, Epoch 1/10 => Loss 0.596, Train_accy 80.94:  10%|█         | 1/10 [00:33<04:58, 33.14s/it]Task 3, Epoch 2/10 => Loss 0.280, Train_accy 90.82:  10%|█         | 1/10 [01:06<04:58, 33.14s/it]Task 3, Epoch 2/10 => Loss 0.280, Train_accy 90.82:  20%|██        | 2/10 [01:06<04:25, 33.13s/it]Task 3, Epoch 3/10 => Loss 0.248, Train_accy 91.48:  20%|██        | 2/10 [01:39<04:25, 33.13s/it]Task 3, Epoch 3/10 => Loss 0.248, Train_accy 91.48:  30%|███       | 3/10 [01:39<03:51, 33.10s/it]Task 3, Epoch 4/10 => Loss 0.230, Train_accy 91.80:  30%|███       | 3/10 [02:12<03:51, 33.10s/it]Task 3, Epoch 4/10 => Loss 0.230, Train_accy 91.80:  40%|████      | 4/10 [02:12<03:18, 33.09s/it]Task 3, Epoch 5/10 => Loss 0.226, Train_accy 92.30:  40%|████      | 4/10 [02:45<03:18, 33.09s/it]Task 3, Epoch 5/10 => Loss 0.226, Train_accy 92.30:  50%|█████     | 5/10 [02:45<02:45, 33.10s/it]Task 3, Epoch 6/10 => Loss 0.221, Train_accy 92.42:  50%|█████     | 5/10 [03:18<02:45, 33.10s/it]Task 3, Epoch 6/10 => Loss 0.221, Train_accy 92.42:  60%|██████    | 6/10 [03:18<02:12, 33.11s/it]Task 3, Epoch 7/10 => Loss 0.192, Train_accy 93.18:  60%|██████    | 6/10 [03:51<02:12, 33.11s/it]Task 3, Epoch 7/10 => Loss 0.192, Train_accy 93.18:  70%|███████   | 7/10 [03:51<01:39, 33.10s/it]Task 3, Epoch 8/10 => Loss 0.196, Train_accy 92.80:  70%|███████   | 7/10 [04:24<01:39, 33.10s/it]Task 3, Epoch 8/10 => Loss 0.196, Train_accy 92.80:  80%|████████  | 8/10 [04:24<01:06, 33.11s/it]Task 3, Epoch 9/10 => Loss 0.188, Train_accy 93.94:  80%|████████  | 8/10 [04:57<01:06, 33.11s/it]Task 3, Epoch 9/10 => Loss 0.188, Train_accy 93.94:  90%|█████████ | 9/10 [04:57<00:33, 33.10s/it]Task 3, Epoch 10/10 => Loss 0.191, Train_accy 93.54:  90%|█████████ | 9/10 [05:31<00:33, 33.10s/it]Task 3, Epoch 10/10 => Loss 0.191, Train_accy 93.54: 100%|██████████| 10/10 [05:31<00:00, 33.10s/it]Task 3, Epoch 10/10 => Loss 0.191, Train_accy 93.54: 100%|██████████| 10/10 [05:31<00:00, 33.10s/it]
+2026-06-18 15:54:15,449 [lora.py] => Task 3 finished. Train_accy 93.54
+2026-06-18 15:54:33,603 [inflora.py] => [InfLoRA] DualGPM threshold: 0.9650
+2026-06-18 15:54:38,042 [inflora.py] => [InfLoRA] Layer 1: 8/768 type remove
+2026-06-18 15:54:38,043 [inflora.py] => [InfLoRA] Layer 2: 11/768 type remove
+2026-06-18 15:54:38,043 [inflora.py] => [InfLoRA] Layer 3: 18/768 type remove
+2026-06-18 15:54:38,043 [inflora.py] => [InfLoRA] Layer 4: 21/768 type remove
+2026-06-18 15:54:38,043 [inflora.py] => [InfLoRA] Layer 5: 29/768 type remove
+2026-06-18 15:54:38,043 [inflora.py] => [InfLoRA] Layer 6: 34/768 type remove
+2026-06-18 15:54:38,043 [inflora.py] => [InfLoRA] Layer 7: 35/768 type remove
+2026-06-18 15:54:38,043 [inflora.py] => [InfLoRA] Layer 8: 47/768 type remove
+2026-06-18 15:54:38,043 [inflora.py] => [InfLoRA] Layer 9: 51/768 type remove
+2026-06-18 15:54:38,043 [inflora.py] => [InfLoRA] Layer 10: 50/768 type remove
+2026-06-18 15:54:38,043 [inflora.py] => [InfLoRA] Layer 11: 24/768 type remove
+2026-06-18 15:54:38,043 [inflora.py] => [InfLoRA] Layer 12: 36/768 type remove
+2026-06-18 15:55:06,729 [til_base.py] => TIL top1: 98.35
+2026-06-18 15:55:06,729 [til_base.py] => CIL top1: 91.68 | TIL top1: 98.35
+2026-06-18 15:55:06,730 [trainer.py] => No NME accuracy.
+2026-06-18 15:55:06,730 [trainer.py] => CNN: {'total': np.float64(91.68), '00-09': np.float64(85.9), '10-19': np.float64(91.2), '20-29': np.float64(97.3), '30-39': np.float64(92.3), 'old': np.float64(91.47), 'new': np.float64(92.3)}
+2026-06-18 15:55:06,730 [trainer.py] => CNN top1 curve: [np.float64(98.4), np.float64(95.55), np.float64(93.33), np.float64(91.68)]
+2026-06-18 15:55:06,730 [trainer.py] => CNN top5 curve: [np.float64(100.0), np.float64(99.65), np.float64(99.23), np.float64(99.0)]
+
+Average Accuracy (CNN): 94.74
+2026-06-18 15:55:06,730 [trainer.py] => Average Accuracy (CNN): 94.74 
+
+2026-06-18 15:55:06,733 [trainer.py] => All params: 89515816
+2026-06-18 15:55:06,736 [trainer.py] => Trainable params: 215080
+2026-06-18 15:55:06,738 [inflora.py] => [InfLoRA] Learning on 40-50
+2026-06-18 15:55:26,836 [lora.py] => Trainable params this task: 222,770 / 89,523,506
+  0%|          | 0/10 [00:00<?, ?it/s]Task 4, Epoch 1/10 => Loss 0.519, Train_accy 83.86:   0%|          | 0/10 [00:33<?, ?it/s]Task 4, Epoch 1/10 => Loss 0.519, Train_accy 83.86:  10%|█         | 1/10 [00:33<05:05, 33.94s/it]Task 4, Epoch 2/10 => Loss 0.219, Train_accy 93.08:  10%|█         | 1/10 [01:07<05:05, 33.94s/it]Task 4, Epoch 2/10 => Loss 0.219, Train_accy 93.08:  20%|██        | 2/10 [01:07<04:30, 33.87s/it]Task 4, Epoch 3/10 => Loss 0.196, Train_accy 94.04:  20%|██        | 2/10 [01:41<04:30, 33.87s/it]Task 4, Epoch 3/10 => Loss 0.196, Train_accy 94.04:  30%|███       | 3/10 [01:41<03:56, 33.81s/it]Task 4, Epoch 4/10 => Loss 0.179, Train_accy 94.36:  30%|███       | 3/10 [02:15<03:56, 33.81s/it]Task 4, Epoch 4/10 => Loss 0.179, Train_accy 94.36:  40%|████      | 4/10 [02:15<03:22, 33.77s/it]Task 4, Epoch 5/10 => Loss 0.170, Train_accy 94.58:  40%|████      | 4/10 [02:48<03:22, 33.77s/it]Task 4, Epoch 5/10 => Loss 0.170, Train_accy 94.58:  50%|█████     | 5/10 [02:48<02:48, 33.74s/it]Task 4, Epoch 6/10 => Loss 0.169, Train_accy 94.76:  50%|█████     | 5/10 [03:22<02:48, 33.74s/it]Task 4, Epoch 6/10 => Loss 0.169, Train_accy 94.76:  60%|██████    | 6/10 [03:22<02:14, 33.70s/it]Task 4, Epoch 7/10 => Loss 0.155, Train_accy 94.80:  60%|██████    | 6/10 [03:56<02:14, 33.70s/it]Task 4, Epoch 7/10 => Loss 0.155, Train_accy 94.80:  70%|███████   | 7/10 [03:56<01:41, 33.69s/it]Task 4, Epoch 8/10 => Loss 0.140, Train_accy 95.44:  70%|███████   | 7/10 [04:29<01:41, 33.69s/it]Task 4, Epoch 8/10 => Loss 0.140, Train_accy 95.44:  80%|████████  | 8/10 [04:29<01:07, 33.68s/it]Task 4, Epoch 9/10 => Loss 0.142, Train_accy 95.42:  80%|████████  | 8/10 [05:03<01:07, 33.68s/it]Task 4, Epoch 9/10 => Loss 0.142, Train_accy 95.42:  90%|█████████ | 9/10 [05:03<00:33, 33.65s/it]Task 4, Epoch 10/10 => Loss 0.150, Train_accy 94.94:  90%|█████████ | 9/10 [05:37<00:33, 33.65s/it]Task 4, Epoch 10/10 => Loss 0.150, Train_accy 94.94: 100%|██████████| 10/10 [05:37<00:00, 33.64s/it]Task 4, Epoch 10/10 => Loss 0.150, Train_accy 94.94: 100%|██████████| 10/10 [05:37<00:00, 33.71s/it]
+2026-06-18 16:01:03,901 [lora.py] => Task 4 finished. Train_accy 94.94
+2026-06-18 16:01:22,419 [inflora.py] => [InfLoRA] DualGPM threshold: 0.9700
+2026-06-18 16:01:26,718 [inflora.py] => [InfLoRA] Layer 1: 8/768 type remove
+2026-06-18 16:01:26,718 [inflora.py] => [InfLoRA] Layer 2: 11/768 type remove
+2026-06-18 16:01:26,718 [inflora.py] => [InfLoRA] Layer 3: 19/768 type remove
+2026-06-18 16:01:26,718 [inflora.py] => [InfLoRA] Layer 4: 23/768 type remove
+2026-06-18 16:01:26,718 [inflora.py] => [InfLoRA] Layer 5: 33/768 type remove
+2026-06-18 16:01:26,718 [inflora.py] => [InfLoRA] Layer 6: 40/768 type remove
+2026-06-18 16:01:26,718 [inflora.py] => [InfLoRA] Layer 7: 42/768 type remove
+2026-06-18 16:01:26,718 [inflora.py] => [InfLoRA] Layer 8: 60/768 type remove
+2026-06-18 16:01:26,718 [inflora.py] => [InfLoRA] Layer 9: 64/768 type remove
+2026-06-18 16:01:26,718 [inflora.py] => [InfLoRA] Layer 10: 63/768 type remove
+2026-06-18 16:01:26,718 [inflora.py] => [InfLoRA] Layer 11: 31/768 type remove
+2026-06-18 16:01:26,718 [inflora.py] => [InfLoRA] Layer 12: 46/768 type remove
+2026-06-18 16:02:03,116 [til_base.py] => TIL top1: 98.46
+2026-06-18 16:02:03,116 [til_base.py] => CIL top1: 88.78 | TIL top1: 98.46
+2026-06-18 16:02:03,116 [trainer.py] => No NME accuracy.
+2026-06-18 16:02:03,117 [trainer.py] => CNN: {'total': np.float64(88.78), '00-09': np.float64(80.6), '10-19': np.float64(87.8), '20-29': np.float64(96.1), '30-39': np.float64(88.9), '40-49': np.float64(90.5), 'old': np.float64(88.35), 'new': np.float64(90.5)}
+2026-06-18 16:02:03,117 [trainer.py] => CNN top1 curve: [np.float64(98.4), np.float64(95.55), np.float64(93.33), np.float64(91.68), np.float64(88.78)]
+2026-06-18 16:02:03,117 [trainer.py] => CNN top5 curve: [np.float64(100.0), np.float64(99.65), np.float64(99.23), np.float64(99.0), np.float64(99.06)]
+
+Average Accuracy (CNN): 93.548
+2026-06-18 16:02:03,117 [trainer.py] => Average Accuracy (CNN): 93.548 
+
+2026-06-18 16:02:03,118 [trainer.py] => All params: 89523506
+2026-06-18 16:02:03,120 [trainer.py] => Trainable params: 222770
+2026-06-18 16:02:03,121 [inflora.py] => [InfLoRA] Learning on 50-60
+2026-06-18 16:02:23,406 [lora.py] => Trainable params this task: 230,460 / 89,531,196
+  0%|          | 0/10 [00:00<?, ?it/s]Task 5, Epoch 1/10 => Loss 0.598, Train_accy 81.30:   0%|          | 0/10 [00:34<?, ?it/s]Task 5, Epoch 1/10 => Loss 0.598, Train_accy 81.30:  10%|█         | 1/10 [00:34<05:09, 34.40s/it]Task 5, Epoch 2/10 => Loss 0.288, Train_accy 90.44:  10%|█         | 1/10 [01:08<05:09, 34.40s/it]Task 5, Epoch 2/10 => Loss 0.288, Train_accy 90.44:  20%|██        | 2/10 [01:08<04:35, 34.40s/it]Task 5, Epoch 3/10 => Loss 0.227, Train_accy 92.38:  20%|██        | 2/10 [01:43<04:35, 34.40s/it]Task 5, Epoch 3/10 => Loss 0.227, Train_accy 92.38:  30%|███       | 3/10 [01:43<04:00, 34.41s/it]Task 5, Epoch 4/10 => Loss 0.242, Train_accy 91.82:  30%|███       | 3/10 [02:17<04:00, 34.41s/it]Task 5, Epoch 4/10 => Loss 0.242, Train_accy 91.82:  40%|████      | 4/10 [02:17<03:26, 34.41s/it]Task 5, Epoch 5/10 => Loss 0.204, Train_accy 93.22:  40%|████      | 4/10 [02:52<03:26, 34.41s/it]Task 5, Epoch 5/10 => Loss 0.204, Train_accy 93.22:  50%|█████     | 5/10 [02:52<02:51, 34.40s/it]Task 5, Epoch 6/10 => Loss 0.197, Train_accy 93.34:  50%|█████     | 5/10 [03:26<02:51, 34.40s/it]Task 5, Epoch 6/10 => Loss 0.197, Train_accy 93.34:  60%|██████    | 6/10 [03:26<02:17, 34.39s/it]Task 5, Epoch 7/10 => Loss 0.181, Train_accy 93.30:  60%|██████    | 6/10 [04:00<02:17, 34.39s/it]Task 5, Epoch 7/10 => Loss 0.181, Train_accy 93.30:  70%|███████   | 7/10 [04:00<01:43, 34.35s/it]Task 5, Epoch 8/10 => Loss 0.193, Train_accy 93.38:  70%|███████   | 7/10 [04:34<01:43, 34.35s/it]Task 5, Epoch 8/10 => Loss 0.193, Train_accy 93.38:  80%|████████  | 8/10 [04:34<01:08, 34.33s/it]Task 5, Epoch 9/10 => Loss 0.187, Train_accy 93.70:  80%|████████  | 8/10 [05:09<01:08, 34.33s/it]Task 5, Epoch 9/10 => Loss 0.187, Train_accy 93.70:  90%|█████████ | 9/10 [05:09<00:34, 34.35s/it]Task 5, Epoch 10/10 => Loss 0.180, Train_accy 93.82:  90%|█████████ | 9/10 [05:43<00:34, 34.35s/it]Task 5, Epoch 10/10 => Loss 0.180, Train_accy 93.82: 100%|██████████| 10/10 [05:43<00:00, 34.36s/it]Task 5, Epoch 10/10 => Loss 0.180, Train_accy 93.82: 100%|██████████| 10/10 [05:43<00:00, 34.37s/it]
+2026-06-18 16:08:07,126 [lora.py] => Task 5 finished. Train_accy 93.82
+2026-06-18 16:08:25,864 [inflora.py] => [InfLoRA] DualGPM threshold: 0.9750
+2026-06-18 16:08:29,937 [inflora.py] => [InfLoRA] Layer 1: 8/768 type remove
+2026-06-18 16:08:29,938 [inflora.py] => [InfLoRA] Layer 2: 12/768 type remove
+2026-06-18 16:08:29,938 [inflora.py] => [InfLoRA] Layer 3: 22/768 type remove
+2026-06-18 16:08:29,938 [inflora.py] => [InfLoRA] Layer 4: 27/768 type remove
+2026-06-18 16:08:29,938 [inflora.py] => [InfLoRA] Layer 5: 39/768 type remove
+2026-06-18 16:08:29,938 [inflora.py] => [InfLoRA] Layer 6: 50/768 type remove
+2026-06-18 16:08:29,938 [inflora.py] => [InfLoRA] Layer 7: 54/768 type remove
+2026-06-18 16:08:29,938 [inflora.py] => [InfLoRA] Layer 8: 76/768 type remove
+2026-06-18 16:08:29,938 [inflora.py] => [InfLoRA] Layer 9: 88/768 type remove
+2026-06-18 16:08:29,938 [inflora.py] => [InfLoRA] Layer 10: 92/768 type remove
+2026-06-18 16:08:29,938 [inflora.py] => [InfLoRA] Layer 11: 45/768 type remove
+2026-06-18 16:08:29,938 [inflora.py] => [InfLoRA] Layer 12: 58/768 type remove
+2026-06-18 16:09:14,391 [til_base.py] => TIL top1: 98.55
+2026-06-18 16:09:14,392 [til_base.py] => CIL top1: 88.18 | TIL top1: 98.55
+2026-06-18 16:09:14,392 [trainer.py] => No NME accuracy.
+2026-06-18 16:09:14,392 [trainer.py] => CNN: {'total': np.float64(88.18), '00-09': np.float64(79.1), '10-19': np.float64(89.1), '20-29': np.float64(95.8), '30-39': np.float64(88.3), '40-49': np.float64(87.8), '50-59': np.float64(89.0), 'old': np.float64(88.02), 'new': np.float64(89.0)}
+2026-06-18 16:09:14,392 [trainer.py] => CNN top1 curve: [np.float64(98.4), np.float64(95.55), np.float64(93.33), np.float64(91.68), np.float64(88.78), np.float64(88.18)]
+2026-06-18 16:09:14,392 [trainer.py] => CNN top5 curve: [np.float64(100.0), np.float64(99.65), np.float64(99.23), np.float64(99.0), np.float64(99.06), np.float64(98.9)]
+
+Average Accuracy (CNN): 92.65333333333335
+2026-06-18 16:09:14,392 [trainer.py] => Average Accuracy (CNN): 92.65333333333335 
+
+2026-06-18 16:09:14,393 [trainer.py] => All params: 89531196
+2026-06-18 16:09:14,395 [trainer.py] => Trainable params: 230460
+2026-06-18 16:09:14,395 [inflora.py] => [InfLoRA] Learning on 60-70
+2026-06-18 16:09:34,854 [lora.py] => Trainable params this task: 238,150 / 89,538,886
+  0%|          | 0/10 [00:00<?, ?it/s]Task 6, Epoch 1/10 => Loss 0.566, Train_accy 83.46:   0%|          | 0/10 [00:35<?, ?it/s]Task 6, Epoch 1/10 => Loss 0.566, Train_accy 83.46:  10%|█         | 1/10 [00:35<05:16, 35.17s/it]Task 6, Epoch 2/10 => Loss 0.227, Train_accy 92.62:  10%|█         | 1/10 [01:10<05:16, 35.17s/it]Task 6, Epoch 2/10 => Loss 0.227, Train_accy 92.62:  20%|██        | 2/10 [01:10<04:41, 35.18s/it]Task 6, Epoch 3/10 => Loss 0.178, Train_accy 94.14:  20%|██        | 2/10 [01:45<04:41, 35.18s/it]Task 6, Epoch 3/10 => Loss 0.178, Train_accy 94.14:  30%|███       | 3/10 [01:45<04:06, 35.18s/it]Task 6, Epoch 4/10 => Loss 0.173, Train_accy 94.52:  30%|███       | 3/10 [02:20<04:06, 35.18s/it]Task 6, Epoch 4/10 => Loss 0.173, Train_accy 94.52:  40%|████      | 4/10 [02:20<03:31, 35.18s/it]Task 6, Epoch 5/10 => Loss 0.174, Train_accy 94.32:  40%|████      | 4/10 [02:55<03:31, 35.18s/it]Task 6, Epoch 5/10 => Loss 0.174, Train_accy 94.32:  50%|█████     | 5/10 [02:55<02:55, 35.19s/it]Task 6, Epoch 6/10 => Loss 0.165, Train_accy 94.68:  50%|█████     | 5/10 [03:31<02:55, 35.19s/it]Task 6, Epoch 6/10 => Loss 0.165, Train_accy 94.68:  60%|██████    | 6/10 [03:31<02:20, 35.19s/it]Task 6, Epoch 7/10 => Loss 0.165, Train_accy 94.36:  60%|██████    | 6/10 [04:06<02:20, 35.19s/it]Task 6, Epoch 7/10 => Loss 0.165, Train_accy 94.36:  70%|███████   | 7/10 [04:06<01:45, 35.19s/it]Task 6, Epoch 8/10 => Loss 0.148, Train_accy 94.88:  70%|███████   | 7/10 [04:41<01:45, 35.19s/it]Task 6, Epoch 8/10 => Loss 0.148, Train_accy 94.88:  80%|████████  | 8/10 [04:41<01:10, 35.19s/it]Task 6, Epoch 9/10 => Loss 0.153, Train_accy 95.40:  80%|████████  | 8/10 [05:16<01:10, 35.19s/it]Task 6, Epoch 9/10 => Loss 0.153, Train_accy 95.40:  90%|█████████ | 9/10 [05:16<00:35, 35.19s/it]Task 6, Epoch 10/10 => Loss 0.136, Train_accy 95.28:  90%|█████████ | 9/10 [05:51<00:35, 35.19s/it]Task 6, Epoch 10/10 => Loss 0.136, Train_accy 95.28: 100%|██████████| 10/10 [05:51<00:00, 35.19s/it]Task 6, Epoch 10/10 => Loss 0.136, Train_accy 95.28: 100%|██████████| 10/10 [05:51<00:00, 35.19s/it]
+2026-06-18 16:15:26,743 [lora.py] => Task 6 finished. Train_accy 95.28
+2026-06-18 16:15:45,851 [inflora.py] => [InfLoRA] DualGPM threshold: 0.9800
+2026-06-18 16:15:50,176 [inflora.py] => [InfLoRA] Layer 1: 8/768 type remove
+2026-06-18 16:15:50,176 [inflora.py] => [InfLoRA] Layer 2: 13/768 type remove
+2026-06-18 16:15:50,176 [inflora.py] => [InfLoRA] Layer 3: 25/768 type remove
+2026-06-18 16:15:50,176 [inflora.py] => [InfLoRA] Layer 4: 32/768 type remove
+2026-06-18 16:15:50,177 [inflora.py] => [InfLoRA] Layer 5: 46/768 type remove
+2026-06-18 16:15:50,177 [inflora.py] => [InfLoRA] Layer 6: 62/768 type remove
+2026-06-18 16:15:50,177 [inflora.py] => [InfLoRA] Layer 7: 72/768 type remove
+2026-06-18 16:15:50,177 [inflora.py] => [InfLoRA] Layer 8: 106/768 type remove
+2026-06-18 16:15:50,177 [inflora.py] => [InfLoRA] Layer 9: 126/768 type remove
+2026-06-18 16:15:50,177 [inflora.py] => [InfLoRA] Layer 10: 128/768 type remove
+2026-06-18 16:15:50,177 [inflora.py] => [InfLoRA] Layer 11: 70/768 type remove
+2026-06-18 16:15:50,177 [inflora.py] => [InfLoRA] Layer 12: 72/768 type remove
+2026-06-18 16:16:42,890 [til_base.py] => TIL top1: 98.61
+2026-06-18 16:16:42,891 [til_base.py] => CIL top1: 87.36 | TIL top1: 98.61
+2026-06-18 16:16:42,891 [trainer.py] => No NME accuracy.
+2026-06-18 16:16:42,891 [trainer.py] => CNN: {'total': np.float64(87.36), '00-09': np.float64(77.1), '10-19': np.float64(87.7), '20-29': np.float64(95.5), '30-39': np.float64(88.7), '40-49': np.float64(85.1), '50-59': np.float64(87.9), '60-69': np.float64(89.5), 'old': np.float64(87.0), 'new': np.float64(89.5)}
+2026-06-18 16:16:42,891 [trainer.py] => CNN top1 curve: [np.float64(98.4), np.float64(95.55), np.float64(93.33), np.float64(91.68), np.float64(88.78), np.float64(88.18), np.float64(87.36)]
+2026-06-18 16:16:42,891 [trainer.py] => CNN top5 curve: [np.float64(100.0), np.float64(99.65), np.float64(99.23), np.float64(99.0), np.float64(99.06), np.float64(98.9), np.float64(98.74)]
+
+Average Accuracy (CNN): 91.89714285714287
+2026-06-18 16:16:42,891 [trainer.py] => Average Accuracy (CNN): 91.89714285714287 
+
+2026-06-18 16:16:42,893 [trainer.py] => All params: 89538886
+2026-06-18 16:16:42,895 [trainer.py] => Trainable params: 238150
+2026-06-18 16:16:42,897 [inflora.py] => [InfLoRA] Learning on 70-80
+2026-06-18 16:17:03,766 [lora.py] => Trainable params this task: 245,840 / 89,546,576
+  0%|          | 0/10 [00:00<?, ?it/s]Task 7, Epoch 1/10 => Loss 0.563, Train_accy 82.06:   0%|          | 0/10 [00:35<?, ?it/s]Task 7, Epoch 1/10 => Loss 0.563, Train_accy 82.06:  10%|█         | 1/10 [00:35<05:23, 35.95s/it]Task 7, Epoch 2/10 => Loss 0.271, Train_accy 90.88:  10%|█         | 1/10 [01:11<05:23, 35.95s/it]Task 7, Epoch 2/10 => Loss 0.271, Train_accy 90.88:  20%|██        | 2/10 [01:11<04:47, 35.93s/it]Task 7, Epoch 3/10 => Loss 0.252, Train_accy 91.70:  20%|██        | 2/10 [01:47<04:47, 35.93s/it]Task 7, Epoch 3/10 => Loss 0.252, Train_accy 91.70:  30%|███       | 3/10 [01:47<04:11, 35.92s/it]Task 7, Epoch 4/10 => Loss 0.220, Train_accy 92.14:  30%|███       | 3/10 [02:23<04:11, 35.92s/it]Task 7, Epoch 4/10 => Loss 0.220, Train_accy 92.14:  40%|████      | 4/10 [02:23<03:35, 35.92s/it]Task 7, Epoch 5/10 => Loss 0.211, Train_accy 92.90:  40%|████      | 4/10 [02:59<03:35, 35.92s/it]Task 7, Epoch 5/10 => Loss 0.211, Train_accy 92.90:  50%|█████     | 5/10 [02:59<02:59, 35.93s/it]Task 7, Epoch 6/10 => Loss 0.195, Train_accy 93.50:  50%|█████     | 5/10 [03:35<02:59, 35.93s/it]Task 7, Epoch 6/10 => Loss 0.195, Train_accy 93.50:  60%|██████    | 6/10 [03:35<02:23, 35.93s/it]Task 7, Epoch 7/10 => Loss 0.192, Train_accy 92.92:  60%|██████    | 6/10 [04:11<02:23, 35.93s/it]Task 7, Epoch 7/10 => Loss 0.192, Train_accy 92.92:  70%|███████   | 7/10 [04:11<01:47, 35.92s/it]Task 7, Epoch 8/10 => Loss 0.221, Train_accy 92.46:  70%|███████   | 7/10 [04:47<01:47, 35.92s/it]Task 7, Epoch 8/10 => Loss 0.221, Train_accy 92.46:  80%|████████  | 8/10 [04:47<01:11, 35.92s/it]Task 7, Epoch 9/10 => Loss 0.190, Train_accy 93.38:  80%|████████  | 8/10 [05:23<01:11, 35.92s/it]Task 7, Epoch 9/10 => Loss 0.190, Train_accy 93.38:  90%|█████████ | 9/10 [05:23<00:35, 35.92s/it]Task 7, Epoch 10/10 => Loss 0.185, Train_accy 93.82:  90%|█████████ | 9/10 [05:59<00:35, 35.92s/it]Task 7, Epoch 10/10 => Loss 0.185, Train_accy 93.82: 100%|██████████| 10/10 [05:59<00:00, 35.91s/it]Task 7, Epoch 10/10 => Loss 0.185, Train_accy 93.82: 100%|██████████| 10/10 [05:59<00:00, 35.92s/it]
+2026-06-18 16:23:02,969 [lora.py] => Task 7 finished. Train_accy 93.82
+2026-06-18 16:23:22,370 [inflora.py] => [InfLoRA] DualGPM threshold: 0.9850
+2026-06-18 16:23:26,718 [inflora.py] => [InfLoRA] Layer 1: 9/768 type remove
+2026-06-18 16:23:26,718 [inflora.py] => [InfLoRA] Layer 2: 15/768 type remove
+2026-06-18 16:23:26,718 [inflora.py] => [InfLoRA] Layer 3: 30/768 type remove
+2026-06-18 16:23:26,718 [inflora.py] => [InfLoRA] Layer 4: 38/768 type remove
+2026-06-18 16:23:26,718 [inflora.py] => [InfLoRA] Layer 5: 55/768 type remove
+2026-06-18 16:23:26,718 [inflora.py] => [InfLoRA] Layer 6: 79/768 type remove
+2026-06-18 16:23:26,718 [inflora.py] => [InfLoRA] Layer 7: 90/768 type remove
+2026-06-18 16:23:26,718 [inflora.py] => [InfLoRA] Layer 8: 133/768 type remove
+2026-06-18 16:23:26,718 [inflora.py] => [InfLoRA] Layer 9: 158/768 type remove
+2026-06-18 16:23:26,718 [inflora.py] => [InfLoRA] Layer 10: 174/768 type remove
+2026-06-18 16:23:26,718 [inflora.py] => [InfLoRA] Layer 11: 97/768 type remove
+2026-06-18 16:23:26,718 [inflora.py] => [InfLoRA] Layer 12: 103/768 type remove
+2026-06-18 16:24:28,051 [til_base.py] => TIL top1: 98.34
+2026-06-18 16:24:28,051 [til_base.py] => CIL top1: 84.38 | TIL top1: 98.34
+2026-06-18 16:24:28,051 [trainer.py] => No NME accuracy.
+2026-06-18 16:24:28,051 [trainer.py] => CNN: {'total': np.float64(84.38), '00-09': np.float64(75.7), '10-19': np.float64(84.0), '20-29': np.float64(94.7), '30-39': np.float64(87.7), '40-49': np.float64(84.4), '50-59': np.float64(86.1), '60-69': np.float64(88.9), '70-79': np.float64(73.5), 'old': np.float64(85.93), 'new': np.float64(73.5)}
+2026-06-18 16:24:28,051 [trainer.py] => CNN top1 curve: [np.float64(98.4), np.float64(95.55), np.float64(93.33), np.float64(91.68), np.float64(88.78), np.float64(88.18), np.float64(87.36), np.float64(84.38)]
+2026-06-18 16:24:28,051 [trainer.py] => CNN top5 curve: [np.float64(100.0), np.float64(99.65), np.float64(99.23), np.float64(99.0), np.float64(99.06), np.float64(98.9), np.float64(98.74), np.float64(98.59)]
+
+Average Accuracy (CNN): 90.95750000000001
+2026-06-18 16:24:28,051 [trainer.py] => Average Accuracy (CNN): 90.95750000000001 
+
+2026-06-18 16:24:28,053 [trainer.py] => All params: 89546576
+2026-06-18 16:24:28,054 [trainer.py] => Trainable params: 245840
+2026-06-18 16:24:28,056 [inflora.py] => [InfLoRA] Learning on 80-90
+2026-06-18 16:24:49,499 [lora.py] => Trainable params this task: 253,530 / 89,554,266
+  0%|          | 0/10 [00:00<?, ?it/s]Task 8, Epoch 1/10 => Loss 0.644, Train_accy 80.46:   0%|          | 0/10 [00:36<?, ?it/s]Task 8, Epoch 1/10 => Loss 0.644, Train_accy 80.46:  10%|█         | 1/10 [00:36<05:32, 36.94s/it]Task 8, Epoch 2/10 => Loss 0.259, Train_accy 91.70:  10%|█         | 1/10 [01:13<05:32, 36.94s/it]Task 8, Epoch 2/10 => Loss 0.259, Train_accy 91.70:  20%|██        | 2/10 [01:13<04:55, 36.94s/it]Task 8, Epoch 3/10 => Loss 0.215, Train_accy 92.62:  20%|██        | 2/10 [01:50<04:55, 36.94s/it]Task 8, Epoch 3/10 => Loss 0.215, Train_accy 92.62:  30%|███       | 3/10 [01:50<04:18, 36.96s/it]Task 8, Epoch 4/10 => Loss 0.206, Train_accy 93.08:  30%|███       | 3/10 [02:27<04:18, 36.96s/it]Task 8, Epoch 4/10 => Loss 0.206, Train_accy 93.08:  40%|████      | 4/10 [02:27<03:41, 36.99s/it]Task 8, Epoch 5/10 => Loss 0.198, Train_accy 93.50:  40%|████      | 4/10 [03:04<03:41, 36.99s/it]Task 8, Epoch 5/10 => Loss 0.198, Train_accy 93.50:  50%|█████     | 5/10 [03:04<03:05, 37.01s/it]Task 8, Epoch 6/10 => Loss 0.206, Train_accy 93.58:  50%|█████     | 5/10 [03:41<03:05, 37.01s/it]Task 8, Epoch 6/10 => Loss 0.206, Train_accy 93.58:  60%|██████    | 6/10 [03:41<02:28, 37.02s/it]Task 8, Epoch 7/10 => Loss 0.173, Train_accy 94.38:  60%|██████    | 6/10 [04:19<02:28, 37.02s/it]Task 8, Epoch 7/10 => Loss 0.173, Train_accy 94.38:  70%|███████   | 7/10 [04:19<01:51, 37.03s/it]Task 8, Epoch 8/10 => Loss 0.192, Train_accy 93.50:  70%|███████   | 7/10 [04:56<01:51, 37.03s/it]Task 8, Epoch 8/10 => Loss 0.192, Train_accy 93.50:  80%|████████  | 8/10 [04:56<01:14, 37.04s/it]Task 8, Epoch 9/10 => Loss 0.189, Train_accy 93.26:  80%|████████  | 8/10 [05:33<01:14, 37.04s/it]Task 8, Epoch 9/10 => Loss 0.189, Train_accy 93.26:  90%|█████████ | 9/10 [05:33<00:37, 37.06s/it]Task 8, Epoch 10/10 => Loss 0.187, Train_accy 93.76:  90%|█████████ | 9/10 [06:10<00:37, 37.06s/it]Task 8, Epoch 10/10 => Loss 0.187, Train_accy 93.76: 100%|██████████| 10/10 [06:10<00:00, 37.03s/it]Task 8, Epoch 10/10 => Loss 0.187, Train_accy 93.76: 100%|██████████| 10/10 [06:10<00:00, 37.02s/it]
+2026-06-18 16:30:59,685 [lora.py] => Task 8 finished. Train_accy 93.76
+2026-06-18 16:31:19,589 [inflora.py] => [InfLoRA] DualGPM threshold: 0.9900
+2026-06-18 16:31:23,896 [inflora.py] => [InfLoRA] Layer 1: 9/768 type remove
+2026-06-18 16:31:23,896 [inflora.py] => [InfLoRA] Layer 2: 17/768 type remove
+2026-06-18 16:31:23,896 [inflora.py] => [InfLoRA] Layer 3: 38/768 type remove
+2026-06-18 16:31:23,896 [inflora.py] => [InfLoRA] Layer 4: 49/768 type remove
+2026-06-18 16:31:23,896 [inflora.py] => [InfLoRA] Layer 5: 71/768 type remove
+2026-06-18 16:31:23,896 [inflora.py] => [InfLoRA] Layer 6: 107/768 type remove
+2026-06-18 16:31:23,896 [inflora.py] => [InfLoRA] Layer 7: 125/768 type remove
+2026-06-18 16:31:23,896 [inflora.py] => [InfLoRA] Layer 8: 177/768 type remove
+2026-06-18 16:31:23,896 [inflora.py] => [InfLoRA] Layer 9: 208/768 type remove
+2026-06-18 16:31:23,896 [inflora.py] => [InfLoRA] Layer 10: 233/768 type remove
+2026-06-18 16:31:23,896 [inflora.py] => [InfLoRA] Layer 11: 147/768 type remove
+2026-06-18 16:31:23,896 [inflora.py] => [InfLoRA] Layer 12: 129/768 type remove
+2026-06-18 16:32:34,352 [til_base.py] => TIL top1: 98.27
+2026-06-18 16:32:34,353 [til_base.py] => CIL top1: 83.22 | TIL top1: 98.27
+2026-06-18 16:32:34,353 [trainer.py] => No NME accuracy.
+2026-06-18 16:32:34,353 [trainer.py] => CNN: {'total': np.float64(83.22), '00-09': np.float64(72.7), '10-19': np.float64(81.7), '20-29': np.float64(94.3), '30-39': np.float64(86.1), '40-49': np.float64(81.7), '50-59': np.float64(84.1), '60-69': np.float64(88.8), '70-79': np.float64(71.4), '80-89': np.float64(88.2), 'old': np.float64(82.6), 'new': np.float64(88.2)}
+2026-06-18 16:32:34,353 [trainer.py] => CNN top1 curve: [np.float64(98.4), np.float64(95.55), np.float64(93.33), np.float64(91.68), np.float64(88.78), np.float64(88.18), np.float64(87.36), np.float64(84.38), np.float64(83.22)]
+2026-06-18 16:32:34,353 [trainer.py] => CNN top5 curve: [np.float64(100.0), np.float64(99.65), np.float64(99.23), np.float64(99.0), np.float64(99.06), np.float64(98.9), np.float64(98.74), np.float64(98.59), np.float64(98.24)]
+
+Average Accuracy (CNN): 90.0977777777778
+2026-06-18 16:32:34,353 [trainer.py] => Average Accuracy (CNN): 90.0977777777778 
+
+2026-06-18 16:32:34,356 [trainer.py] => All params: 89554266
+2026-06-18 16:32:34,359 [trainer.py] => Trainable params: 253530
+2026-06-18 16:32:34,361 [inflora.py] => [InfLoRA] Learning on 90-100
+2026-06-18 16:32:56,071 [lora.py] => Trainable params this task: 261,220 / 89,561,956
+  0%|          | 0/10 [00:00<?, ?it/s]Task 9, Epoch 1/10 => Loss 0.696, Train_accy 78.66:   0%|          | 0/10 [00:37<?, ?it/s]Task 9, Epoch 1/10 => Loss 0.696, Train_accy 78.66:  10%|█         | 1/10 [00:37<05:39, 37.70s/it]Task 9, Epoch 2/10 => Loss 0.334, Train_accy 89.58:  10%|█         | 1/10 [01:15<05:39, 37.70s/it]Task 9, Epoch 2/10 => Loss 0.334, Train_accy 89.58:  20%|██        | 2/10 [01:15<05:01, 37.66s/it]Task 9, Epoch 3/10 => Loss 0.271, Train_accy 91.02:  20%|██        | 2/10 [01:53<05:01, 37.66s/it]Task 9, Epoch 3/10 => Loss 0.271, Train_accy 91.02:  30%|███       | 3/10 [01:53<04:23, 37.68s/it]Task 9, Epoch 4/10 => Loss 0.262, Train_accy 91.42:  30%|███       | 3/10 [02:30<04:23, 37.68s/it]Task 9, Epoch 4/10 => Loss 0.262, Train_accy 91.42:  40%|████      | 4/10 [02:30<03:46, 37.68s/it]Task 9, Epoch 5/10 => Loss 0.240, Train_accy 91.98:  40%|████      | 4/10 [03:08<03:46, 37.68s/it]Task 9, Epoch 5/10 => Loss 0.240, Train_accy 91.98:  50%|█████     | 5/10 [03:08<03:08, 37.67s/it]Task 9, Epoch 6/10 => Loss 0.242, Train_accy 92.16:  50%|█████     | 5/10 [03:46<03:08, 37.67s/it]Task 9, Epoch 6/10 => Loss 0.242, Train_accy 92.16:  60%|██████    | 6/10 [03:46<02:30, 37.66s/it]Task 9, Epoch 7/10 => Loss 0.225, Train_accy 92.48:  60%|██████    | 6/10 [04:23<02:30, 37.66s/it]Task 9, Epoch 7/10 => Loss 0.225, Train_accy 92.48:  70%|███████   | 7/10 [04:23<01:52, 37.66s/it]Task 9, Epoch 8/10 => Loss 0.234, Train_accy 92.06:  70%|███████   | 7/10 [05:01<01:52, 37.66s/it]Task 9, Epoch 8/10 => Loss 0.234, Train_accy 92.06:  80%|████████  | 8/10 [05:01<01:15, 37.67s/it]Task 9, Epoch 9/10 => Loss 0.220, Train_accy 92.54:  80%|████████  | 8/10 [05:39<01:15, 37.67s/it]Task 9, Epoch 9/10 => Loss 0.220, Train_accy 92.54:  90%|█████████ | 9/10 [05:39<00:37, 37.68s/it]Task 9, Epoch 10/10 => Loss 0.218, Train_accy 92.96:  90%|█████████ | 9/10 [06:16<00:37, 37.68s/it]Task 9, Epoch 10/10 => Loss 0.218, Train_accy 92.96: 100%|██████████| 10/10 [06:16<00:00, 37.67s/it]Task 9, Epoch 10/10 => Loss 0.218, Train_accy 92.96: 100%|██████████| 10/10 [06:16<00:00, 37.67s/it]
+2026-06-18 16:39:12,801 [lora.py] => Task 9 finished. Train_accy 92.96
+2026-06-18 16:39:33,207 [inflora.py] => [InfLoRA] DualGPM threshold: 0.9950
+2026-06-18 16:39:37,538 [inflora.py] => [InfLoRA] Layer 1: 11/768 type remove
+2026-06-18 16:39:37,539 [inflora.py] => [InfLoRA] Layer 2: 21/768 type remove
+2026-06-18 16:39:37,539 [inflora.py] => [InfLoRA] Layer 3: 51/768 type remove
+2026-06-18 16:39:37,539 [inflora.py] => [InfLoRA] Layer 4: 71/768 type remove
+2026-06-18 16:39:37,539 [inflora.py] => [InfLoRA] Layer 5: 103/768 type remove
+2026-06-18 16:39:37,539 [inflora.py] => [InfLoRA] Layer 6: 158/768 type remove
+2026-06-18 16:39:37,539 [inflora.py] => [InfLoRA] Layer 7: 194/768 type remove
+2026-06-18 16:39:37,539 [inflora.py] => [InfLoRA] Layer 8: 264/768 type remove
+2026-06-18 16:39:37,539 [inflora.py] => [InfLoRA] Layer 9: 311/768 type remove
+2026-06-18 16:39:37,539 [inflora.py] => [InfLoRA] Layer 10: 341/768 type remove
+2026-06-18 16:39:37,539 [inflora.py] => [InfLoRA] Layer 11: 235/768 type remove
+2026-06-18 16:39:37,539 [inflora.py] => [InfLoRA] Layer 12: 201/768 type remove
+2026-06-18 16:40:57,307 [til_base.py] => TIL top1: 98.29
+2026-06-18 16:40:57,308 [til_base.py] => CIL top1: 82.84 | TIL top1: 98.29
+2026-06-18 16:40:57,308 [trainer.py] => No NME accuracy.
+2026-06-18 16:40:57,308 [trainer.py] => CNN: {'total': np.float64(82.84), '00-09': np.float64(66.0), '10-19': np.float64(82.4), '20-29': np.float64(93.2), '30-39': np.float64(87.5), '40-49': np.float64(83.1), '50-59': np.float64(83.6), '60-69': np.float64(88.3), '70-79': np.float64(71.0), '80-89': np.float64(87.0), '90-99': np.float64(86.3), 'old': np.float64(82.46), 'new': np.float64(86.3)}
+2026-06-18 16:40:57,308 [trainer.py] => CNN top1 curve: [np.float64(98.4), np.float64(95.55), np.float64(93.33), np.float64(91.68), np.float64(88.78), np.float64(88.18), np.float64(87.36), np.float64(84.38), np.float64(83.22), np.float64(82.84)]
+2026-06-18 16:40:57,308 [trainer.py] => CNN top5 curve: [np.float64(100.0), np.float64(99.65), np.float64(99.23), np.float64(99.0), np.float64(99.06), np.float64(98.9), np.float64(98.74), np.float64(98.59), np.float64(98.24), np.float64(98.11)]
+
+Average Accuracy (CNN): 89.37200000000001
+2026-06-18 16:40:57,308 [trainer.py] => Average Accuracy (CNN): 89.37200000000001 
+
+Accuracy Matrix (CNN):
+[[98.4 94.4 87.8 85.9 80.6 79.1 77.1 75.7 72.7 66. ]
+ [ 0.  96.7 93.7 91.2 87.8 89.1 87.7 84.  81.7 82.4]
+ [ 0.   0.  98.5 97.3 96.1 95.8 95.5 94.7 94.3 93.2]
+ [ 0.   0.   0.  92.3 88.9 88.3 88.7 87.7 86.1 87.5]
+ [ 0.   0.   0.   0.  90.5 87.8 85.1 84.4 81.7 83.1]
+ [ 0.   0.   0.   0.   0.  89.  87.9 86.1 84.1 83.6]
+ [ 0.   0.   0.   0.   0.   0.  89.5 88.9 88.8 88.3]
+ [ 0.   0.   0.   0.   0.   0.   0.  73.5 71.4 71. ]
+ [ 0.   0.   0.   0.   0.   0.   0.   0.  88.2 87. ]
+ [ 0.   0.   0.   0.   0.   0.   0.   0.   0.  86.3]]
+2026-06-18 16:40:57,309 [trainer.py] => Forgetting (CNN): 8.277777777777779
+2026-06-18 16:40:57,309 [trainer.py] => Forgetting (NME): 8.277777777777779

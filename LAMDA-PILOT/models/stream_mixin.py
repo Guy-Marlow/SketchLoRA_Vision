@@ -119,6 +119,23 @@ class StreamMixin:
         """Optional added loss (O-LoRA orthogonality). Default: 0."""
         return 0.0
 
+    # -- Computational Efficiency (CE) metric hooks (impl_plan_7.27.2026 Part 2,
+    # utils/ops_ledger.py + utils/ce_formulas.py). Both default to "no auxiliary
+    # cost" -- SeqLoRA needs no override (its CE=1.0 sanity anchor IS this
+    # default); O-LoRA/InfLoRA/TreeLoRA override one or the other per their own
+    # actual mechanism (see models/olora.py, inflora.py, treelora.py). ----
+    def _ce_aux_macs_per_step(self):
+        """Extra MACs charged EVERY training step, on top of the measured
+        fwd+bwd (e.g. O-LoRA's per-step orthogonality penalty, TreeLoRA's
+        per-step regularizer). Default: 0."""
+        return 0.0
+
+    def _ce_boundary_macs_this_cycle(self, chunk_images):
+        """One-off MACs charged once per CYCLE regardless of step count (e.g.
+        InfLoRA's two extra full passes over the chunk for cur_matrix
+        accumulation). Returns an itemized dict; default: none."""
+        return {}
+
     def _stream_cil_forward(self, inputs):
         """Deployed (CIL) forward: route current slot with the method's merge flag."""
         return self._network(inputs, task=self._stream_slot(), merge=self._stream_train_merge())

@@ -1,0 +1,55 @@
+{
+  "args_subset": {
+    "model_name": "rainbowprompt",
+    "dataset": "cifar224",
+    "init_cls": 5,
+    "increment": 5,
+    "seed": 1993,
+    "scenario": "cil",
+    "boundary_mode": null,
+    "budget_mb": null,
+    "n_lora_blocks": null,
+    "lora_rank": null,
+    "lora_alpha": null,
+    "svd_energy_target": null,
+    "svd_rank": null,
+    "svd_period": null,
+    "merge_op": null,
+    "cs_rank": null,
+    "lamda_1": null,
+    "lamda_2": null,
+    "lamb": null,
+    "lame": null
+  },
+  "status": "done",
+  "per_task": [
+    {
+      "task": 0,
+      "train_seconds": 474.624,
+      "eval_seconds": 3.544,
+      "boundary_seconds": 0.0,
+      "cil_top1": 99.8,
+      "til_top1": null,
+      "persistent_params": 9993269,
+      "persistent_mb": 38.1213,
+      "persistent_state_breakdown": {
+        "base_knowledge": 14745600,
+        "base_key": 61440,
+        "stored_prompts": 14745600,
+        "head": 15380,
+        "evolve_sublayers": 10405056
+      },
+      "peak_vram_mb": 0.0
+    }
+  ],
+  "train_seconds_total": 474.62439608573914,
+  "eval_seconds_total": 3.54384183883667,
+  "boundary_seconds_total": 0.0,
+  "cil_summary": {
+    "final_average_accuracy": 99.8,
+    "average_incremental_accuracy": 99.8,
+    "forgetting": null,
+    "backward_transfer": null,
+    "last_task_accuracy": 99.8
+  }
+}

@@ -1,0 +1,69 @@
+2026-07-19 17:31:39,031 [trainer.py] => config: exps/review/three_task_check/cifar224_olora.json
+2026-07-19 17:31:39,032 [trainer.py] => dataset: cifar224
+2026-07-19 17:31:39,032 [trainer.py] => memory_size: 0
+2026-07-19 17:31:39,032 [trainer.py] => memory_per_class: 0
+2026-07-19 17:31:39,032 [trainer.py] => fixed_memory: False
+2026-07-19 17:31:39,032 [trainer.py] => shuffle: True
+2026-07-19 17:31:39,032 [trainer.py] => init_cls: 5
+2026-07-19 17:31:39,032 [trainer.py] => increment: 5
+2026-07-19 17:31:39,032 [trainer.py] => seed: 1993
+2026-07-19 17:31:39,032 [trainer.py] => scenario: cil
+2026-07-19 17:31:39,032 [trainer.py] => stop_after_tasks: 3
+2026-07-19 17:31:39,032 [trainer.py] => pretrained: True
+2026-07-19 17:31:39,032 [trainer.py] => print_forget: True
+2026-07-19 17:31:39,032 [trainer.py] => final_metrics: True
+2026-07-19 17:31:39,032 [trainer.py] => backbone_type: vit_base_patch16_224_lora
+2026-07-19 17:31:39,032 [trainer.py] => lora_rank: 8
+2026-07-19 17:31:39,032 [trainer.py] => lora_alpha: 32
+2026-07-19 17:31:39,032 [trainer.py] => tuned_epoch: 10
+2026-07-19 17:31:39,032 [trainer.py] => init_lr: 0.0005
+2026-07-19 17:31:39,032 [trainer.py] => batch_size: 128
+2026-07-19 17:31:39,032 [trainer.py] => weight_decay: 0.0005
+2026-07-19 17:31:39,032 [trainer.py] => min_lr: 0.0
+2026-07-19 17:31:39,033 [trainer.py] => model_name: olora
+2026-07-19 17:31:39,033 [trainer.py] => lora_merge: True
+2026-07-19 17:31:39,033 [trainer.py] => lamda_1: 0.5
+2026-07-19 17:31:39,033 [trainer.py] => lamda_2: 0.0
+2026-07-19 17:31:39,033 [trainer.py] => device: [device(type='cuda', index=1)]
+2026-07-19 17:31:39,033 [trainer.py] => prefix: three_task_check_cifar224_olora
+2026-07-19 17:31:40,694 [data_manager.py] => [68, 56, 78, 8, 23, 84, 90, 65, 74, 76, 40, 89, 3, 92, 55, 9, 26, 80, 43, 38, 58, 70, 77, 1, 85, 19, 17, 50, 28, 53, 13, 81, 45, 82, 6, 59, 83, 16, 15, 44, 91, 41, 72, 60, 79, 52, 20, 10, 31, 54, 37, 95, 14, 71, 96, 98, 97, 2, 64, 66, 42, 22, 35, 86, 24, 34, 87, 21, 99, 0, 88, 27, 18, 94, 11, 12, 47, 25, 30, 46, 62, 69, 36, 61, 7, 63, 75, 5, 32, 4, 51, 48, 73, 93, 39, 67, 29, 49, 57, 33]
+2026-07-19 17:31:43,356 [trainer.py] => stop_after_tasks=3 (of 20 total)
+2026-07-19 17:31:43,581 [trainer.py] => All params: 91696896
+2026-07-19 17:31:43,584 [trainer.py] => Trainable params: 5898240
+2026-07-19 17:31:43,892 [lora.py] => Learning on 0-5
+2026-07-19 17:31:43,899 [lora.py] => Trainable params this task: 298,757 / 91,700,741
+2026-07-19 17:34:31,517 [olora.py] => [O-LoRA] Task 0 done. Acc 96.28, final Orth 0.000
+2026-07-19 17:34:34,024 [trainer.py] => No NME accuracy.
+2026-07-19 17:34:34,024 [trainer.py] => CNN: {'total': 100.0, '00-04': 100.0, 'old': 0, 'new': 100.0}
+2026-07-19 17:34:34,024 [trainer.py] => CNN top1 curve: [100.0]
+2026-07-19 17:34:34,024 [trainer.py] => CNN top5 curve: [100.0]
+
+2026-07-19 17:34:34,024 [trainer.py] => Average Accuracy (CNN): 100.0 
+
+2026-07-19 17:34:34,027 [trainer.py] => All params: 91700741
+2026-07-19 17:34:34,029 [trainer.py] => Trainable params: 298757
+2026-07-19 17:34:34,030 [lora.py] => Learning on 5-10
+2026-07-19 17:34:34,040 [lora.py] => Trainable params this task: 302,602 / 91,704,586
+2026-07-19 17:37:22,734 [olora.py] => [O-LoRA] Task 1 done. Acc 94.16, final Orth 0.031
+2026-07-19 17:37:26,872 [trainer.py] => No NME accuracy.
+2026-07-19 17:37:26,873 [trainer.py] => CNN: {'total': 96.1, '00-04': 96.0, '05-09': 96.2, 'old': 96.0, 'new': 96.2}
+2026-07-19 17:37:26,873 [trainer.py] => CNN top1 curve: [100.0, 96.1]
+2026-07-19 17:37:26,873 [trainer.py] => CNN top5 curve: [100.0, 99.9]
+
+2026-07-19 17:37:26,873 [trainer.py] => Average Accuracy (CNN): 98.05 
+
+2026-07-19 17:37:26,877 [trainer.py] => All params: 91704586
+2026-07-19 17:37:26,880 [trainer.py] => Trainable params: 302602
+2026-07-19 17:37:26,881 [lora.py] => Learning on 10-15
+2026-07-19 17:37:26,897 [lora.py] => Trainable params this task: 306,447 / 91,708,431
+2026-07-19 17:40:15,708 [olora.py] => [O-LoRA] Task 2 done. Acc 93.84, final Orth 0.045
+2026-07-19 17:40:21,399 [trainer.py] => No NME accuracy.
+2026-07-19 17:40:21,399 [trainer.py] => CNN: {'total': 92.33, '00-04': 92.4, '05-09': 87.6, '10-14': 97.0, 'old': 90.0, 'new': 97.0}
+2026-07-19 17:40:21,399 [trainer.py] => CNN top1 curve: [100.0, 96.1, 92.33]
+2026-07-19 17:40:21,399 [trainer.py] => CNN top5 curve: [100.0, 99.9, 99.53]
+
+2026-07-19 17:40:21,399 [trainer.py] => Average Accuracy (CNN): 96.14333333333333 
+
+2026-07-19 17:40:26,333 [metrics_logger.py] => [metrics] wrote run_logs/final/olora/metrics_olora_cifar224_three_task_check_cifar224_olora_s1993.json
+2026-07-19 17:40:26,333 [trainer.py] => Forgetting (CNN): 8.100000000000001
+2026-07-19 17:40:26,333 [trainer.py] => Forgetting (NME): 8.100000000000001

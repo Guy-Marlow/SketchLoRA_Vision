@@ -1,0 +1,116 @@
+2026-07-07 14:08:50,518 [trainer.py] => config: ./exps/svdlora_inr20t_sample_bm05_s1994.json
+2026-07-07 14:08:50,518 [trainer.py] => dataset: imagenetr
+2026-07-07 14:08:50,518 [trainer.py] => memory_size: 0
+2026-07-07 14:08:50,518 [trainer.py] => memory_per_class: 0
+2026-07-07 14:08:50,518 [trainer.py] => fixed_memory: False
+2026-07-07 14:08:50,518 [trainer.py] => shuffle: True
+2026-07-07 14:08:50,518 [trainer.py] => init_cls: 10
+2026-07-07 14:08:50,518 [trainer.py] => increment: 10
+2026-07-07 14:08:50,518 [trainer.py] => backbone_type: vit_base_patch16_224_lora
+2026-07-07 14:08:50,518 [trainer.py] => device: [device(type='cuda', index=0)]
+2026-07-07 14:08:50,518 [trainer.py] => seed: 1994
+2026-07-07 14:08:50,518 [trainer.py] => scenario: both
+2026-07-07 14:08:50,518 [trainer.py] => lora_rank: 8
+2026-07-07 14:08:50,518 [trainer.py] => tuned_epoch: 10
+2026-07-07 14:08:50,518 [trainer.py] => init_lr: 0.0003
+2026-07-07 14:08:50,518 [trainer.py] => batch_size: 48
+2026-07-07 14:08:50,518 [trainer.py] => weight_decay: 0.0005
+2026-07-07 14:08:50,518 [trainer.py] => min_lr: 0.0
+2026-07-07 14:08:50,519 [trainer.py] => pretrained: True
+2026-07-07 14:08:50,519 [trainer.py] => print_forget: True
+2026-07-07 14:08:50,519 [trainer.py] => model_name: sketchlora
+2026-07-07 14:08:50,519 [trainer.py] => lora_alpha: 32
+2026-07-07 14:08:50,519 [trainer.py] => lora_merge: True
+2026-07-07 14:08:50,519 [trainer.py] => lora_train_merge: True
+2026-07-07 14:08:50,519 [trainer.py] => svd_rank: 8
+2026-07-07 14:08:50,519 [trainer.py] => svd_oversampling: 10
+2026-07-07 14:08:50,519 [trainer.py] => svd_energy_target: 0.01
+2026-07-07 14:08:50,519 [trainer.py] => lora_n_slots: 2
+2026-07-07 14:08:50,519 [trainer.py] => prefix: inr20t_sample_bm05
+2026-07-07 14:08:50,519 [trainer.py] => boundary_mode: sample
+2026-07-07 14:08:50,519 [trainer.py] => boundary_mult: 0.5
+2026-07-07 14:08:50,600 [data_manager.py] => [85, 41, 23, 28, 70, 87, 134, 151, 51, 159, 178, 119, 50, 117, 73, 95, 86, 147, 63, 22, 79, 175, 40, 155, 174, 54, 132, 72, 124, 157, 93, 26, 196, 74, 44, 15, 169, 122, 88, 171, 184, 6, 18, 145, 48, 197, 64, 172, 126, 96, 11, 55, 193, 66, 128, 21, 77, 113, 140, 116, 141, 133, 120, 29, 115, 14, 103, 127, 114, 19, 9, 38, 33, 195, 81, 35, 69, 181, 47, 129, 112, 168, 198, 71, 101, 188, 68, 90, 158, 163, 52, 8, 185, 59, 154, 92, 56, 183, 32, 136, 65, 45, 46, 173, 189, 108, 102, 144, 0, 107, 187, 100, 98, 192, 43, 161, 104, 75, 150, 166, 121, 60, 160, 3, 143, 153, 62, 142, 61, 110, 194, 97, 25, 177, 179, 17, 49, 31, 94, 111, 16, 53, 91, 58, 135, 83, 2, 12, 13, 165, 42, 36, 186, 105, 1, 7, 149, 170, 27, 24, 78, 167, 137, 138, 118, 10, 139, 164, 20, 57, 123, 199, 89, 130, 82, 162, 176, 148, 109, 125, 67, 106, 37, 146, 131, 180, 156, 39, 5, 84, 4, 190, 152, 191, 30, 76, 80, 34, 99, 182]
+2026-07-07 14:08:54,493 [stream_mixin.py] => [stream] adapter event every 5 global epochs (C=0.5 x 10 epochs); eval after each fold on completed tasks
+2026-07-07 14:09:44,651 [sketchlora.py] => [SketchDiag] task 0: retained-energy mean=0.998 min=0.990 | ||ΔW||_F mean=0.188 | r_hat mean=7.6 total=182
+2026-07-07 14:10:32,958 [sketchlora.py] => [SketchDiag] task 1: retained-energy mean=0.997 min=0.990 | ||ΔW||_F mean=0.232 | r_hat mean=15.0 total=361
+2026-07-07 14:10:35,575 [stream_mixin.py] => [stream eval] completed  1 | CIL 92.80 | TIL 92.80 | TIL/task [92.8]
+2026-07-07 14:11:20,004 [sketchlora.py] => [SketchDiag] task 2: retained-energy mean=0.994 min=0.990 | ||ΔW||_F mean=0.300 | r_hat mean=21.3 total=511
+2026-07-07 14:11:22,635 [stream_mixin.py] => [stream eval] completed  1 | CIL 82.27 | TIL 82.27 | TIL/task [82.27]
+2026-07-07 14:12:07,444 [sketchlora.py] => [SketchDiag] task 3: retained-energy mean=0.993 min=0.990 | ||ΔW||_F mean=0.328 | r_hat mean=27.5 total=659
+2026-07-07 14:12:12,575 [stream_mixin.py] => [stream eval] completed  2 | CIL 80.91 | TIL 87.81 | TIL/task [82.55, 93.75]
+2026-07-07 14:12:49,172 [sketchlora.py] => [SketchDiag] task 4: retained-energy mean=0.992 min=0.990 | ||ΔW||_F mean=0.372 | r_hat mean=32.8 total=786
+2026-07-07 14:12:54,369 [stream_mixin.py] => [stream eval] completed  2 | CIL 74.60 | TIL 81.20 | TIL/task [79.22, 83.44]
+2026-07-07 14:13:31,120 [sketchlora.py] => [SketchDiag] task 5: retained-energy mean=0.992 min=0.990 | ||ΔW||_F mean=0.390 | r_hat mean=37.9 total=910
+2026-07-07 14:13:38,325 [stream_mixin.py] => [stream eval] completed  3 | CIL 71.72 | TIL 85.17 | TIL/task [79.5, 84.69, 93.75]
+2026-07-07 14:14:25,489 [sketchlora.py] => [SketchDiag] task 6: retained-energy mean=0.992 min=0.990 | ||ΔW||_F mean=0.434 | r_hat mean=42.3 total=1015
+2026-07-07 14:14:32,773 [stream_mixin.py] => [stream eval] completed  3 | CIL 56.78 | TIL 75.45 | TIL/task [66.76, 78.75, 83.59]
+2026-07-07 14:15:20,041 [sketchlora.py] => [SketchDiag] task 7: retained-energy mean=0.992 min=0.990 | ||ΔW||_F mean=0.454 | r_hat mean=46.9 total=1126
+2026-07-07 14:15:29,927 [stream_mixin.py] => [stream eval] completed  4 | CIL 59.29 | TIL 80.63 | TIL/task [68.7, 79.06, 85.55, 91.12]
+2026-07-07 14:16:14,421 [sketchlora.py] => [SketchDiag] task 8: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=0.489 | r_hat mean=50.8 total=1220
+2026-07-07 14:16:24,282 [stream_mixin.py] => [stream eval] completed  4 | CIL 52.71 | TIL 77.65 | TIL/task [72.85, 83.12, 75.39, 79.29]
+2026-07-07 14:17:08,943 [sketchlora.py] => [SketchDiag] task 9: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=0.504 | r_hat mean=54.6 total=1310
+2026-07-07 14:17:21,310 [stream_mixin.py] => [stream eval] completed  5 | CIL 55.26 | TIL 81.47 | TIL/task [73.96, 84.38, 74.22, 81.95, 92.63]
+2026-07-07 14:18:03,267 [sketchlora.py] => [SketchDiag] task 10: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=0.536 | r_hat mean=57.6 total=1383
+2026-07-07 14:18:15,672 [stream_mixin.py] => [stream eval] completed  5 | CIL 42.16 | TIL 70.83 | TIL/task [56.79, 80.0, 67.58, 70.41, 80.77]
+2026-07-07 14:18:57,676 [sketchlora.py] => [SketchDiag] task 11: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=0.549 | r_hat mean=60.8 total=1458
+2026-07-07 14:19:12,480 [stream_mixin.py] => [stream eval] completed  6 | CIL 43.09 | TIL 75.19 | TIL/task [58.17, 79.06, 68.75, 72.49, 79.81, 95.59]
+2026-07-07 14:19:50,185 [sketchlora.py] => [SketchDiag] task 12: retained-energy mean=0.992 min=0.990 | ||ΔW||_F mean=0.575 | r_hat mean=63.4 total=1522
+2026-07-07 14:20:04,879 [stream_mixin.py] => [stream eval] completed  6 | CIL 41.98 | TIL 73.54 | TIL/task [58.45, 69.38, 73.44, 73.96, 82.37, 86.78]
+2026-07-07 14:20:42,421 [sketchlora.py] => [SketchDiag] task 13: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=0.587 | r_hat mean=66.0 total=1585
+2026-07-07 14:20:59,480 [stream_mixin.py] => [stream eval] completed  7 | CIL 42.86 | TIL 76.37 | TIL/task [62.05, 71.88, 72.27, 73.67, 82.37, 88.47, 88.63]
+2026-07-07 14:21:34,388 [sketchlora.py] => [SketchDiag] task 14: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=0.608 | r_hat mean=67.8 total=1628
+2026-07-07 14:21:51,394 [stream_mixin.py] => [stream eval] completed  7 | CIL 33.55 | TIL 68.18 | TIL/task [48.48, 63.75, 63.28, 63.31, 79.81, 81.36, 83.53]
+2026-07-07 14:22:26,282 [sketchlora.py] => [SketchDiag] task 15: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=0.618 | r_hat mean=69.8 total=1674
+2026-07-07 14:22:45,494 [stream_mixin.py] => [stream eval] completed  8 | CIL 34.99 | TIL 71.63 | TIL/task [50.69, 67.5, 66.02, 66.27, 80.77, 80.0, 81.57, 89.79]
+2026-07-07 14:23:29,107 [sketchlora.py] => [SketchDiag] task 16: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=0.645 | r_hat mean=71.6 total=1719
+2026-07-07 14:23:48,327 [stream_mixin.py] => [stream eval] completed  8 | CIL 27.91 | TIL 59.91 | TIL/task [30.75, 55.94, 44.14, 55.03, 84.94, 65.42, 79.61, 72.77]
+2026-07-07 14:24:31,910 [sketchlora.py] => [SketchDiag] task 17: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=0.658 | r_hat mean=73.6 total=1766
+2026-07-07 14:24:53,783 [stream_mixin.py] => [stream eval] completed  9 | CIL 32.35 | TIL 65.93 | TIL/task [35.73, 60.62, 47.27, 58.58, 86.54, 65.76, 82.75, 77.02, 88.18]
+2026-07-07 14:25:31,562 [sketchlora.py] => [SketchDiag] task 18: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=0.678 | r_hat mean=74.7 total=1792
+2026-07-07 14:25:53,106 [stream_mixin.py] => [stream eval] completed  9 | CIL 26.87 | TIL 64.28 | TIL/task [50.42, 62.5, 66.02, 53.25, 74.04, 61.36, 67.45, 72.34, 77.7]
+2026-07-07 14:26:30,865 [sketchlora.py] => [SketchDiag] task 19: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=0.685 | r_hat mean=75.9 total=1822
+2026-07-07 14:26:54,587 [stream_mixin.py] => [stream eval] completed 10 | CIL 28.99 | TIL 69.29 | TIL/task [55.4, 64.69, 67.97, 59.76, 75.64, 66.44, 70.2, 70.64, 77.36, 93.2]
+2026-07-07 14:27:34,248 [sketchlora.py] => [SketchDiag] task 20: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=0.705 | r_hat mean=77.0 total=1848
+2026-07-07 14:27:57,928 [stream_mixin.py] => [stream eval] completed 10 | CIL 23.92 | TIL 60.86 | TIL/task [40.44, 49.69, 64.45, 57.99, 66.67, 54.24, 69.8, 69.36, 64.19, 84.4]
+2026-07-07 14:28:37,370 [sketchlora.py] => [SketchDiag] task 21: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=0.714 | r_hat mean=78.1 total=1875
+2026-07-07 14:29:03,417 [stream_mixin.py] => [stream eval] completed 11 | CIL 26.61 | TIL 64.86 | TIL/task [45.71, 52.19, 64.84, 59.47, 67.63, 59.32, 69.41, 71.91, 64.19, 83.2, 88.24]
+2026-07-07 14:29:50,333 [sketchlora.py] => [SketchDiag] task 22: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=0.735 | r_hat mean=79.2 total=1901
+2026-07-07 14:30:16,315 [stream_mixin.py] => [stream eval] completed 11 | CIL 24.20 | TIL 63.89 | TIL/task [50.42, 58.12, 64.45, 60.95, 67.31, 52.54, 67.84, 55.74, 66.55, 88.0, 78.31]
+2026-07-07 14:31:03,208 [sketchlora.py] => [SketchDiag] task 23: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=0.745 | r_hat mean=80.6 total=1935
+2026-07-07 14:31:31,819 [stream_mixin.py] => [stream eval] completed 12 | CIL 27.23 | TIL 67.48 | TIL/task [54.57, 58.44, 68.36, 61.54, 66.99, 54.24, 67.45, 57.02, 66.89, 86.8, 78.31, 92.92]
+2026-07-07 14:32:08,367 [sketchlora.py] => [SketchDiag] task 24: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=0.763 | r_hat mean=81.2 total=1950
+2026-07-07 14:32:36,956 [stream_mixin.py] => [stream eval] completed 12 | CIL 16.22 | TIL 49.59 | TIL/task [37.4, 44.06, 41.02, 35.8, 52.88, 38.98, 47.06, 32.77, 46.28, 67.2, 71.32, 81.54]
+2026-07-07 14:33:13,388 [sketchlora.py] => [SketchDiag] task 25: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=0.770 | r_hat mean=81.8 total=1964
+2026-07-07 14:33:44,017 [stream_mixin.py] => [stream eval] completed 13 | CIL 19.15 | TIL 54.14 | TIL/task [40.44, 45.31, 42.58, 37.87, 56.73, 43.05, 47.84, 36.17, 48.31, 72.0, 71.69, 82.15, 86.48]
+2026-07-07 14:34:30,798 [sketchlora.py] => [SketchDiag] task 26: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=0.794 | r_hat mean=82.6 total=1982
+2026-07-07 14:35:01,591 [stream_mixin.py] => [stream eval] completed 13 | CIL 19.21 | TIL 54.88 | TIL/task [47.92, 55.0, 44.53, 39.05, 54.49, 39.32, 53.73, 45.96, 50.68, 75.2, 57.35, 74.15, 82.79]
+2026-07-07 14:35:48,619 [sketchlora.py] => [SketchDiag] task 27: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=0.803 | r_hat mean=83.5 total=2003
+2026-07-07 14:36:21,969 [stream_mixin.py] => [stream eval] completed 14 | CIL 21.55 | TIL 57.55 | TIL/task [47.92, 55.94, 44.14, 38.46, 54.81, 43.05, 53.33, 45.96, 49.32, 75.6, 57.35, 71.08, 81.15, 90.91]
+2026-07-07 14:37:04,581 [sketchlora.py] => [SketchDiag] task 28: retained-energy mean=0.992 min=0.990 | ||ΔW||_F mean=0.822 | r_hat mean=84.2 total=2020
+2026-07-07 14:37:38,035 [stream_mixin.py] => [stream eval] completed 14 | CIL 20.75 | TIL 59.76 | TIL/task [51.25, 56.56, 51.17, 45.56, 61.86, 49.83, 53.33, 55.32, 60.47, 67.6, 58.09, 67.38, 78.28, 82.76]
+2026-07-07 14:38:20,646 [sketchlora.py] => [SketchDiag] task 29: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=0.830 | r_hat mean=84.8 total=2035
+2026-07-07 14:38:56,348 [stream_mixin.py] => [stream eval] completed 15 | CIL 23.74 | TIL 63.31 | TIL/task [53.19, 60.94, 51.95, 48.52, 63.46, 49.15, 56.08, 57.45, 61.49, 68.8, 58.46, 68.31, 79.92, 81.5, 93.71]
+2026-07-07 14:39:48,120 [sketchlora.py] => [SketchDiag] task 30: retained-energy mean=0.992 min=0.990 | ||ΔW||_F mean=0.856 | r_hat mean=85.6 total=2054
+2026-07-07 14:40:23,848 [stream_mixin.py] => [stream eval] completed 15 | CIL 18.19 | TIL 53.99 | TIL/task [45.71, 45.0, 50.0, 37.87, 53.21, 48.81, 43.92, 44.68, 53.72, 62.0, 43.75, 57.85, 74.18, 72.73, 80.42]
+2026-07-07 14:41:15,639 [sketchlora.py] => [SketchDiag] task 31: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=0.864 | r_hat mean=86.2 total=2069
+2026-07-07 14:41:54,468 [stream_mixin.py] => [stream eval] completed 16 | CIL 20.65 | TIL 57.05 | TIL/task [47.65, 45.62, 50.39, 39.35, 53.53, 51.53, 43.53, 42.98, 53.72, 60.0, 41.18, 56.92, 74.18, 73.98, 80.42, 91.28]
+2026-07-07 14:42:37,169 [sketchlora.py] => [SketchDiag] task 32: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=0.885 | r_hat mean=86.5 total=2077
+2026-07-07 14:43:15,807 [stream_mixin.py] => [stream eval] completed 16 | CIL 22.02 | TIL 59.35 | TIL/task [56.51, 46.88, 58.2, 44.97, 62.5, 52.88, 54.12, 50.21, 57.09, 60.8, 51.47, 54.77, 68.03, 73.67, 75.52, 79.02]
+2026-07-07 14:43:58,495 [sketchlora.py] => [SketchDiag] task 33: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=0.891 | r_hat mean=86.8 total=2083
+2026-07-07 14:44:39,683 [stream_mixin.py] => [stream eval] completed 17 | CIL 22.54 | TIL 61.91 | TIL/task [57.34, 49.69, 60.55, 42.31, 63.78, 54.24, 54.51, 51.91, 56.42, 62.8, 51.84, 55.38, 65.57, 74.29, 78.67, 81.74, 89.16]
+2026-07-07 14:45:25,804 [sketchlora.py] => [SketchDiag] task 34: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=0.913 | r_hat mean=87.2 total=2092
+2026-07-07 14:46:07,054 [stream_mixin.py] => [stream eval] completed 17 | CIL 18.16 | TIL 57.56 | TIL/task [48.48, 46.56, 55.47, 38.46, 56.73, 53.9, 49.41, 49.79, 56.76, 52.0, 52.94, 52.62, 62.3, 68.34, 71.33, 80.93, 80.07]
+2026-07-07 14:46:52,885 [sketchlora.py] => [SketchDiag] task 35: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=0.921 | r_hat mean=87.5 total=2100
+2026-07-07 14:47:36,512 [stream_mixin.py] => [stream eval] completed 18 | CIL 21.66 | TIL 61.24 | TIL/task [52.63, 47.5, 60.94, 42.31, 60.9, 57.97, 54.51, 50.21, 56.42, 55.6, 51.47, 53.54, 63.93, 69.28, 71.68, 80.65, 81.47, 87.78]
+2026-07-07 14:48:15,996 [sketchlora.py] => [SketchDiag] task 36: retained-energy mean=0.992 min=0.990 | ||ΔW||_F mean=0.937 | r_hat mean=87.7 total=2105
+2026-07-07 14:48:59,624 [stream_mixin.py] => [stream eval] completed 18 | CIL 19.01 | TIL 56.91 | TIL/task [44.32, 48.75, 52.34, 45.86, 61.86, 54.58, 56.86, 39.15, 47.3, 41.6, 45.96, 47.38, 54.92, 66.77, 65.03, 79.84, 79.37, 83.6]
+2026-07-07 14:49:39,204 [sketchlora.py] => [SketchDiag] task 37: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=0.943 | r_hat mean=87.5 total=2099
+2026-07-07 14:50:25,066 [stream_mixin.py] => [stream eval] completed 19 | CIL 20.68 | TIL 59.99 | TIL/task [50.14, 53.12, 56.64, 48.52, 58.97, 57.29, 56.47, 39.15, 47.97, 45.6, 49.63, 49.54, 58.2, 64.58, 68.53, 79.29, 78.67, 82.32, 90.42]
+2026-07-07 14:51:13,565 [sketchlora.py] => [SketchDiag] task 38: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=0.965 | r_hat mean=88.0 total=2113
+2026-07-07 14:51:59,604 [stream_mixin.py] => [stream eval] completed 19 | CIL 16.66 | TIL 55.81 | TIL/task [56.51, 47.81, 51.17, 38.17, 55.77, 50.85, 54.9, 40.0, 43.92, 42.4, 43.75, 41.23, 59.02, 62.7, 68.18, 68.39, 72.03, 77.17, 83.91]
+2026-07-07 14:52:48,451 [sketchlora.py] => [SketchDiag] task 39: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=0.972 | r_hat mean=88.3 total=2119
+2026-07-07 14:53:37,178 [stream_mixin.py] => [stream eval] completed 20 | CIL 19.85 | TIL 59.12 | TIL/task [58.73, 48.12, 50.39, 39.05, 55.77, 54.58, 56.08, 39.57, 47.3, 46.4, 46.69, 41.23, 59.43, 63.32, 71.33, 69.48, 72.73, 78.46, 84.29, 92.24]
+2026-07-07 14:53:37,181 [trainer.py] => [stream] completed-task checkpoints: [1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13, 14, 14, 15, 15, 16, 16, 17, 17, 18, 18, 19, 19, 20]
+2026-07-07 14:53:37,181 [trainer.py] => [stream] CIL curve: [92.8, 82.27, 80.91, 74.6, 71.72, 56.78, 59.29, 52.71, 55.26, 42.16, 43.09, 41.98, 42.86, 33.55, 34.99, 27.91, 32.35, 26.87, 28.99, 23.92, 26.61, 24.2, 27.23, 16.22, 19.15, 19.21, 21.55, 20.75, 23.74, 18.19, 20.65, 22.02, 22.54, 18.16, 21.66, 19.01, 20.68, 16.66, 19.85]
+2026-07-07 14:53:37,181 [trainer.py] => [stream] TIL curve: [92.8, 82.27, 87.81, 81.2, 85.17, 75.45, 80.63, 77.65, 81.47, 70.83, 75.19, 73.54, 76.37, 68.18, 71.63, 59.91, 65.93, 64.28, 69.29, 60.86, 64.86, 63.89, 67.48, 49.59, 54.14, 54.88, 57.55, 59.76, 63.31, 53.99, 57.05, 59.35, 61.91, 57.56, 61.24, 56.91, 59.99, 55.81, 59.12]
+2026-07-07 14:53:37,181 [trainer.py] => [stream] FINAL  CIL 19.85 | TIL 59.12  (over 20 tasks)

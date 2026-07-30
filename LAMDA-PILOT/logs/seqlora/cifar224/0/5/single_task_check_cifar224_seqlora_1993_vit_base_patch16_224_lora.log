@@ -1,0 +1,43 @@
+2026-07-19 16:59:44,550 [trainer.py] => config: exps/review/single_task_check/cifar224_seqlora.json
+2026-07-19 16:59:44,550 [trainer.py] => dataset: cifar224
+2026-07-19 16:59:44,550 [trainer.py] => memory_size: 0
+2026-07-19 16:59:44,550 [trainer.py] => memory_per_class: 0
+2026-07-19 16:59:44,550 [trainer.py] => fixed_memory: False
+2026-07-19 16:59:44,550 [trainer.py] => shuffle: True
+2026-07-19 16:59:44,550 [trainer.py] => init_cls: 5
+2026-07-19 16:59:44,550 [trainer.py] => increment: 5
+2026-07-19 16:59:44,550 [trainer.py] => seed: 1993
+2026-07-19 16:59:44,550 [trainer.py] => scenario: cil
+2026-07-19 16:59:44,550 [trainer.py] => stop_after_tasks: 1
+2026-07-19 16:59:44,550 [trainer.py] => pretrained: True
+2026-07-19 16:59:44,550 [trainer.py] => print_forget: True
+2026-07-19 16:59:44,550 [trainer.py] => final_metrics: True
+2026-07-19 16:59:44,550 [trainer.py] => backbone_type: vit_base_patch16_224_lora
+2026-07-19 16:59:44,550 [trainer.py] => lora_rank: 8
+2026-07-19 16:59:44,551 [trainer.py] => lora_alpha: 32
+2026-07-19 16:59:44,551 [trainer.py] => tuned_epoch: 10
+2026-07-19 16:59:44,551 [trainer.py] => init_lr: 0.0005
+2026-07-19 16:59:44,551 [trainer.py] => batch_size: 128
+2026-07-19 16:59:44,551 [trainer.py] => weight_decay: 0.0005
+2026-07-19 16:59:44,551 [trainer.py] => min_lr: 0.0
+2026-07-19 16:59:44,551 [trainer.py] => model_name: seqlora
+2026-07-19 16:59:44,551 [trainer.py] => lora_merge: False
+2026-07-19 16:59:44,551 [trainer.py] => device: [device(type='cuda', index=2)]
+2026-07-19 16:59:44,551 [trainer.py] => prefix: single_task_check_cifar224_seqlora
+2026-07-19 16:59:46,196 [data_manager.py] => [68, 56, 78, 8, 23, 84, 90, 65, 74, 76, 40, 89, 3, 92, 55, 9, 26, 80, 43, 38, 58, 70, 77, 1, 85, 19, 17, 50, 28, 53, 13, 81, 45, 82, 6, 59, 83, 16, 15, 44, 91, 41, 72, 60, 79, 52, 20, 10, 31, 54, 37, 95, 14, 71, 96, 98, 97, 2, 64, 66, 42, 22, 35, 86, 24, 34, 87, 21, 99, 0, 88, 27, 18, 94, 11, 12, 47, 25, 30, 46, 62, 69, 36, 61, 7, 63, 75, 5, 32, 4, 51, 48, 73, 93, 39, 67, 29, 49, 57, 33]
+2026-07-19 16:59:48,846 [trainer.py] => stop_after_tasks=1 (of 20 total)
+2026-07-19 16:59:49,074 [trainer.py] => All params: 91696896
+2026-07-19 16:59:49,077 [trainer.py] => Trainable params: 5898240
+2026-07-19 16:59:49,408 [lora.py] => Learning on 0-5
+2026-07-19 16:59:49,415 [lora.py] => Trainable params this task: 298,757 / 91,700,741
+2026-07-19 17:02:15,853 [lora.py] => Task 0 finished. Train_accy 96.28
+2026-07-19 17:02:17,999 [trainer.py] => No NME accuracy.
+2026-07-19 17:02:17,999 [trainer.py] => CNN: {'total': 100.0, '00-04': 100.0, 'old': 0, 'new': 100.0}
+2026-07-19 17:02:17,999 [trainer.py] => CNN top1 curve: [100.0]
+2026-07-19 17:02:17,999 [trainer.py] => CNN top5 curve: [100.0]
+
+2026-07-19 17:02:17,999 [trainer.py] => Average Accuracy (CNN): 100.0 
+
+2026-07-19 17:02:20,117 [metrics_logger.py] => [metrics] wrote run_logs/final/seqlora/metrics_seqlora_cifar224_single_task_check_cifar224_seqlora_s1993.json
+2026-07-19 17:02:20,119 [trainer.py] => Forgetting (CNN): nan
+2026-07-19 17:02:20,119 [trainer.py] => Forgetting (NME): nan

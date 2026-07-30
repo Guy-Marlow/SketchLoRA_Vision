@@ -1,0 +1,84 @@
+{
+  "args_subset": {
+    "model_name": "inflora",
+    "dataset": "food101",
+    "init_cls": 6,
+    "increment": 5,
+    "seed": 1993,
+    "scenario": "cil",
+    "boundary_mode": null,
+    "budget_mb": null,
+    "n_lora_blocks": null,
+    "lora_rank": 8,
+    "lora_alpha": 32,
+    "svd_energy_target": null,
+    "svd_rank": null,
+    "svd_period": null,
+    "merge_op": null,
+    "cs_rank": null,
+    "lamda_1": null,
+    "lamda_2": null,
+    "lamb": 0.95,
+    "lame": 1.0
+  },
+  "status": "done",
+  "per_task": [
+    {
+      "task": 0,
+      "train_seconds": 321.88,
+      "eval_seconds": 5.853,
+      "boundary_seconds": 0.0,
+      "cil_top1": 98.73,
+      "til_top1": null,
+      "persistent_params": 5902854,
+      "persistent_mb": 22.5176,
+      "persistent_state_breakdown": {
+        "lora_slots": 5898240,
+        "head": 4614
+      },
+      "peak_vram_mb": 0.0
+    },
+    {
+      "task": 1,
+      "train_seconds": 272.309,
+      "eval_seconds": 9.89,
+      "boundary_seconds": 0.0,
+      "cil_top1": 95.93,
+      "til_top1": null,
+      "persistent_params": 5906699,
+      "persistent_mb": 22.5323,
+      "persistent_state_breakdown": {
+        "lora_slots": 5898240,
+        "head": 8459
+      },
+      "peak_vram_mb": 0.0
+    },
+    {
+      "task": 2,
+      "train_seconds": 272.504,
+      "eval_seconds": 13.868,
+      "boundary_seconds": 0.0,
+      "cil_top1": 89.9,
+      "til_top1": null,
+      "persistent_params": 5910544,
+      "persistent_mb": 22.5469,
+      "persistent_state_breakdown": {
+        "lora_slots": 5898240,
+        "head": 12304
+      },
+      "peak_vram_mb": 0.0
+    }
+  ],
+  "train_seconds_total": 866.6928887367249,
+  "eval_seconds_total": 29.610577821731567,
+  "boundary_seconds_total": 0.0,
+  "inference_ms_per_image": 0.0797,
+  "inference_flops_per_image": null,
+  "cil_summary": {
+    "final_average_accuracy": 90.35,
+    "average_incremental_accuracy": 95.015,
+    "forgetting": 9.2,
+    "backward_transfer": -9.2,
+    "last_task_accuracy": 94.32
+  }
+}

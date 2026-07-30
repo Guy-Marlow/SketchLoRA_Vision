@@ -1,0 +1,99 @@
+{
+  "args_subset": {
+    "model_name": "sketchlora",
+    "dataset": "cifar224",
+    "init_cls": 5,
+    "increment": 5,
+    "seed": 1993,
+    "scenario": "cil",
+    "boundary_mode": null,
+    "budget_mb": null,
+    "n_lora_blocks": null,
+    "lora_rank": 8,
+    "lora_alpha": 32,
+    "svd_energy_target": null,
+    "svd_rank": 8,
+    "svd_period": null,
+    "merge_op": "naive_sum",
+    "cs_rank": null,
+    "lamda_1": null,
+    "lamda_2": null,
+    "lamb": null,
+    "lame": null
+  },
+  "status": "done",
+  "per_task": [
+    {
+      "task": 0,
+      "train_seconds": 34.236,
+      "eval_seconds": 2.024,
+      "boundary_seconds": 0.0,
+      "cil_top1": 98.2,
+      "til_top1": null,
+      "persistent_params": 5902085,
+      "persistent_mb": 22.5147,
+      "persistent_state_breakdown": {
+        "lora_slots": 5898240,
+        "head": 3845
+      },
+      "peak_vram_mb": 4957.1
+    },
+    {
+      "task": 1,
+      "train_seconds": 33.071,
+      "eval_seconds": 3.499,
+      "boundary_seconds": 0.0,
+      "cil_top1": 91.0,
+      "til_top1": null,
+      "persistent_params": 5905930,
+      "persistent_mb": 22.5293,
+      "persistent_state_breakdown": {
+        "lora_slots": 5898240,
+        "head": 7690
+      },
+      "peak_vram_mb": 4957.2
+    },
+    {
+      "task": 2,
+      "train_seconds": 33.042,
+      "eval_seconds": 4.985,
+      "boundary_seconds": 0.0,
+      "cil_top1": 79.67,
+      "til_top1": null,
+      "persistent_params": 5909775,
+      "persistent_mb": 22.544,
+      "persistent_state_breakdown": {
+        "lora_slots": 5898240,
+        "head": 11535
+      },
+      "peak_vram_mb": 4957.2
+    },
+    {
+      "task": 3,
+      "train_seconds": 33.105,
+      "eval_seconds": 6.494,
+      "boundary_seconds": 0.0,
+      "cil_top1": 49.05,
+      "til_top1": null,
+      "persistent_params": 5913620,
+      "persistent_mb": 22.5587,
+      "persistent_state_breakdown": {
+        "lora_slots": 5898240,
+        "head": 15380
+      },
+      "peak_vram_mb": 4957.3
+    }
+  ],
+  "train_seconds_total": 133.45402026176453,
+  "eval_seconds_total": 17.003253698349,
+  "boundary_seconds_total": 0.0,
+  "inference_ms_per_image": 2.6422,
+  "inference_flops_per_image": null,
+  "cil_summary": {
+    "final_average_accuracy": 49.05,
+    "average_incremental_accuracy": 79.4792,
+    "forgetting": 52.0,
+    "backward_transfer": -52.0,
+    "last_task_accuracy": 65.0
+  }
+}

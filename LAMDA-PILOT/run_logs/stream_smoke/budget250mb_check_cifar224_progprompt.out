@@ -1,0 +1,43 @@
+2026-07-20 00:24:18,568 [trainer.py] => config: exps/review/budget250mb_check/cifar224_progprompt.json
+2026-07-20 00:24:18,568 [trainer.py] => dataset: cifar224
+2026-07-20 00:24:18,568 [trainer.py] => memory_size: 0
+2026-07-20 00:24:18,569 [trainer.py] => memory_per_class: 0
+2026-07-20 00:24:18,569 [trainer.py] => fixed_memory: False
+2026-07-20 00:24:18,569 [trainer.py] => shuffle: True
+2026-07-20 00:24:18,569 [trainer.py] => init_cls: 5
+2026-07-20 00:24:18,569 [trainer.py] => increment: 5
+2026-07-20 00:24:18,569 [trainer.py] => seed: 1993
+2026-07-20 00:24:18,569 [trainer.py] => scenario: cil
+2026-07-20 00:24:18,569 [trainer.py] => pretrained: True
+2026-07-20 00:24:18,569 [trainer.py] => print_forget: True
+2026-07-20 00:24:18,569 [trainer.py] => backbone_type: vit_base_patch16_224_progprompt
+2026-07-20 00:24:18,569 [trainer.py] => tuned_epoch: 15
+2026-07-20 00:24:18,569 [trainer.py] => init_lr: 0.0003
+2026-07-20 00:24:18,569 [trainer.py] => batch_size: 48
+2026-07-20 00:24:18,569 [trainer.py] => weight_decay: 0.0
+2026-07-20 00:24:18,569 [trainer.py] => min_lr: 0.0
+2026-07-20 00:24:18,569 [trainer.py] => model_name: progprompt
+2026-07-20 00:24:18,569 [trainer.py] => prompt_len: 10
+2026-07-20 00:24:18,569 [trainer.py] => device: [device(type='cuda', index=0)]
+2026-07-20 00:24:18,569 [trainer.py] => prefix: budget250mb_check_cifar224_progprompt
+2026-07-20 00:24:18,569 [trainer.py] => boundary_mode: sample
+2026-07-20 00:24:18,569 [trainer.py] => stream_budget_mb: 250
+2026-07-20 00:24:18,569 [trainer.py] => stop_after_tasks: 5
+2026-07-20 00:24:18,569 [trainer.py] => stream_eval_final_only: True
+Files already downloaded and verified
+Files already downloaded and verified
+2026-07-20 00:24:20,244 [data_manager.py] => [68, 56, 78, 8, 23, 84, 90, 65, 74, 76, 40, 89, 3, 92, 55, 9, 26, 80, 43, 38, 58, 70, 77, 1, 85, 19, 17, 50, 28, 53, 13, 81, 45, 82, 6, 59, 83, 16, 15, 44, 91, 41, 72, 60, 79, 52, 20, 10, 31, 54, 37, 95, 14, 71, 96, 98, 97, 2, 64, 66, 42, 22, 35, 86, 24, 34, 87, 21, 99, 0, 88, 27, 18, 94, 11, 12, 47, 25, 30, 46, 62, 69, 36, 61, 7, 63, 75, 5, 32, 4, 51, 48, 73, 93, 39, 67, 29, 49, 57, 33]
+This is for the BaseNet initialization.
+I'm using ViT with per-task progressive soft prompts.
+_IncompatibleKeys(missing_keys=['prompts.0'], unexpected_keys=[])
+After BaseNet initialization.
+2026-07-20 00:24:26,302 [stream_mixin.py] => [stream] stop_after_tasks=5 (of 20 total)
+2026-07-20 00:24:26,348 [stream_mixin.py] => [stream] unique-image budget 1741 images (250.0MB); 12500 total images, 5 tasks -> 8 chunks
+2026-07-20 00:47:33,827 [stream_mixin.py] => [stream eval] completed  5 | chunk   7 | CIL 81.48
+2026-07-20 00:47:33,834 [trainer.py] => [stream] completed-task checkpoints: [5]
+2026-07-20 00:47:33,834 [trainer.py] => [stream] CIL curve: [81.48]
+[stream] checkpoints (completed tasks): [5]
+[stream] CIL: [81.48]
+2026-07-20 00:47:33,834 [trainer.py] => [stream] FINAL  CIL 81.48  (over 5 tasks) -- TIL not computed (meaningless in the memory-increment setup)
+[stream] FINAL CIL 81.48
+[stream] wrote run_logs/stream_progprompt_budget250mb_check_cifar224_progprompt_s1993.json

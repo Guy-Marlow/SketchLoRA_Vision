@@ -1,0 +1,51 @@
+2026-07-19 04:48:32,391 [trainer.py] => config: exps/review/stream_smoke/imagenetr_500mb_rainbowprompt.json
+2026-07-19 04:48:32,391 [trainer.py] => dataset: imagenetr
+2026-07-19 04:48:32,391 [trainer.py] => memory_size: 0
+2026-07-19 04:48:32,391 [trainer.py] => memory_per_class: 0
+2026-07-19 04:48:32,391 [trainer.py] => fixed_memory: False
+2026-07-19 04:48:32,391 [trainer.py] => shuffle: True
+2026-07-19 04:48:32,391 [trainer.py] => init_cls: 10
+2026-07-19 04:48:32,391 [trainer.py] => increment: 10
+2026-07-19 04:48:32,391 [trainer.py] => seed: 1993
+2026-07-19 04:48:32,391 [trainer.py] => scenario: cil
+2026-07-19 04:48:32,391 [trainer.py] => pretrained: True
+2026-07-19 04:48:32,391 [trainer.py] => print_forget: True
+2026-07-19 04:48:32,391 [trainer.py] => final_metrics: True
+2026-07-19 04:48:32,391 [trainer.py] => backbone_type: vit_base_patch16_224_rainbowprompt
+2026-07-19 04:48:32,391 [trainer.py] => tuned_epoch: 20
+2026-07-19 04:48:32,391 [trainer.py] => init_lr: 0.03
+2026-07-19 04:48:32,391 [trainer.py] => batch_size: 48
+2026-07-19 04:48:32,392 [trainer.py] => weight_decay: 0.0
+2026-07-19 04:48:32,392 [trainer.py] => min_lr: 0.0
+2026-07-19 04:48:32,392 [trainer.py] => model_name: rainbowprompt
+2026-07-19 04:48:32,392 [trainer.py] => rp_length: 20
+2026-07-19 04:48:32,392 [trainer.py] => self_attn_idx: [0, 1, 2, 3, 4, 5]
+2026-07-19 04:48:32,392 [trainer.py] => KI_iter: 10
+2026-07-19 04:48:32,392 [trainer.py] => pull_constraint_coeff: 0.1
+2026-07-19 04:48:32,392 [trainer.py] => use_linear: True
+2026-07-19 04:48:32,392 [trainer.py] => rp_D1: 28
+2026-07-19 04:48:32,392 [trainer.py] => rp_D2: 56
+2026-07-19 04:48:32,392 [trainer.py] => device: [device(type='cuda', index=4)]
+2026-07-19 04:48:32,392 [trainer.py] => prefix: stream_smoke_inr_500mb_rainbowprompt
+2026-07-19 04:48:32,392 [trainer.py] => boundary_mode: sample
+2026-07-19 04:48:32,392 [trainer.py] => stream_budget_mb: 500
+2026-07-19 04:48:32,392 [trainer.py] => stop_after_tasks: 3
+2026-07-19 04:48:32,480 [data_manager.py] => [168, 136, 51, 9, 183, 101, 171, 99, 42, 159, 191, 70, 16, 188, 27, 10, 175, 26, 68, 187, 98, 6, 85, 35, 112, 43, 100, 0, 103, 181, 88, 59, 4, 2, 116, 174, 94, 80, 106, 1, 147, 17, 141, 131, 72, 23, 173, 54, 197, 118, 87, 32, 79, 104, 91, 19, 135, 107, 178, 36, 11, 199, 142, 8, 122, 3, 28, 57, 153, 172, 190, 56, 49, 44, 97, 62, 151, 169, 194, 55, 192, 12, 189, 78, 66, 180, 15, 137, 109, 134, 92, 119, 126, 52, 170, 40, 148, 65, 144, 64, 138, 45, 77, 89, 154, 90, 71, 193, 74, 30, 113, 143, 96, 84, 67, 50, 186, 156, 69, 21, 18, 111, 108, 58, 125, 157, 150, 110, 182, 129, 166, 83, 81, 60, 13, 165, 14, 176, 63, 117, 5, 22, 145, 121, 38, 41, 82, 127, 114, 20, 31, 53, 37, 163, 196, 130, 152, 162, 86, 76, 24, 34, 184, 149, 33, 128, 198, 155, 146, 167, 139, 120, 140, 102, 47, 25, 158, 123, 46, 164, 61, 7, 115, 75, 133, 160, 105, 132, 179, 124, 48, 73, 93, 39, 95, 195, 29, 177, 185, 161]
+This is for the BaseNet initialization.
+I'm using ViT with RainbowPrompt (evolving base-knowledge prefixes).
+_IncompatibleKeys(missing_keys=['prompt_module.base_key', 'prompt_module.stored_prompts', 'prompt_module.query_matcher.0.weight', 'prompt_module.query_matcher.0.bias', 'prompt_module.query_matcher.1.weight', 'prompt_module.query_matcher.1.bias', 'prompt_module.query_matcher.2.weight', 'prompt_module.query_matcher.2.bias', 'prompt_module.query_matcher.3.weight', 'prompt_module.query_matcher.3.bias', 'prompt_module.query_matcher.4.weight', 'prompt_module.query_matcher.4.bias', 'prompt_module.query_matcher.5.weight', 'prompt_module.query_matcher.5.bias', 'prompt_module.query_matcher.6.weight', 'prompt_module.query_matcher.6.bias', 'prompt_module.query_matcher.7.weight', 'prompt_module.query_matcher.7.bias', 'prompt_module.query_matcher.8.weight', 'prompt_module.query_matcher.8.bias', 'prompt_module.query_matcher.9.weight', 'prompt_module.query_matcher.9.bias', 'prompt_module.query_matcher.10.weight', 'prompt_module.query_matcher.10.bias', 'prompt_module.query_matcher.11.weight', 'prompt_module.query_matcher.11.bias', 'prompt_module.key_matcher.0.weight', 'prompt_module.key_matcher.0.bias', 'prompt_module.key_matcher.1.weight', 'prompt_module.key_matcher.1.bias', 'prompt_module.key_matcher.2.weight', 'prompt_module.key_matcher.2.bias', 'prompt_module.key_matcher.3.weight', 'prompt_module.key_matcher.3.bias', 'prompt_module.key_matcher.4.weight', 'prompt_module.key_matcher.4.bias', 'prompt_module.key_matcher.5.weight', 'prompt_module.key_matcher.5.bias', 'prompt_module.key_matcher.6.weight', 'prompt_module.key_matcher.6.bias', 'prompt_module.key_matcher.7.weight', 'prompt_module.key_matcher.7.bias', 'prompt_module.key_matcher.8.weight', 'prompt_module.key_matcher.8.bias', 'prompt_module.key_matcher.9.weight', 'prompt_module.key_matcher.9.bias', 'prompt_module.key_matcher.10.weight', 'prompt_module.key_matcher.10.bias', 'prompt_module.key_matcher.11.weight', 'prompt_module.key_matcher.11.bias', 'prompt_module.value_matcher.0.weight', 'prompt_module.value_matcher.0.bias', 'prompt_module.value_matcher.1.weight', 'prompt_module.value_matcher.1.bias', 'prompt_module.value_matcher.2.weight', 'prompt_module.value_matcher.2.bias', 'prompt_module.value_matcher.3.weight', 'prompt_module.value_matcher.3.bias', 'prompt_module.value_matcher.4.weight', 'prompt_module.value_matcher.4.bias', 'prompt_module.value_matcher.5.weight', 'prompt_module.value_matcher.5.bias', 'prompt_module.value_matcher.6.weight', 'prompt_module.value_matcher.6.bias', 'prompt_module.value_matcher.7.weight', 'prompt_module.value_matcher.7.bias', 'prompt_module.value_matcher.8.weight', 'prompt_module.value_matcher.8.bias', 'prompt_module.value_matcher.9.weight', 'prompt_module.value_matcher.9.bias', 'prompt_module.value_matcher.10.weight', 'prompt_module.value_matcher.10.bias', 'prompt_module.value_matcher.11.weight', 'prompt_module.value_matcher.11.bias', 'prompt_module.dense.0.weight', 'prompt_module.dense.0.bias', 'prompt_module.dense.1.weight', 'prompt_module.dense.1.bias', 'prompt_module.dense.2.weight', 'prompt_module.dense.2.bias', 'prompt_module.dense.3.weight', 'prompt_module.dense.3.bias', 'prompt_module.dense.4.weight', 'prompt_module.dense.4.bias', 'prompt_module.dense.5.weight', 'prompt_module.dense.5.bias', 'prompt_module.dense.6.weight', 'prompt_module.dense.6.bias', 'prompt_module.dense.7.weight', 'prompt_module.dense.7.bias', 'prompt_module.dense.8.weight', 'prompt_module.dense.8.bias', 'prompt_module.dense.9.weight', 'prompt_module.dense.9.bias', 'prompt_module.dense.10.weight', 'prompt_module.dense.10.bias', 'prompt_module.dense.11.weight', 'prompt_module.dense.11.bias', 'prompt_module.fc1.0.weight', 'prompt_module.fc1.0.bias', 'prompt_module.fc1.1.weight', 'prompt_module.fc1.1.bias', 'prompt_module.fc1.2.weight', 'prompt_module.fc1.2.bias', 'prompt_module.fc1.3.weight', 'prompt_module.fc1.3.bias', 'prompt_module.fc1.4.weight', 'prompt_module.fc1.4.bias', 'prompt_module.fc1.5.weight', 'prompt_module.fc1.5.bias', 'prompt_module.fc1.6.weight', 'prompt_module.fc1.6.bias', 'prompt_module.fc1.7.weight', 'prompt_module.fc1.7.bias', 'prompt_module.fc1.8.weight', 'prompt_module.fc1.8.bias', 'prompt_module.fc1.9.weight', 'prompt_module.fc1.9.bias', 'prompt_module.fc1.10.weight', 'prompt_module.fc1.10.bias', 'prompt_module.fc1.11.weight', 'prompt_module.fc1.11.bias', 'prompt_module.fc2.0.weight', 'prompt_module.fc2.0.bias', 'prompt_module.fc2.1.weight', 'prompt_module.fc2.1.bias', 'prompt_module.fc2.2.weight', 'prompt_module.fc2.2.bias', 'prompt_module.fc2.3.weight', 'prompt_module.fc2.3.bias', 'prompt_module.fc2.4.weight', 'prompt_module.fc2.4.bias', 'prompt_module.fc2.5.weight', 'prompt_module.fc2.5.bias', 'prompt_module.fc2.6.weight', 'prompt_module.fc2.6.bias', 'prompt_module.fc2.7.weight', 'prompt_module.fc2.7.bias', 'prompt_module.fc2.8.weight', 'prompt_module.fc2.8.bias', 'prompt_module.fc2.9.weight', 'prompt_module.fc2.9.bias', 'prompt_module.fc2.10.weight', 'prompt_module.fc2.10.bias', 'prompt_module.fc2.11.weight', 'prompt_module.fc2.11.bias', 'prompt_module.base_knowledge.0', 'prompt_module.base_knowledge.1', 'prompt_module.base_knowledge.2', 'prompt_module.base_knowledge.3', 'prompt_module.base_knowledge.4', 'prompt_module.base_knowledge.5', 'prompt_module.base_knowledge.6', 'prompt_module.base_knowledge.7', 'prompt_module.base_knowledge.8', 'prompt_module.base_knowledge.9', 'prompt_module.base_knowledge.10', 'prompt_module.base_knowledge.11'], unexpected_keys=[])
+After BaseNet initialization.
+2026-07-19 04:48:35,675 [stream_mixin.py] => [stream] stop_after_tasks=3 (of 20 total)
+2026-07-19 04:48:35,675 [stream_mixin.py] => [stream] adapter event every 3483 samples (memory constraint 500.0MB); eval after each fold on completed tasks
+2026-07-19 04:53:19,326 [stream_mixin.py] => [stream eval] completed  1 | CIL 91.77 | TIL 65.82 | TIL/task [65.82]
+2026-07-19 04:58:02,495 [stream_mixin.py] => [stream eval] completed  2 | CIL 88.99 | TIL 81.59 | TIL/task [65.82, 94.92]
+2026-07-19 05:02:40,701 [stream_mixin.py] => [stream eval] completed  3 | CIL 84.06 | TIL 85.77 | TIL/task [65.82, 94.92, 95.35]
+2026-07-19 05:02:40,715 [trainer.py] => [stream] completed-task checkpoints: [1, 2, 3]
+2026-07-19 05:02:40,715 [trainer.py] => [stream] CIL curve: [91.77, 88.99, 84.06]
+2026-07-19 05:02:40,715 [trainer.py] => [stream] TIL curve: [65.82, 81.59, 85.77]
+2026-07-19 05:02:40,715 [trainer.py] => [stream] FINAL  CIL 84.06 | TIL 85.77  (over 3 tasks)
+[stream] checkpoints (completed tasks): [1, 2, 3]
+[stream] CIL: [91.77, 88.99, 84.06]
+[stream] TIL: [65.82, 81.59, 85.77]
+[stream] FINAL CIL 84.06 | TIL 85.77
+[stream] wrote run_logs/stream_rainbowprompt_stream_smoke_inr_500mb_rainbowprompt_s1993.json

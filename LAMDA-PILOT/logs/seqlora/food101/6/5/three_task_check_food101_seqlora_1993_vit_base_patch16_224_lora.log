@@ -1,0 +1,67 @@
+2026-07-19 18:04:19,479 [trainer.py] => config: exps/review/three_task_check/food101_seqlora.json
+2026-07-19 18:04:19,479 [trainer.py] => dataset: food101
+2026-07-19 18:04:19,479 [trainer.py] => memory_size: 0
+2026-07-19 18:04:19,479 [trainer.py] => memory_per_class: 0
+2026-07-19 18:04:19,479 [trainer.py] => fixed_memory: False
+2026-07-19 18:04:19,479 [trainer.py] => shuffle: True
+2026-07-19 18:04:19,479 [trainer.py] => init_cls: 6
+2026-07-19 18:04:19,480 [trainer.py] => increment: 5
+2026-07-19 18:04:19,480 [trainer.py] => seed: 1993
+2026-07-19 18:04:19,480 [trainer.py] => scenario: cil
+2026-07-19 18:04:19,480 [trainer.py] => stop_after_tasks: 3
+2026-07-19 18:04:19,480 [trainer.py] => pretrained: True
+2026-07-19 18:04:19,480 [trainer.py] => print_forget: True
+2026-07-19 18:04:19,480 [trainer.py] => final_metrics: True
+2026-07-19 18:04:19,480 [trainer.py] => backbone_type: vit_base_patch16_224_lora
+2026-07-19 18:04:19,480 [trainer.py] => lora_rank: 8
+2026-07-19 18:04:19,480 [trainer.py] => lora_alpha: 32
+2026-07-19 18:04:19,480 [trainer.py] => tuned_epoch: 10
+2026-07-19 18:04:19,480 [trainer.py] => init_lr: 0.0005
+2026-07-19 18:04:19,480 [trainer.py] => batch_size: 128
+2026-07-19 18:04:19,480 [trainer.py] => weight_decay: 0.0005
+2026-07-19 18:04:19,480 [trainer.py] => min_lr: 0.0
+2026-07-19 18:04:19,480 [trainer.py] => model_name: seqlora
+2026-07-19 18:04:19,480 [trainer.py] => lora_merge: False
+2026-07-19 18:04:19,480 [trainer.py] => device: [device(type='cuda', index=2)]
+2026-07-19 18:04:19,480 [trainer.py] => prefix: three_task_check_food101_seqlora
+2026-07-19 18:04:19,755 [data_manager.py] => [68, 56, 78, 8, 23, 84, 90, 65, 74, 76, 40, 89, 3, 92, 55, 9, 26, 80, 43, 38, 58, 70, 77, 1, 85, 19, 17, 50, 28, 53, 13, 81, 45, 82, 6, 59, 83, 16, 15, 44, 91, 41, 72, 60, 79, 52, 20, 10, 31, 54, 37, 95, 14, 71, 96, 99, 98, 2, 64, 66, 42, 22, 35, 86, 24, 34, 87, 21, 100, 0, 88, 27, 18, 94, 11, 12, 47, 25, 30, 46, 62, 69, 36, 61, 7, 63, 75, 5, 32, 4, 51, 48, 73, 93, 39, 67, 29, 97, 49, 57, 33]
+2026-07-19 18:04:22,562 [trainer.py] => stop_after_tasks=3 (of 20 total)
+2026-07-19 18:04:22,780 [trainer.py] => All params: 91696896
+2026-07-19 18:04:22,783 [trainer.py] => Trainable params: 5898240
+2026-07-19 18:04:23,090 [lora.py] => Learning on 0-6
+2026-07-19 18:04:23,097 [lora.py] => Trainable params this task: 299,526 / 91,701,510
+2026-07-19 18:08:44,105 [lora.py] => Task 0 finished. Train_accy 97.60
+2026-07-19 18:08:49,529 [trainer.py] => No NME accuracy.
+2026-07-19 18:08:49,529 [trainer.py] => CNN: {'total': 99.0, '00-05': 99.0, 'old': 0, 'new': 99.0}
+2026-07-19 18:08:49,529 [trainer.py] => CNN top1 curve: [99.0]
+2026-07-19 18:08:49,529 [trainer.py] => CNN top5 curve: [100.0]
+
+2026-07-19 18:08:49,530 [trainer.py] => Average Accuracy (CNN): 99.0 
+
+2026-07-19 18:08:49,532 [trainer.py] => All params: 91701510
+2026-07-19 18:08:49,534 [trainer.py] => Trainable params: 299526
+2026-07-19 18:08:49,535 [lora.py] => Learning on 6-11
+2026-07-19 18:08:49,542 [lora.py] => Trainable params this task: 303,371 / 91,705,355
+2026-07-19 18:12:28,246 [lora.py] => Task 1 finished. Train_accy 99.07
+2026-07-19 18:12:37,108 [trainer.py] => No NME accuracy.
+2026-07-19 18:12:37,108 [trainer.py] => CNN: {'total': 87.42, '00-05': 78.4, '06-10': 98.24, 'old': 78.4, 'new': 98.24}
+2026-07-19 18:12:37,108 [trainer.py] => CNN top1 curve: [99.0, 87.42]
+2026-07-19 18:12:37,109 [trainer.py] => CNN top5 curve: [100.0, 99.89]
+
+2026-07-19 18:12:37,109 [trainer.py] => Average Accuracy (CNN): 93.21000000000001 
+
+2026-07-19 18:12:37,111 [trainer.py] => All params: 91705355
+2026-07-19 18:12:37,113 [trainer.py] => Trainable params: 303371
+2026-07-19 18:12:37,114 [lora.py] => Learning on 11-16
+2026-07-19 18:12:37,122 [lora.py] => Trainable params this task: 307,216 / 91,709,200
+2026-07-19 18:16:16,042 [lora.py] => Task 2 finished. Train_accy 97.36
+2026-07-19 18:16:28,393 [trainer.py] => No NME accuracy.
+2026-07-19 18:16:28,394 [trainer.py] => CNN: {'total': 86.85, '00-05': 76.93, '06-10': 93.6, '11-15': 92.0, 'old': 84.51, 'new': 92.0}
+2026-07-19 18:16:28,394 [trainer.py] => CNN top1 curve: [99.0, 87.42, 86.85]
+2026-07-19 18:16:28,394 [trainer.py] => CNN top5 curve: [100.0, 99.89, 99.52]
+
+2026-07-19 18:16:28,394 [trainer.py] => Average Accuracy (CNN): 91.08999999999999 
+
+2026-07-19 18:16:33,767 [metrics_logger.py] => [metrics] wrote run_logs/final/seqlora/metrics_seqlora_food101_three_task_check_food101_seqlora_s1993.json
+2026-07-19 18:16:33,767 [trainer.py] => Forgetting (CNN): 13.354999999999997
+2026-07-19 18:16:33,767 [trainer.py] => Forgetting (NME): 13.354999999999997

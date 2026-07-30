@@ -1,0 +1,90 @@
+{
+  "args_subset": {
+    "model_name": "hidelora",
+    "dataset": "imagenetr",
+    "init_cls": 10,
+    "increment": 10,
+    "seed": 1993,
+    "scenario": "cil",
+    "boundary_mode": null,
+    "budget_mb": null,
+    "n_lora_blocks": null,
+    "lora_rank": 8,
+    "lora_alpha": 32,
+    "svd_energy_target": null,
+    "svd_rank": null,
+    "svd_period": null,
+    "merge_op": null,
+    "cs_rank": null,
+    "lamda_1": null,
+    "lamda_2": null,
+    "lamb": null,
+    "lame": null
+  },
+  "status": "done",
+  "per_task": [
+    {
+      "task": 0,
+      "train_seconds": 428.719,
+      "eval_seconds": 2.621,
+      "boundary_seconds": 0.0,
+      "cil_top1": 17.09,
+      "til_top1": null,
+      "trainable_params": 302602,
+      "persistent_params": 6059530,
+      "persistent_mb": 23.1153,
+      "persistent_state_breakdown": {
+        "lora_slots": 5898240,
+        "head": 7690,
+        "centroid_stats": 614400
+      },
+      "peak_vram_mb": 5063.4
+    },
+    {
+      "task": 1,
+      "train_seconds": 497.857,
+      "eval_seconds": 4.689,
+      "boundary_seconds": 0.0,
+      "cil_top1": 12.46,
+      "til_top1": null,
+      "trainable_params": 15380,
+      "persistent_params": 6220820,
+      "persistent_mb": 23.7305,
+      "persistent_state_breakdown": {
+        "lora_slots": 5898240,
+        "head": 15380,
+        "centroid_stats": 1228800
+      },
+      "peak_vram_mb": 5064.6
+    },
+    {
+      "task": 2,
+      "train_seconds": 410.571,
+      "eval_seconds": 6.367,
+      "boundary_seconds": 0.0,
+      "cil_top1": 4.34,
+      "til_top1": null,
+      "trainable_params": 23070,
+      "persistent_params": 6382110,
+      "persistent_mb": 24.3458,
+      "persistent_state_breakdown": {
+        "lora_slots": 5898240,
+        "head": 23070,
+        "centroid_stats": 1843200
+      },
+      "peak_vram_mb": 5065.9
+    }
+  ],
+  "train_seconds_total": 1337.1461772918701,
+  "eval_seconds_total": 13.677050113677979,
+  "boundary_seconds_total": 0.0,
+  "inference_ms_per_image": 5.3477,
+  "inference_flops_per_image": 70518452688.0,
+  "cil_summary": {
+    "final_average_accuracy": 4.4567,
+    "average_incremental_accuracy": 11.0139,
+    "forgetting": 18.17,
+    "backward_transfer": -18.17,
+    "last_task_accuracy": 9.63
+  }
+}

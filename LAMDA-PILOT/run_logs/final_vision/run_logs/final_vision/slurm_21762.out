@@ -1,0 +1,170 @@
+==== data prep + config generation start Thu Jul 23 03:28:47 AM NZST 2026 ====
+=== [1/2] prefetching timm pretrained ViT-B/16 checkpoints ===
+fetching vit_base_patch16_224 ...
+fetching vit_base_patch16_224_in21k ...
+done.
+=== [2/2] preparing datasets ===
+[cifar100] warming torchvision download into ./data ...
+Files already downloaded and verified
+Files already downloaded and verified
+[cifar100] done.
+[imagenetr] downloading from Google Drive id=1SG4TbiL8_DooekztyCVK8mPmfhMo8fkR ...
+[imagenetr] extracting -> ./data ...
+[sun397] already present at ./data/sun397 (train/ + test/). Skipping.
+[food101] already present at ./data/food101 (train/ + test/). Skipping.
+=== setup complete ===
+wrote 120 configs to exps/final_vision/ (4 datasets x 10 methods x 3 seeds)
+==== data prep + config generation done Thu Jul 23 03:29:50 AM NZST 2026 ====
+==== final_vision grid start: 10 methods x 4 datasets x 3 seeds, 2 GPUs Thu Jul 23 03:29:50 AM NZST 2026 ====
+==== METHOD seqlora start Thu Jul 23 03:29:50 AM NZST 2026 ====
+==== START [gpu 0] cifar224_seqlora_s1993 Thu Jul 23 03:29:50 AM NZST 2026 ====
+==== START [gpu 1] cifar224_seqlora_s1994 Thu Jul 23 03:29:50 AM NZST 2026 ====
+==== DONE  [gpu 1] cifar224_seqlora_s1994 Thu Jul 23 03:54:19 AM NZST 2026 ====
+==== START [gpu 1] imagenetr_seqlora_s1993 Thu Jul 23 03:54:19 AM NZST 2026 ====
+==== DONE  [gpu 0] cifar224_seqlora_s1993 Thu Jul 23 03:54:19 AM NZST 2026 ====
+==== START [gpu 0] cifar224_seqlora_s1995 Thu Jul 23 03:54:19 AM NZST 2026 ====
+==== DONE  [gpu 1] imagenetr_seqlora_s1993 Thu Jul 23 03:54:21 AM NZST 2026 ====
+==== START [gpu 1] imagenetr_seqlora_s1995 Thu Jul 23 03:54:21 AM NZST 2026 ====
+==== DONE  [gpu 1] imagenetr_seqlora_s1995 Thu Jul 23 03:54:23 AM NZST 2026 ====
+==== START [gpu 1] food101_seqlora_s1994 Thu Jul 23 03:54:23 AM NZST 2026 ====
+==== DONE  [gpu 0] cifar224_seqlora_s1995 Thu Jul 23 04:18:20 AM NZST 2026 ====
+==== START [gpu 0] imagenetr_seqlora_s1994 Thu Jul 23 04:18:20 AM NZST 2026 ====
+==== DONE  [gpu 0] imagenetr_seqlora_s1994 Thu Jul 23 04:18:21 AM NZST 2026 ====
+==== START [gpu 0] food101_seqlora_s1993 Thu Jul 23 04:18:21 AM NZST 2026 ====
+==== DONE  [gpu 1] food101_seqlora_s1994 Thu Jul 23 04:32:20 AM NZST 2026 ====
+==== START [gpu 1] sun397_seqlora_s1993 Thu Jul 23 04:32:20 AM NZST 2026 ====
+==== DONE  [gpu 0] food101_seqlora_s1993 Thu Jul 23 04:59:14 AM NZST 2026 ====
+==== START [gpu 0] food101_seqlora_s1995 Thu Jul 23 04:59:14 AM NZST 2026 ====
+==== DONE  [gpu 1] sun397_seqlora_s1993 Thu Jul 23 05:01:25 AM NZST 2026 ====
+==== START [gpu 1] sun397_seqlora_s1995 Thu Jul 23 05:01:25 AM NZST 2026 ====
+==== DONE  [gpu 1] sun397_seqlora_s1995 Thu Jul 23 05:30:24 AM NZST 2026 ====
+==== DONE  [gpu 0] food101_seqlora_s1995 Thu Jul 23 05:39:22 AM NZST 2026 ====
+==== START [gpu 0] sun397_seqlora_s1994 Thu Jul 23 05:39:22 AM NZST 2026 ====
+==== DONE  [gpu 0] sun397_seqlora_s1994 Thu Jul 23 06:01:37 AM NZST 2026 ====
+==== METHOD seqlora done (both GPU lanes finished) Thu Jul 23 06:01:37 AM NZST 2026 ====
+==== METHOD sketchlora start Thu Jul 23 06:01:37 AM NZST 2026 ====
+==== START [gpu 1] cifar224_sketchlora_s1994 Thu Jul 23 06:01:37 AM NZST 2026 ====
+==== START [gpu 0] cifar224_sketchlora_s1993 Thu Jul 23 06:01:37 AM NZST 2026 ====
+==== DONE  [gpu 1] cifar224_sketchlora_s1994 Thu Jul 23 06:27:50 AM NZST 2026 ====
+==== START [gpu 1] imagenetr_sketchlora_s1993 Thu Jul 23 06:27:50 AM NZST 2026 ====
+==== DONE  [gpu 0] cifar224_sketchlora_s1993 Thu Jul 23 06:27:50 AM NZST 2026 ====
+==== START [gpu 0] cifar224_sketchlora_s1995 Thu Jul 23 06:27:50 AM NZST 2026 ====
+==== DONE  [gpu 1] imagenetr_sketchlora_s1993 Thu Jul 23 06:27:52 AM NZST 2026 ====
+==== START [gpu 1] imagenetr_sketchlora_s1995 Thu Jul 23 06:27:52 AM NZST 2026 ====
+==== DONE  [gpu 1] imagenetr_sketchlora_s1995 Thu Jul 23 06:27:53 AM NZST 2026 ====
+==== START [gpu 1] food101_sketchlora_s1994 Thu Jul 23 06:27:53 AM NZST 2026 ====
+==== DONE  [gpu 0] cifar224_sketchlora_s1995 Thu Jul 23 06:53:42 AM NZST 2026 ====
+==== START [gpu 0] imagenetr_sketchlora_s1994 Thu Jul 23 06:53:42 AM NZST 2026 ====
+==== DONE  [gpu 0] imagenetr_sketchlora_s1994 Thu Jul 23 06:53:44 AM NZST 2026 ====
+==== START [gpu 0] food101_sketchlora_s1993 Thu Jul 23 06:53:44 AM NZST 2026 ====
+==== DONE  [gpu 1] food101_sketchlora_s1994 Thu Jul 23 07:08:16 AM NZST 2026 ====
+==== START [gpu 1] sun397_sketchlora_s1993 Thu Jul 23 07:08:16 AM NZST 2026 ====
+==== DONE  [gpu 0] food101_sketchlora_s1993 Thu Jul 23 07:37:21 AM NZST 2026 ====
+==== START [gpu 0] food101_sketchlora_s1995 Thu Jul 23 07:37:21 AM NZST 2026 ====
+==== DONE  [gpu 1] sun397_sketchlora_s1993 Thu Jul 23 07:38:15 AM NZST 2026 ====
+==== START [gpu 1] sun397_sketchlora_s1995 Thu Jul 23 07:38:15 AM NZST 2026 ====
+==== DONE  [gpu 1] sun397_sketchlora_s1995 Thu Jul 23 08:08:19 AM NZST 2026 ====
+==== DONE  [gpu 0] food101_sketchlora_s1995 Thu Jul 23 08:19:22 AM NZST 2026 ====
+==== START [gpu 0] sun397_sketchlora_s1994 Thu Jul 23 08:19:22 AM NZST 2026 ====
+==== DONE  [gpu 0] sun397_sketchlora_s1994 Thu Jul 23 08:42:34 AM NZST 2026 ====
+==== METHOD sketchlora done (both GPU lanes finished) Thu Jul 23 08:42:34 AM NZST 2026 ====
+==== METHOD olora start Thu Jul 23 08:42:34 AM NZST 2026 ====
+==== START [gpu 0] cifar224_olora_s1993 Thu Jul 23 08:42:34 AM NZST 2026 ====
+==== START [gpu 1] cifar224_olora_s1994 Thu Jul 23 08:42:34 AM NZST 2026 ====
+==== DONE  [gpu 1] cifar224_olora_s1994 Thu Jul 23 09:09:46 AM NZST 2026 ====
+==== START [gpu 1] imagenetr_olora_s1993 Thu Jul 23 09:09:46 AM NZST 2026 ====
+==== DONE  [gpu 0] cifar224_olora_s1993 Thu Jul 23 09:09:47 AM NZST 2026 ====
+==== START [gpu 0] cifar224_olora_s1995 Thu Jul 23 09:09:47 AM NZST 2026 ====
+==== DONE  [gpu 1] imagenetr_olora_s1993 Thu Jul 23 09:09:48 AM NZST 2026 ====
+==== START [gpu 1] imagenetr_olora_s1995 Thu Jul 23 09:09:48 AM NZST 2026 ====
+==== DONE  [gpu 1] imagenetr_olora_s1995 Thu Jul 23 09:09:50 AM NZST 2026 ====
+==== START [gpu 1] food101_olora_s1994 Thu Jul 23 09:09:50 AM NZST 2026 ====
+==== DONE  [gpu 0] cifar224_olora_s1995 Thu Jul 23 09:37:09 AM NZST 2026 ====
+==== START [gpu 0] imagenetr_olora_s1994 Thu Jul 23 09:37:09 AM NZST 2026 ====
+==== DONE  [gpu 0] imagenetr_olora_s1994 Thu Jul 23 09:37:11 AM NZST 2026 ====
+==== START [gpu 0] food101_olora_s1993 Thu Jul 23 09:37:11 AM NZST 2026 ====
+==== DONE  [gpu 1] food101_olora_s1994 Thu Jul 23 09:52:41 AM NZST 2026 ====
+==== START [gpu 1] sun397_olora_s1993 Thu Jul 23 09:52:41 AM NZST 2026 ====
+==== DONE  [gpu 0] food101_olora_s1993 Thu Jul 23 10:22:37 AM NZST 2026 ====
+==== START [gpu 0] food101_olora_s1995 Thu Jul 23 10:22:37 AM NZST 2026 ====
+==== DONE  [gpu 1] sun397_olora_s1993 Thu Jul 23 10:23:07 AM NZST 2026 ====
+==== START [gpu 1] sun397_olora_s1995 Thu Jul 23 10:23:07 AM NZST 2026 ====
+==== DONE  [gpu 1] sun397_olora_s1995 Thu Jul 23 10:55:36 AM NZST 2026 ====
+==== DONE  [gpu 0] food101_olora_s1995 Thu Jul 23 11:08:29 AM NZST 2026 ====
+==== START [gpu 0] sun397_olora_s1994 Thu Jul 23 11:08:29 AM NZST 2026 ====
+==== DONE  [gpu 0] sun397_olora_s1994 Thu Jul 23 11:36:30 AM NZST 2026 ====
+==== METHOD olora done (both GPU lanes finished) Thu Jul 23 11:36:30 AM NZST 2026 ====
+==== METHOD inflora start Thu Jul 23 11:36:30 AM NZST 2026 ====
+==== START [gpu 0] cifar224_inflora_s1993 Thu Jul 23 11:36:30 AM NZST 2026 ====
+==== START [gpu 1] cifar224_inflora_s1994 Thu Jul 23 11:36:30 AM NZST 2026 ====
+==== DONE  [gpu 1] cifar224_inflora_s1994 Thu Jul 23 12:07:49 PM NZST 2026 ====
+==== START [gpu 1] imagenetr_inflora_s1993 Thu Jul 23 12:07:49 PM NZST 2026 ====
+==== DONE  [gpu 1] imagenetr_inflora_s1993 Thu Jul 23 12:07:52 PM NZST 2026 ====
+==== START [gpu 1] imagenetr_inflora_s1995 Thu Jul 23 12:07:52 PM NZST 2026 ====
+==== DONE  [gpu 1] imagenetr_inflora_s1995 Thu Jul 23 12:07:54 PM NZST 2026 ====
+==== START [gpu 1] food101_inflora_s1994 Thu Jul 23 12:07:54 PM NZST 2026 ====
+==== DONE  [gpu 0] cifar224_inflora_s1993 Thu Jul 23 12:08:12 PM NZST 2026 ====
+==== START [gpu 0] cifar224_inflora_s1995 Thu Jul 23 12:08:12 PM NZST 2026 ====
+==== DONE  [gpu 0] cifar224_inflora_s1995 Thu Jul 23 12:39:25 PM NZST 2026 ====
+==== START [gpu 0] imagenetr_inflora_s1994 Thu Jul 23 12:39:25 PM NZST 2026 ====
+==== DONE  [gpu 0] imagenetr_inflora_s1994 Thu Jul 23 12:39:27 PM NZST 2026 ====
+==== START [gpu 0] food101_inflora_s1993 Thu Jul 23 12:39:27 PM NZST 2026 ====
+==== DONE  [gpu 1] food101_inflora_s1994 Thu Jul 23 12:55:49 PM NZST 2026 ====
+==== START [gpu 1] sun397_inflora_s1993 Thu Jul 23 12:55:49 PM NZST 2026 ====
+==== DONE  [gpu 0] food101_inflora_s1993 Thu Jul 23 01:30:29 PM NZST 2026 ====
+==== START [gpu 0] food101_inflora_s1995 Thu Jul 23 01:30:29 PM NZST 2026 ====
+==== DONE  [gpu 1] sun397_inflora_s1993 Thu Jul 23 01:31:12 PM NZST 2026 ====
+==== START [gpu 1] sun397_inflora_s1995 Thu Jul 23 01:31:12 PM NZST 2026 ====
+==== DONE  [gpu 1] sun397_inflora_s1995 Thu Jul 23 02:12:52 PM NZST 2026 ====
+==== DONE  [gpu 0] food101_inflora_s1995 Thu Jul 23 02:23:11 PM NZST 2026 ====
+==== START [gpu 0] sun397_inflora_s1994 Thu Jul 23 02:23:11 PM NZST 2026 ====
+==== DONE  [gpu 0] sun397_inflora_s1994 Thu Jul 23 02:53:48 PM NZST 2026 ====
+==== METHOD inflora done (both GPU lanes finished) Thu Jul 23 02:53:48 PM NZST 2026 ====
+==== METHOD treelora start Thu Jul 23 02:53:48 PM NZST 2026 ====
+==== START [gpu 1] cifar224_treelora_s1994 Thu Jul 23 02:53:48 PM NZST 2026 ====
+==== START [gpu 0] cifar224_treelora_s1993 Thu Jul 23 02:53:48 PM NZST 2026 ====
+==== DONE  [gpu 1] cifar224_treelora_s1994 Thu Jul 23 03:24:29 PM NZST 2026 ====
+==== START [gpu 1] imagenetr_treelora_s1993 Thu Jul 23 03:24:29 PM NZST 2026 ====
+==== DONE  [gpu 0] cifar224_treelora_s1993 Thu Jul 23 03:24:30 PM NZST 2026 ====
+==== START [gpu 0] cifar224_treelora_s1995 Thu Jul 23 03:24:30 PM NZST 2026 ====
+==== DONE  [gpu 1] imagenetr_treelora_s1993 Thu Jul 23 03:24:31 PM NZST 2026 ====
+==== START [gpu 1] imagenetr_treelora_s1995 Thu Jul 23 03:24:31 PM NZST 2026 ====
+==== DONE  [gpu 1] imagenetr_treelora_s1995 Thu Jul 23 03:24:34 PM NZST 2026 ====
+==== START [gpu 1] food101_treelora_s1994 Thu Jul 23 03:24:34 PM NZST 2026 ====
+==== DONE  [gpu 0] cifar224_treelora_s1995 Thu Jul 23 03:54:45 PM NZST 2026 ====
+==== START [gpu 0] imagenetr_treelora_s1994 Thu Jul 23 03:54:45 PM NZST 2026 ====
+==== DONE  [gpu 0] imagenetr_treelora_s1994 Thu Jul 23 03:54:48 PM NZST 2026 ====
+==== START [gpu 0] food101_treelora_s1993 Thu Jul 23 03:54:48 PM NZST 2026 ====
+==== DONE  [gpu 1] food101_treelora_s1994 Thu Jul 23 04:11:23 PM NZST 2026 ====
+==== START [gpu 1] sun397_treelora_s1993 Thu Jul 23 04:11:23 PM NZST 2026 ====
+==== DONE  [gpu 0] food101_treelora_s1993 Thu Jul 23 04:45:22 PM NZST 2026 ====
+==== START [gpu 0] food101_treelora_s1995 Thu Jul 23 04:45:22 PM NZST 2026 ====
+==== DONE  [gpu 1] sun397_treelora_s1993 Thu Jul 23 04:46:20 PM NZST 2026 ====
+==== START [gpu 1] sun397_treelora_s1995 Thu Jul 23 04:46:20 PM NZST 2026 ====
+==== DONE  [gpu 1] sun397_treelora_s1995 Thu Jul 23 05:22:48 PM NZST 2026 ====
+==== DONE  [gpu 0] food101_treelora_s1995 Thu Jul 23 05:35:45 PM NZST 2026 ====
+==== START [gpu 0] sun397_treelora_s1994 Thu Jul 23 05:35:45 PM NZST 2026 ====
+==== DONE  [gpu 0] sun397_treelora_s1994 Thu Jul 23 06:03:33 PM NZST 2026 ====
+==== METHOD treelora done (both GPU lanes finished) Thu Jul 23 06:03:33 PM NZST 2026 ====
+==== METHOD cllora start Thu Jul 23 06:03:33 PM NZST 2026 ====
+==== START [gpu 0] cifar224_cllora_s1993 Thu Jul 23 06:03:33 PM NZST 2026 ====
+==== START [gpu 1] cifar224_cllora_s1994 Thu Jul 23 06:03:33 PM NZST 2026 ====
+==== DONE  [gpu 0] cifar224_cllora_s1993 Thu Jul 23 08:24:51 PM NZST 2026 ====
+==== START [gpu 0] cifar224_cllora_s1995 Thu Jul 23 08:24:51 PM NZST 2026 ====
+==== DONE  [gpu 1] cifar224_cllora_s1994 Thu Jul 23 08:25:08 PM NZST 2026 ====
+==== START [gpu 1] imagenetr_cllora_s1993 Thu Jul 23 08:25:08 PM NZST 2026 ====
+==== DONE  [gpu 1] imagenetr_cllora_s1993 Thu Jul 23 08:25:10 PM NZST 2026 ====
+==== START [gpu 1] imagenetr_cllora_s1995 Thu Jul 23 08:25:10 PM NZST 2026 ====
+==== DONE  [gpu 1] imagenetr_cllora_s1995 Thu Jul 23 08:25:12 PM NZST 2026 ====
+==== START [gpu 1] food101_cllora_s1994 Thu Jul 23 08:25:12 PM NZST 2026 ====
+==== DONE  [gpu 0] cifar224_cllora_s1995 Thu Jul 23 10:43:49 PM NZST 2026 ====
+==== START [gpu 0] imagenetr_cllora_s1994 Thu Jul 23 10:43:49 PM NZST 2026 ====
+==== DONE  [gpu 0] imagenetr_cllora_s1994 Thu Jul 23 10:43:51 PM NZST 2026 ====
+==== START [gpu 0] food101_cllora_s1993 Thu Jul 23 10:43:51 PM NZST 2026 ====
+==== DONE  [gpu 1] food101_cllora_s1994 Fri Jul 24 12:14:43 AM NZST 2026 ====
+==== START [gpu 1] sun397_cllora_s1993 Fri Jul 24 12:14:43 AM NZST 2026 ====
+==== DONE  [gpu 1] sun397_cllora_s1993 Fri Jul 24 02:13:54 AM NZST 2026 ====
+==== START [gpu 1] sun397_cllora_s1995 Fri Jul 24 02:13:54 AM NZST 2026 ====
+==== DONE  [gpu 0] food101_cllora_s1993 Fri Jul 24 02:40:41 AM NZST 2026 ====
+==== START [gpu 0] food101_cllora_s1995 Fri Jul 24 02:40:41 AM NZST 2026 ====
+==== DONE  [gpu 1] sun397_cllora_s1995 Fri Jul 24 04:11:34 AM NZST 2026 ====

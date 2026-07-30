@@ -1,0 +1,126 @@
+{
+  "args_subset": {
+    "model_name": "sketchlora",
+    "dataset": "cifar224",
+    "init_cls": 10,
+    "increment": 10,
+    "seed": 1993,
+    "scenario": "both",
+    "boundary_mode": null,
+    "budget_mb": null,
+    "n_lora_blocks": null,
+    "lora_rank": 10,
+    "lora_alpha": null,
+    "svd_energy_target": 0.01,
+    "svd_rank": 10,
+    "svd_period": null,
+    "merge_op": null,
+    "cs_rank": null,
+    "lamda_1": null,
+    "lamda_2": null,
+    "lamb": null,
+    "lame": null
+  },
+  "status": "done",
+  "per_task": [
+    {
+      "task": 0,
+      "train_seconds": 311.288,
+      "eval_seconds": 7.321,
+      "boundary_seconds": 0.0,
+      "cil_top1": 98.7,
+      "til_top1": 98.7,
+      "trainable_params": 376330,
+      "persistent_params": 744970,
+      "persistent_mb": 2.8418,
+      "persistent_state_breakdown": {
+        "lora_slots": 737280,
+        "head": 7690
+      },
+      "peak_vram_mb": 5020.1
+    },
+    {
+      "task": 1,
+      "train_seconds": 315.605,
+      "eval_seconds": 13.801,
+      "boundary_seconds": 0.0,
+      "cil_top1": 94.4,
+      "til_top1": 98.5,
+      "trainable_params": 384020,
+      "persistent_params": 915476,
+      "persistent_mb": 3.4923,
+      "persistent_state_breakdown": {
+        "lora_slots": 900096,
+        "head": 15380
+      },
+      "peak_vram_mb": 5020.2
+    },
+    {
+      "task": 2,
+      "train_seconds": 314.928,
+      "eval_seconds": 20.614,
+      "boundary_seconds": 0.0,
+      "cil_top1": 89.13,
+      "til_top1": 98.33,
+      "trainable_params": 391710,
+      "persistent_params": 1104414,
+      "persistent_mb": 4.213,
+      "persistent_state_breakdown": {
+        "lora_slots": 1081344,
+        "head": 23070
+      },
+      "peak_vram_mb": 5020.9
+    },
+    {
+      "task": 3,
+      "train_seconds": 316.394,
+      "eval_seconds": 27.341,
+      "boundary_seconds": 0.0,
+      "cil_top1": 86.32,
+      "til_top1": 97.8,
+      "trainable_params": 399400,
+      "persistent_params": 1288744,
+      "persistent_mb": 4.9162,
+      "persistent_state_breakdown": {
+        "lora_slots": 1257984,
+        "head": 30760
+      },
+      "peak_vram_mb": 5021.7
+    },
+    {
+      "task": 4,
+      "train_seconds": 317.222,
+      "eval_seconds": 34.25,
+      "boundary_seconds": 0.0,
+      "cil_top1": 81.74,
+      "til_top1": 97.64,
+      "trainable_params": 407090,
+      "persistent_params": 1460786,
+      "persistent_mb": 5.5725,
+      "persistent_state_breakdown": {
+        "lora_slots": 1422336,
+        "head": 38450
+      },
+      "peak_vram_mb": 5022.5
+    }
+  ],
+  "train_seconds_total": 1575.43789935112,
+  "eval_seconds_total": 103.32680439949036,
+  "boundary_seconds_total": 0.0,
+  "inference_ms_per_image": 2.7812,
+  "inference_flops_per_image": 35710492944.0,
+  "cil_summary": {
+    "final_average_accuracy": 81.74,
+    "average_incremental_accuracy": 90.0597,
+    "forgetting": 18.525,
+    "backward_transfer": -18.525,
+    "last_task_accuracy": 94.4
+  },
+  "til_summary": {
+    "final_average_accuracy": 97.64,
+    "average_incremental_accuracy": 98.1947,
+    "forgetting": 1.55,
+    "backward_transfer": -1.55,
+    "last_task_accuracy": 98.8
+  }
+}

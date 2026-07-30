@@ -1,0 +1,160 @@
+2026-07-17 17:07:33,039 [trainer.py] => config: exps/smoke/budget_smoke_hidelora.json
+2026-07-17 17:07:33,039 [trainer.py] => dataset: cifar224
+2026-07-17 17:07:33,039 [trainer.py] => memory_size: 0
+2026-07-17 17:07:33,039 [trainer.py] => memory_per_class: 0
+2026-07-17 17:07:33,039 [trainer.py] => fixed_memory: False
+2026-07-17 17:07:33,039 [trainer.py] => shuffle: True
+2026-07-17 17:07:33,039 [trainer.py] => init_cls: 5
+2026-07-17 17:07:33,039 [trainer.py] => increment: 5
+2026-07-17 17:07:33,039 [trainer.py] => backbone_type: vit_base_patch16_224_lora
+2026-07-17 17:07:33,039 [trainer.py] => device: [device(type='cuda', index=1)]
+2026-07-17 17:07:33,039 [trainer.py] => seed: 1993
+2026-07-17 17:07:33,039 [trainer.py] => lora_rank: 8
+2026-07-17 17:07:33,039 [trainer.py] => lora_alpha: 32
+2026-07-17 17:07:33,039 [trainer.py] => tuned_epoch: 2
+2026-07-17 17:07:33,040 [trainer.py] => init_lr: 0.0003
+2026-07-17 17:07:33,040 [trainer.py] => batch_size: 48
+2026-07-17 17:07:33,040 [trainer.py] => weight_decay: 0.0005
+2026-07-17 17:07:33,040 [trainer.py] => min_lr: 0.0
+2026-07-17 17:07:33,040 [trainer.py] => pretrained: True
+2026-07-17 17:07:33,040 [trainer.py] => print_forget: True
+2026-07-17 17:07:33,040 [trainer.py] => model_name: hidelora
+2026-07-17 17:07:33,040 [trainer.py] => prefix: budget_smoke_hidelora
+2026-07-17 17:07:33,040 [trainer.py] => lora_momentum: 0.1
+2026-07-17 17:07:33,040 [trainer.py] => reg: 0.001
+2026-07-17 17:07:33,040 [trainer.py] => crct_epochs: 5
+2026-07-17 17:07:33,040 [trainer.py] => ca_lr: 0.005
+2026-07-17 17:07:33,040 [trainer.py] => n_centroids: 10
+2026-07-17 17:07:33,040 [trainer.py] => stop_after_tasks: 3
+2026-07-17 17:07:33,040 [trainer.py] => final_metrics: True
+2026-07-17 17:07:33,040 [trainer.py] => boundary_mode: budget
+2026-07-17 17:07:33,040 [trainer.py] => budget_mb: 300
+2026-07-17 17:07:33,040 [trainer.py] => scenario: cil
+2026-07-17 17:07:34,657 [data_manager.py] => [68, 56, 78, 8, 23, 84, 90, 65, 74, 76, 40, 89, 3, 92, 55, 9, 26, 80, 43, 38, 58, 70, 77, 1, 85, 19, 17, 50, 28, 53, 13, 81, 45, 82, 6, 59, 83, 16, 15, 44, 91, 41, 72, 60, 79, 52, 20, 10, 31, 54, 37, 95, 14, 71, 96, 98, 97, 2, 64, 66, 42, 22, 35, 86, 24, 34, 87, 21, 99, 0, 88, 27, 18, 94, 11, 12, 47, 25, 30, 46, 62, 69, 36, 61, 7, 63, 75, 5, 32, 4, 51, 48, 73, 93, 39, 67, 29, 49, 57, 33]
+2026-07-17 17:07:34,986 [budget_stream.py] => [budget-stream] 300MB budget -> 24 chunks, 2090 images/chunk (last=1930), new-classes/chunk min=3 max=5 mean=4.17
+2026-07-17 17:07:34,986 [trainer.py] => [budget] dataset=cifar224 budget=300MB -> 24 memory-chunks (seed 1993)
+2026-07-17 17:07:37,754 [trainer.py] => stop_after_tasks=3 (of 24 total)
+2026-07-17 17:07:38,118 [trainer.py] => All params: 92876544
+2026-07-17 17:07:38,121 [trainer.py] => Trainable params: 7077888
+2026-07-17 17:07:38,861 [hidelora.py] => [HiDeLoRA] Learning on 0-5
+2026-07-17 17:07:38,874 [hidelora.py] => [HiDeLoRA] Trainable params this task: 298,757 / 92,880,389
+2026-07-17 17:08:04,837 [hidelora.py] => [HiDeLoRA] Task 0 WTP done. Train_accy 92.15
+2026-07-17 17:08:05,392 [utils.py] => Note: detected 128 virtual cores but NumExpr set to maximum of 64, check "NUMEXPR_MAX_THREADS" environment variable.
+2026-07-17 17:08:05,392 [utils.py] => Note: NumExpr detected 128 cores but "NUMEXPR_MAX_THREADS" not set, so enforcing safe limit of 16.
+2026-07-17 17:08:05,392 [utils.py] => NumExpr defaulting to 16 threads.
+2026-07-17 17:08:22,270 [trainer.py] => No NME accuracy.
+2026-07-17 17:08:22,270 [trainer.py] => CNN: {'total': 95.6, '00-04': 95.6, 'old': 0, 'new': 95.6}
+2026-07-17 17:08:22,270 [trainer.py] => CNN top1 curve: [95.6]
+2026-07-17 17:08:22,271 [trainer.py] => CNN top5 curve: [100.0]
+
+2026-07-17 17:08:22,271 [trainer.py] => Average Accuracy (CNN): 95.6 
+
+2026-07-17 17:08:22,277 [trainer.py] => All params: 92880389
+2026-07-17 17:08:22,283 [trainer.py] => Trainable params: 298757
+2026-07-17 17:08:22,284 [hidelora.py] => [HiDeLoRA] Learning on 5-9
+2026-07-17 17:08:22,304 [hidelora.py] => [HiDeLoRA] Trainable params this task: 301,833 / 92,883,465
+2026-07-17 17:08:48,186 [hidelora.py] => [HiDeLoRA] Task 1 WTP done. Train_accy 91.58
+2026-07-17 17:08:58,906 [hidelora.py] => [HiDeLoRA] TAP done (5 epochs, 9 classes).
+2026-07-17 17:09:04,694 [trainer.py] => No NME accuracy.
+2026-07-17 17:09:04,694 [trainer.py] => CNN: {'total': 96.89, '00-04': 96.8, '05-09': 97.0, 'old': 96.8, 'new': 97.0}
+2026-07-17 17:09:04,694 [trainer.py] => CNN top1 curve: [95.6, 96.89]
+2026-07-17 17:09:04,694 [trainer.py] => CNN top5 curve: [100.0, 99.78]
+
+2026-07-17 17:09:04,694 [trainer.py] => Average Accuracy (CNN): 96.245 
+
+2026-07-17 17:09:04,697 [trainer.py] => All params: 92883465
+2026-07-17 17:09:04,700 [trainer.py] => Trainable params: 6921
+2026-07-17 17:09:04,700 [hidelora.py] => [HiDeLoRA] Learning on 9-13
+2026-07-17 17:09:04,710 [hidelora.py] => [HiDeLoRA] Trainable params this task: 304,909 / 92,886,541
+2026-07-17 17:09:30,657 [hidelora.py] => [HiDeLoRA] Task 2 WTP done. Train_accy 91.67
+2026-07-17 17:09:41,426 [hidelora.py] => [HiDeLoRA] TAP done (5 epochs, 13 classes).
+2026-07-17 17:09:49,506 [trainer.py] => No NME accuracy.
+2026-07-17 17:09:49,506 [trainer.py] => CNN: {'total': 82.77, '00-04': 69.0, '05-09': 87.2, '10-14': 98.33, 'old': 76.22, 'new': 97.5}
+2026-07-17 17:09:49,506 [trainer.py] => CNN top1 curve: [95.6, 96.89, 82.77]
+2026-07-17 17:09:49,506 [trainer.py] => CNN top5 curve: [100.0, 99.78, 99.15]
+
+2026-07-17 17:09:49,506 [trainer.py] => Average Accuracy (CNN): 91.75333333333333 
+
+2026-07-17 17:09:53,278 [metrics_logger.py] => [metrics] wrote run_logs/final/hidelora/metrics_hidelora_cifar224_budget_smoke_hidelora_s1993.json
+2026-07-17 17:09:53,278 [trainer.py] => Forgetting (CNN): 18.799999999999997
+2026-07-17 17:09:53,278 [trainer.py] => Forgetting (NME): 18.799999999999997
+2026-07-18 13:09:23,856 [trainer.py] => config: exps/smoke/budget_smoke_hidelora.json
+2026-07-18 13:09:23,856 [trainer.py] => dataset: cifar224
+2026-07-18 13:09:23,856 [trainer.py] => memory_size: 0
+2026-07-18 13:09:23,856 [trainer.py] => memory_per_class: 0
+2026-07-18 13:09:23,856 [trainer.py] => fixed_memory: False
+2026-07-18 13:09:23,856 [trainer.py] => shuffle: True
+2026-07-18 13:09:23,856 [trainer.py] => init_cls: 5
+2026-07-18 13:09:23,856 [trainer.py] => increment: 5
+2026-07-18 13:09:23,856 [trainer.py] => backbone_type: vit_base_patch16_224_lora
+2026-07-18 13:09:23,856 [trainer.py] => device: [device(type='cuda', index=1)]
+2026-07-18 13:09:23,856 [trainer.py] => seed: 1993
+2026-07-18 13:09:23,856 [trainer.py] => lora_rank: 8
+2026-07-18 13:09:23,856 [trainer.py] => lora_alpha: 32
+2026-07-18 13:09:23,856 [trainer.py] => tuned_epoch: 2
+2026-07-18 13:09:23,856 [trainer.py] => init_lr: 0.0003
+2026-07-18 13:09:23,856 [trainer.py] => batch_size: 48
+2026-07-18 13:09:23,856 [trainer.py] => weight_decay: 0.0005
+2026-07-18 13:09:23,856 [trainer.py] => min_lr: 0.0
+2026-07-18 13:09:23,857 [trainer.py] => pretrained: True
+2026-07-18 13:09:23,857 [trainer.py] => print_forget: True
+2026-07-18 13:09:23,857 [trainer.py] => model_name: hidelora
+2026-07-18 13:09:23,857 [trainer.py] => prefix: budget_smoke_hidelora
+2026-07-18 13:09:23,857 [trainer.py] => lora_momentum: 0.1
+2026-07-18 13:09:23,857 [trainer.py] => reg: 0.001
+2026-07-18 13:09:23,857 [trainer.py] => crct_epochs: 5
+2026-07-18 13:09:23,857 [trainer.py] => ca_lr: 0.005
+2026-07-18 13:09:23,857 [trainer.py] => n_centroids: 10
+2026-07-18 13:09:23,857 [trainer.py] => stop_after_tasks: 3
+2026-07-18 13:09:23,857 [trainer.py] => final_metrics: True
+2026-07-18 13:09:23,857 [trainer.py] => boundary_mode: budget
+2026-07-18 13:09:23,857 [trainer.py] => budget_mb: 300
+2026-07-18 13:09:23,857 [trainer.py] => scenario: cil
+2026-07-18 13:09:25,504 [data_manager.py] => [68, 56, 78, 8, 23, 84, 90, 65, 74, 76, 40, 89, 3, 92, 55, 9, 26, 80, 43, 38, 58, 70, 77, 1, 85, 19, 17, 50, 28, 53, 13, 81, 45, 82, 6, 59, 83, 16, 15, 44, 91, 41, 72, 60, 79, 52, 20, 10, 31, 54, 37, 95, 14, 71, 96, 98, 97, 2, 64, 66, 42, 22, 35, 86, 24, 34, 87, 21, 99, 0, 88, 27, 18, 94, 11, 12, 47, 25, 30, 46, 62, 69, 36, 61, 7, 63, 75, 5, 32, 4, 51, 48, 73, 93, 39, 67, 29, 49, 57, 33]
+2026-07-18 13:09:25,839 [budget_stream.py] => [budget-stream] 300MB budget -> 24 chunks, 2090 images/chunk (last=1930), new-classes/chunk min=3 max=5 mean=4.17
+2026-07-18 13:09:25,839 [trainer.py] => [budget] dataset=cifar224 budget=300MB -> 24 memory-chunks (seed 1993)
+2026-07-18 13:09:28,326 [trainer.py] => stop_after_tasks=3 (of 24 total)
+2026-07-18 13:09:28,598 [trainer.py] => All params: 92876544
+2026-07-18 13:09:28,601 [trainer.py] => Trainable params: 7077888
+2026-07-18 13:09:28,929 [hidelora.py] => [HiDeLoRA] Learning on 0-5
+2026-07-18 13:09:28,937 [hidelora.py] => [HiDeLoRA] Trainable params this task: 298,757 / 92,880,389
+2026-07-18 13:09:55,812 [hidelora.py] => [HiDeLoRA] Task 0 WTP done. Train_accy 92.15
+2026-07-18 13:09:56,267 [utils.py] => Note: detected 128 virtual cores but NumExpr set to maximum of 64, check "NUMEXPR_MAX_THREADS" environment variable.
+2026-07-18 13:09:56,267 [utils.py] => Note: NumExpr detected 128 cores but "NUMEXPR_MAX_THREADS" not set, so enforcing safe limit of 16.
+2026-07-18 13:09:56,267 [utils.py] => NumExpr defaulting to 16 threads.
+2026-07-18 13:10:14,280 [trainer.py] => No NME accuracy.
+2026-07-18 13:10:14,281 [trainer.py] => CNN: {'total': 95.6, '00-04': 95.6, 'old': 0, 'new': 95.6}
+2026-07-18 13:10:14,281 [trainer.py] => CNN top1 curve: [95.6]
+2026-07-18 13:10:14,281 [trainer.py] => CNN top5 curve: [100.0]
+
+2026-07-18 13:10:14,281 [trainer.py] => Average Accuracy (CNN): 95.6 
+
+2026-07-18 13:10:14,286 [trainer.py] => All params: 92880389
+2026-07-18 13:10:14,290 [trainer.py] => Trainable params: 298757
+2026-07-18 13:10:14,292 [hidelora.py] => [HiDeLoRA] Learning on 5-9
+2026-07-18 13:10:14,311 [hidelora.py] => [HiDeLoRA] Trainable params this task: 301,833 / 92,883,465
+2026-07-18 13:10:40,803 [hidelora.py] => [HiDeLoRA] Task 1 WTP done. Train_accy 91.58
+2026-07-18 13:10:52,082 [hidelora.py] => [HiDeLoRA] TAP done (5 epochs, 9 classes).
+2026-07-18 13:10:58,059 [trainer.py] => No NME accuracy.
+2026-07-18 13:10:58,059 [trainer.py] => CNN: {'total': 96.89, '00-04': 96.8, '05-09': 97.0, 'old': 96.8, 'new': 97.0}
+2026-07-18 13:10:58,059 [trainer.py] => CNN top1 curve: [95.6, 96.89]
+2026-07-18 13:10:58,059 [trainer.py] => CNN top5 curve: [100.0, 99.78]
+
+2026-07-18 13:10:58,059 [trainer.py] => Average Accuracy (CNN): 96.245 
+
+2026-07-18 13:10:58,062 [trainer.py] => All params: 92883465
+2026-07-18 13:10:58,065 [trainer.py] => Trainable params: 6921
+2026-07-18 13:10:58,065 [hidelora.py] => [HiDeLoRA] Learning on 9-13
+2026-07-18 13:10:58,077 [hidelora.py] => [HiDeLoRA] Trainable params this task: 304,909 / 92,886,541
+2026-07-18 13:11:24,717 [hidelora.py] => [HiDeLoRA] Task 2 WTP done. Train_accy 91.67
+2026-07-18 13:11:35,885 [hidelora.py] => [HiDeLoRA] TAP done (5 epochs, 13 classes).
+2026-07-18 13:11:44,199 [trainer.py] => No NME accuracy.
+2026-07-18 13:11:44,200 [trainer.py] => CNN: {'total': 82.77, '00-04': 69.0, '05-09': 87.2, '10-14': 98.33, 'old': 76.22, 'new': 97.5}
+2026-07-18 13:11:44,200 [trainer.py] => CNN top1 curve: [95.6, 96.89, 82.77]
+2026-07-18 13:11:44,200 [trainer.py] => CNN top5 curve: [100.0, 99.78, 99.15]
+
+2026-07-18 13:11:44,200 [trainer.py] => Average Accuracy (CNN): 91.75333333333333 
+
+2026-07-18 13:11:48,104 [metrics_logger.py] => [metrics] wrote run_logs/final/hidelora/metrics_hidelora_cifar224_budget_smoke_hidelora_s1993.json
+2026-07-18 13:11:48,105 [trainer.py] => Forgetting (CNN): 18.799999999999997
+2026-07-18 13:11:48,105 [trainer.py] => Forgetting (NME): 18.799999999999997

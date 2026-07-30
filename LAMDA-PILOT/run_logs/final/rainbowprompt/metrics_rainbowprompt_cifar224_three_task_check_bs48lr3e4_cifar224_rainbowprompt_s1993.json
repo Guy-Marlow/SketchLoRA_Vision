@@ -1,0 +1,96 @@
+{
+  "args_subset": {
+    "model_name": "rainbowprompt",
+    "dataset": "cifar224",
+    "init_cls": 5,
+    "increment": 5,
+    "seed": 1993,
+    "scenario": "cil",
+    "boundary_mode": null,
+    "budget_mb": null,
+    "n_lora_blocks": null,
+    "lora_rank": null,
+    "lora_alpha": null,
+    "svd_energy_target": null,
+    "svd_rank": null,
+    "svd_period": null,
+    "merge_op": null,
+    "cs_rank": null,
+    "lamda_1": null,
+    "lamda_2": null,
+    "lamb": null,
+    "lame": null
+  },
+  "status": "done",
+  "per_task": [
+    {
+      "task": 0,
+      "train_seconds": 465.753,
+      "eval_seconds": 3.513,
+      "boundary_seconds": 0.0,
+      "cil_top1": 99.4,
+      "til_top1": null,
+      "trainable_params": 6306869,
+      "persistent_params": 9993269,
+      "persistent_mb": 38.1213,
+      "persistent_state_breakdown": {
+        "base_knowledge": 14745600,
+        "base_key": 61440,
+        "stored_prompts": 14745600,
+        "head": 15380,
+        "evolve_sublayers": 10405056
+      },
+      "peak_vram_mb": 4823.2
+    },
+    {
+      "task": 1,
+      "train_seconds": 463.783,
+      "eval_seconds": 6.214,
+      "boundary_seconds": 0.0,
+      "cil_top1": 93.8,
+      "til_top1": null,
+      "trainable_params": 6310714,
+      "persistent_params": 9997114,
+      "persistent_mb": 38.136,
+      "persistent_state_breakdown": {
+        "base_knowledge": 14745600,
+        "base_key": 61440,
+        "stored_prompts": 14745600,
+        "head": 30760,
+        "evolve_sublayers": 10405056
+      },
+      "peak_vram_mb": 4823.2
+    },
+    {
+      "task": 2,
+      "train_seconds": 467.683,
+      "eval_seconds": 9.036,
+      "boundary_seconds": 0.0,
+      "cil_top1": 90.13,
+      "til_top1": null,
+      "trainable_params": 6314559,
+      "persistent_params": 10000959,
+      "persistent_mb": 38.1506,
+      "persistent_state_breakdown": {
+        "base_knowledge": 14745600,
+        "base_key": 61440,
+        "stored_prompts": 14745600,
+        "head": 46140,
+        "evolve_sublayers": 10405056
+      },
+      "peak_vram_mb": 4823.2
+    }
+  ],
+  "train_seconds_total": 1397.219106912613,
+  "eval_seconds_total": 18.762555837631226,
+  "boundary_seconds_total": 0.0,
+  "inference_ms_per_image": 5.1674,
+  "inference_flops_per_image": 70343966784.0,
+  "cil_summary": {
+    "final_average_accuracy": 90.1333,
+    "average_incremental_accuracy": 94.4444,
+    "forgetting": 3.8,
+    "backward_transfer": -3.8,
+    "last_task_accuracy": 89.8
+  }
+}

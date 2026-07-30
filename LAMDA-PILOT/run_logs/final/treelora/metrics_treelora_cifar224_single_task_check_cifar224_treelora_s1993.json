@@ -1,0 +1,55 @@
+{
+  "args_subset": {
+    "model_name": "treelora",
+    "dataset": "cifar224",
+    "init_cls": 5,
+    "increment": 5,
+    "seed": 1993,
+    "scenario": "cil",
+    "boundary_mode": null,
+    "budget_mb": null,
+    "n_lora_blocks": null,
+    "lora_rank": 8,
+    "lora_alpha": 32,
+    "svd_energy_target": null,
+    "svd_rank": null,
+    "svd_period": null,
+    "merge_op": null,
+    "cs_rank": null,
+    "lamda_1": null,
+    "lamda_2": null,
+    "lamb": null,
+    "lame": null
+  },
+  "status": "done",
+  "per_task": [
+    {
+      "task": 0,
+      "train_seconds": 164.835,
+      "eval_seconds": 2.48,
+      "boundary_seconds": 0.0,
+      "cil_top1": 100.0,
+      "til_top1": null,
+      "persistent_params": 5902085,
+      "persistent_mb": 23.0772,
+      "persistent_state_breakdown": {
+        "lora_slots": 5898240,
+        "head": 3845,
+        "tree_grad_store": 589824
+      },
+      "peak_vram_mb": 0.0
+    }
+  ],
+  "train_seconds_total": 164.8345229625702,
+  "eval_seconds_total": 2.479942798614502,
+  "boundary_seconds_total": 0.0,
+  "inference_ms_per_image": 0.0893,
+  "inference_flops_per_image": null,
+  "cil_summary": {
+    "final_average_accuracy": 100.0,
+    "average_incremental_accuracy": 100.0,
+    "forgetting": null,
+    "backward_transfer": null,
+    "last_task_accuracy": 100.0
+  }
+}

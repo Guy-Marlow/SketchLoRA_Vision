@@ -1,0 +1,37 @@
+2026-07-02 00:49:58,982 [trainer.py] => config: ./exps/streamdiag_aligned.json
+2026-07-02 00:49:58,982 [trainer.py] => prefix: streamdiag_aligned
+2026-07-02 00:49:58,983 [trainer.py] => dataset: cifar224
+2026-07-02 00:49:58,983 [trainer.py] => memory_size: 0
+2026-07-02 00:49:58,983 [trainer.py] => memory_per_class: 0
+2026-07-02 00:49:58,983 [trainer.py] => fixed_memory: False
+2026-07-02 00:49:58,983 [trainer.py] => shuffle: True
+2026-07-02 00:49:58,983 [trainer.py] => init_cls: 20
+2026-07-02 00:49:58,983 [trainer.py] => increment: 20
+2026-07-02 00:49:58,983 [trainer.py] => backbone_type: vit_base_patch16_224_lora
+2026-07-02 00:49:58,983 [trainer.py] => device: [device(type='cuda', index=0)]
+2026-07-02 00:49:58,983 [trainer.py] => seed: 1993
+2026-07-02 00:49:58,983 [trainer.py] => scenario: both
+2026-07-02 00:49:58,983 [trainer.py] => lora_rank: 10
+2026-07-02 00:49:58,983 [trainer.py] => n_lora_blocks: 3
+2026-07-02 00:49:58,983 [trainer.py] => tuned_epoch: 3
+2026-07-02 00:49:58,983 [trainer.py] => init_lr: 0.005
+2026-07-02 00:49:58,983 [trainer.py] => batch_size: 48
+2026-07-02 00:49:58,983 [trainer.py] => weight_decay: 0.0005
+2026-07-02 00:49:58,983 [trainer.py] => min_lr: 0.0
+2026-07-02 00:49:58,983 [trainer.py] => pretrained: True
+2026-07-02 00:49:58,983 [trainer.py] => print_forget: True
+2026-07-02 00:49:58,983 [trainer.py] => boundary_mode: sample
+2026-07-02 00:49:58,983 [trainer.py] => boundary_mult: 1.0
+2026-07-02 00:49:58,983 [trainer.py] => model_name: seqlora
+2026-07-02 00:49:58,983 [trainer.py] => lora_merge: False
+2026-07-02 00:50:00,669 [data_manager.py] => [68, 56, 78, 8, 23, 84, 90, 65, 74, 76, 40, 89, 3, 92, 55, 9, 26, 80, 43, 38, 58, 70, 77, 1, 85, 19, 17, 50, 28, 53, 13, 81, 45, 82, 6, 59, 83, 16, 15, 44, 91, 41, 72, 60, 79, 52, 20, 10, 31, 54, 37, 95, 14, 71, 96, 98, 97, 2, 64, 66, 42, 22, 35, 86, 24, 34, 87, 21, 99, 0, 88, 27, 18, 94, 11, 12, 47, 25, 30, 46, 62, 69, 36, 61, 7, 63, 75, 5, 32, 4, 51, 48, 73, 93, 39, 67, 29, 49, 57, 33]
+2026-07-02 00:50:03,338 [stream_mixin.py] => [stream] adapter event every 3 global epochs (C=1.0 x 3 epochs); eval after each fold on completed tasks
+2026-07-02 00:53:05,705 [stream_mixin.py] => [stream eval] completed  1 | CIL 96.05 | TIL 96.05 | TIL/task [96.05]
+2026-07-02 00:56:18,748 [stream_mixin.py] => [stream eval] completed  2 | CIL 14.38 | TIL 29.75 | TIL/task [9.35, 50.15]
+2026-07-02 00:59:43,262 [stream_mixin.py] => [stream eval] completed  3 | CIL 11.28 | TIL 24.85 | TIL/task [4.8, 14.9, 54.85]
+2026-07-02 01:03:19,109 [stream_mixin.py] => [stream eval] completed  4 | CIL 10.62 | TIL 23.38 | TIL/task [5.2, 12.6, 17.95, 57.75]
+2026-07-02 01:07:06,118 [stream_mixin.py] => [stream eval] completed  5 | CIL 9.55 | TIL 21.23 | TIL/task [6.7, 5.2, 13.0, 25.85, 55.4]
+2026-07-02 01:07:06,130 [trainer.py] => [stream] completed-task checkpoints: [1, 2, 3, 4, 5]
+2026-07-02 01:07:06,130 [trainer.py] => [stream] CIL curve: [96.05, 14.38, 11.28, 10.62, 9.55]
+2026-07-02 01:07:06,130 [trainer.py] => [stream] TIL curve: [96.05, 29.75, 24.85, 23.38, 21.23]
+2026-07-02 01:07:06,130 [trainer.py] => [stream] FINAL  CIL 9.55 | TIL 21.23  (over 5 tasks)

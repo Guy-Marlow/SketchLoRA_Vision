@@ -1,0 +1,54 @@
+{
+  "args_subset": {
+    "model_name": "sketchlora",
+    "dataset": "cifar224",
+    "init_cls": 5,
+    "increment": 5,
+    "seed": 1993,
+    "scenario": "cil",
+    "boundary_mode": null,
+    "budget_mb": null,
+    "n_lora_blocks": null,
+    "lora_rank": 8,
+    "lora_alpha": 32,
+    "svd_energy_target": 0.01,
+    "svd_rank": 8,
+    "svd_period": null,
+    "merge_op": null,
+    "cs_rank": null,
+    "lamda_1": null,
+    "lamda_2": null,
+    "lamb": null,
+    "lame": null
+  },
+  "status": "done",
+  "per_task": [
+    {
+      "task": 0,
+      "train_seconds": 154.798,
+      "eval_seconds": 2.228,
+      "boundary_seconds": 0.0,
+      "cil_top1": 99.4,
+      "til_top1": null,
+      "persistent_params": 576773,
+      "persistent_mb": 2.2002,
+      "persistent_state_breakdown": {
+        "lora_slots": 572928,
+        "head": 3845
+      },
+      "peak_vram_mb": 13.7
+    }
+  ],
+  "train_seconds_total": 154.79801893234253,
+  "eval_seconds_total": 2.227937936782837,
+  "boundary_seconds_total": 0.0,
+  "inference_ms_per_image": 0.1247,
+  "inference_flops_per_image": null,
+  "cil_summary": {
+    "final_average_accuracy": 99.4,
+    "average_incremental_accuracy": 99.4,
+    "forgetting": null,
+    "backward_transfer": null,
+    "last_task_accuracy": 99.4
+  }
+}

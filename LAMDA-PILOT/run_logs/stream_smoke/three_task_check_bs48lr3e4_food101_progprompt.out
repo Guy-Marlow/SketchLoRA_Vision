@@ -1,0 +1,76 @@
+2026-07-19 22:01:57,303 [trainer.py] => config: exps/review/three_task_check_bs48_lr3e4/food101_progprompt.json
+2026-07-19 22:01:57,304 [trainer.py] => dataset: food101
+2026-07-19 22:01:57,304 [trainer.py] => memory_size: 0
+2026-07-19 22:01:57,304 [trainer.py] => memory_per_class: 0
+2026-07-19 22:01:57,304 [trainer.py] => fixed_memory: False
+2026-07-19 22:01:57,304 [trainer.py] => shuffle: True
+2026-07-19 22:01:57,304 [trainer.py] => init_cls: 6
+2026-07-19 22:01:57,304 [trainer.py] => increment: 5
+2026-07-19 22:01:57,304 [trainer.py] => seed: 1993
+2026-07-19 22:01:57,304 [trainer.py] => scenario: cil
+2026-07-19 22:01:57,304 [trainer.py] => stop_after_tasks: 3
+2026-07-19 22:01:57,304 [trainer.py] => pretrained: True
+2026-07-19 22:01:57,304 [trainer.py] => print_forget: True
+2026-07-19 22:01:57,304 [trainer.py] => final_metrics: True
+2026-07-19 22:01:57,304 [trainer.py] => backbone_type: vit_base_patch16_224_progprompt
+2026-07-19 22:01:57,304 [trainer.py] => tuned_epoch: 5
+2026-07-19 22:01:57,304 [trainer.py] => init_lr: 0.0003
+2026-07-19 22:01:57,304 [trainer.py] => batch_size: 48
+2026-07-19 22:01:57,304 [trainer.py] => weight_decay: 0.0
+2026-07-19 22:01:57,304 [trainer.py] => min_lr: 0.0
+2026-07-19 22:01:57,304 [trainer.py] => model_name: progprompt
+2026-07-19 22:01:57,304 [trainer.py] => prompt_len: 10
+2026-07-19 22:01:57,304 [trainer.py] => device: [device(type='cuda', index=2)]
+2026-07-19 22:01:57,304 [trainer.py] => prefix: three_task_check_bs48lr3e4_food101_progprompt
+2026-07-19 22:01:57,582 [data_manager.py] => [68, 56, 78, 8, 23, 84, 90, 65, 74, 76, 40, 89, 3, 92, 55, 9, 26, 80, 43, 38, 58, 70, 77, 1, 85, 19, 17, 50, 28, 53, 13, 81, 45, 82, 6, 59, 83, 16, 15, 44, 91, 41, 72, 60, 79, 52, 20, 10, 31, 54, 37, 95, 14, 71, 96, 99, 98, 2, 64, 66, 42, 22, 35, 86, 24, 34, 87, 21, 100, 0, 88, 27, 18, 94, 11, 12, 47, 25, 30, 46, 62, 69, 36, 61, 7, 63, 75, 5, 32, 4, 51, 48, 73, 93, 39, 67, 29, 97, 49, 57, 33]
+This is for the BaseNet initialization.
+I'm using ViT with per-task progressive soft prompts.
+_IncompatibleKeys(missing_keys=['prompts.0', 'prompts.1', 'prompts.2', 'prompts.3', 'prompts.4', 'prompts.5', 'prompts.6', 'prompts.7', 'prompts.8', 'prompts.9', 'prompts.10', 'prompts.11', 'prompts.12', 'prompts.13', 'prompts.14', 'prompts.15', 'prompts.16', 'prompts.17', 'prompts.18', 'prompts.19'], unexpected_keys=[])
+After BaseNet initialization.
+2026-07-19 22:02:00,256 [trainer.py] => stop_after_tasks=3 (of 20 total)
+2026-07-19 22:02:00,820 [trainer.py] => All params: 85952256
+2026-07-19 22:02:00,821 [trainer.py] => Trainable params: 153600
+2026-07-19 22:02:00,821 [progprompt.py] => [ProgPrompt] Learning on 0-6
+  0%|          | 0/5 [00:00<?, ?it/s][ProgPrompt] Task 0, Epoch 1/5 => Loss 1.025, Acc 68.13:   0%|          | 0/5 [00:27<?, ?it/s][ProgPrompt] Task 0, Epoch 1/5 => Loss 1.025, Acc 68.13:  20%|██        | 1/5 [00:27<01:51, 27.89s/it][ProgPrompt] Task 0, Epoch 2/5 => Loss 0.430, Acc 86.27:  20%|██        | 1/5 [00:55<01:51, 27.89s/it][ProgPrompt] Task 0, Epoch 2/5 => Loss 0.430, Acc 86.27:  40%|████      | 2/5 [00:55<01:23, 27.71s/it][ProgPrompt] Task 0, Epoch 3/5 => Loss 0.307, Acc 89.69:  40%|████      | 2/5 [01:23<01:23, 27.71s/it][ProgPrompt] Task 0, Epoch 3/5 => Loss 0.307, Acc 89.69:  60%|██████    | 3/5 [01:23<00:55, 27.63s/it][ProgPrompt] Task 0, Epoch 4/5 => Loss 0.276, Acc 90.73:  60%|██████    | 3/5 [01:50<00:55, 27.63s/it][ProgPrompt] Task 0, Epoch 4/5 => Loss 0.276, Acc 90.73:  80%|████████  | 4/5 [01:50<00:27, 27.59s/it][ProgPrompt] Task 0, Epoch 5/5 => Loss 0.268, Acc 91.27:  80%|████████  | 4/5 [02:18<00:27, 27.59s/it][ProgPrompt] Task 0, Epoch 5/5 => Loss 0.268, Acc 91.27: 100%|██████████| 5/5 [02:18<00:00, 27.59s/it][ProgPrompt] Task 0, Epoch 5/5 => Loss 0.268, Acc 91.27: 100%|██████████| 5/5 [02:18<00:00, 27.63s/it]
+2026-07-19 22:04:19,052 [progprompt.py] => [ProgPrompt] Task 0 done. Acc 91.27
+2026-07-19 22:04:24,113 [trainer.py] => No NME accuracy.
+2026-07-19 22:04:24,113 [trainer.py] => CNN: {'total': 95.53, '00-05': 95.53, 'old': 0, 'new': 95.53}
+2026-07-19 22:04:24,113 [trainer.py] => CNN top1 curve: [95.53]
+2026-07-19 22:04:24,113 [trainer.py] => CNN top5 curve: [100.0]
+
+Average Accuracy (CNN): 95.53
+2026-07-19 22:04:24,113 [trainer.py] => Average Accuracy (CNN): 95.53 
+
+2026-07-19 22:04:24,114 [trainer.py] => All params: 85956870
+2026-07-19 22:04:24,115 [trainer.py] => Trainable params: 12294
+2026-07-19 22:04:24,117 [progprompt.py] => [ProgPrompt] Learning on 6-11
+  0%|          | 0/5 [00:00<?, ?it/s][ProgPrompt] Task 1, Epoch 1/5 => Loss 0.890, Acc 72.29:   0%|          | 0/5 [00:24<?, ?it/s][ProgPrompt] Task 1, Epoch 1/5 => Loss 0.890, Acc 72.29:  20%|██        | 1/5 [00:24<01:38, 24.59s/it][ProgPrompt] Task 1, Epoch 2/5 => Loss 0.277, Acc 91.20:  20%|██        | 1/5 [00:49<01:38, 24.59s/it][ProgPrompt] Task 1, Epoch 2/5 => Loss 0.277, Acc 91.20:  40%|████      | 2/5 [00:49<01:13, 24.58s/it][ProgPrompt] Task 1, Epoch 3/5 => Loss 0.219, Acc 93.36:  40%|████      | 2/5 [01:13<01:13, 24.58s/it][ProgPrompt] Task 1, Epoch 3/5 => Loss 0.219, Acc 93.36:  60%|██████    | 3/5 [01:13<00:49, 24.61s/it][ProgPrompt] Task 1, Epoch 4/5 => Loss 0.195, Acc 94.37:  60%|██████    | 3/5 [01:38<00:49, 24.61s/it][ProgPrompt] Task 1, Epoch 4/5 => Loss 0.195, Acc 94.37:  80%|████████  | 4/5 [01:38<00:24, 24.59s/it][ProgPrompt] Task 1, Epoch 5/5 => Loss 0.154, Acc 95.73:  80%|████████  | 4/5 [02:02<00:24, 24.59s/it][ProgPrompt] Task 1, Epoch 5/5 => Loss 0.154, Acc 95.73: 100%|██████████| 5/5 [02:03<00:00, 24.60s/it][ProgPrompt] Task 1, Epoch 5/5 => Loss 0.154, Acc 95.73: 100%|██████████| 5/5 [02:03<00:00, 24.60s/it]
+2026-07-19 22:06:27,127 [progprompt.py] => [ProgPrompt] Task 1 done. Acc 95.73
+2026-07-19 22:06:36,411 [trainer.py] => No NME accuracy.
+2026-07-19 22:06:36,411 [trainer.py] => CNN: {'total': 86.69, '00-05': 84.6, '06-10': 89.2, 'old': 84.6, 'new': 89.2}
+2026-07-19 22:06:36,411 [trainer.py] => CNN top1 curve: [95.53, 86.69]
+2026-07-19 22:06:36,411 [trainer.py] => CNN top5 curve: [100.0, 99.42]
+
+Average Accuracy (CNN): 91.11
+2026-07-19 22:06:36,411 [trainer.py] => Average Accuracy (CNN): 91.11 
+
+2026-07-19 22:06:36,412 [trainer.py] => All params: 85960715
+2026-07-19 22:06:36,412 [trainer.py] => Trainable params: 16139
+2026-07-19 22:06:36,413 [progprompt.py] => [ProgPrompt] Learning on 11-16
+  0%|          | 0/5 [00:00<?, ?it/s][ProgPrompt] Task 2, Epoch 1/5 => Loss 1.153, Acc 64.51:   0%|          | 0/5 [00:25<?, ?it/s][ProgPrompt] Task 2, Epoch 1/5 => Loss 1.153, Acc 64.51:  20%|██        | 1/5 [00:25<01:40, 25.22s/it][ProgPrompt] Task 2, Epoch 2/5 => Loss 0.390, Acc 86.88:  20%|██        | 1/5 [00:50<01:40, 25.22s/it][ProgPrompt] Task 2, Epoch 2/5 => Loss 0.390, Acc 86.88:  40%|████      | 2/5 [00:50<01:15, 25.19s/it][ProgPrompt] Task 2, Epoch 3/5 => Loss 0.296, Acc 90.29:  40%|████      | 2/5 [01:15<01:15, 25.19s/it][ProgPrompt] Task 2, Epoch 3/5 => Loss 0.296, Acc 90.29:  60%|██████    | 3/5 [01:15<00:50, 25.19s/it][ProgPrompt] Task 2, Epoch 4/5 => Loss 0.281, Acc 90.35:  60%|██████    | 3/5 [01:40<00:50, 25.19s/it][ProgPrompt] Task 2, Epoch 4/5 => Loss 0.281, Acc 90.35:  80%|████████  | 4/5 [01:40<00:25, 25.19s/it][ProgPrompt] Task 2, Epoch 5/5 => Loss 0.262, Acc 90.99:  80%|████████  | 4/5 [02:05<00:25, 25.19s/it][ProgPrompt] Task 2, Epoch 5/5 => Loss 0.262, Acc 90.99: 100%|██████████| 5/5 [02:05<00:00, 25.18s/it][ProgPrompt] Task 2, Epoch 5/5 => Loss 0.262, Acc 90.99: 100%|██████████| 5/5 [02:05<00:00, 25.19s/it]
+2026-07-19 22:08:42,357 [progprompt.py] => [ProgPrompt] Task 2 done. Acc 90.99
+2026-07-19 22:08:55,837 [trainer.py] => No NME accuracy.
+2026-07-19 22:08:55,837 [trainer.py] => CNN: {'total': 76.38, '00-05': 74.67, '06-10': 89.68, '11-15': 65.12, 'old': 81.49, 'new': 65.12}
+2026-07-19 22:08:55,837 [trainer.py] => CNN top1 curve: [95.53, 86.69, 76.38]
+2026-07-19 22:08:55,837 [trainer.py] => CNN top5 curve: [100.0, 99.42, 97.58]
+
+Average Accuracy (CNN): 86.2
+2026-07-19 22:08:55,838 [trainer.py] => Average Accuracy (CNN): 86.2 
+
+2026-07-19 22:08:58,754 [metrics_logger.py] => [metrics] wrote run_logs/final/progprompt/metrics_progprompt_food101_three_task_check_bs48lr3e4_food101_progprompt_s1993.json
+Accuracy Matrix (CNN):
+[[95.53 84.6  74.67]
+ [ 0.   89.2  89.68]
+ [ 0.    0.   65.12]]
+2026-07-19 22:08:58,754 [trainer.py] => Forgetting (CNN): 10.43
+2026-07-19 22:08:58,754 [trainer.py] => Forgetting (NME): 10.43

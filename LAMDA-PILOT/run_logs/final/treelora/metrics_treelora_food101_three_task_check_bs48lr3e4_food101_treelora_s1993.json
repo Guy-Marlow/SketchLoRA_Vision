@@ -1,0 +1,90 @@
+{
+  "args_subset": {
+    "model_name": "treelora",
+    "dataset": "food101",
+    "init_cls": 6,
+    "increment": 5,
+    "seed": 1993,
+    "scenario": "cil",
+    "boundary_mode": null,
+    "budget_mb": null,
+    "n_lora_blocks": null,
+    "lora_rank": 8,
+    "lora_alpha": 32,
+    "svd_energy_target": null,
+    "svd_rank": null,
+    "svd_period": null,
+    "merge_op": null,
+    "cs_rank": null,
+    "lamda_1": null,
+    "lamda_2": null,
+    "lamb": null,
+    "lame": null
+  },
+  "status": "done",
+  "per_task": [
+    {
+      "task": 0,
+      "train_seconds": 305.383,
+      "eval_seconds": 5.824,
+      "boundary_seconds": 0.0,
+      "cil_top1": 99.0,
+      "til_top1": null,
+      "trainable_params": 299526,
+      "persistent_params": 5902854,
+      "persistent_mb": 23.0801,
+      "persistent_state_breakdown": {
+        "lora_slots": 5898240,
+        "head": 4614,
+        "tree_grad_store": 589824
+      },
+      "peak_vram_mb": 0.0
+    },
+    {
+      "task": 1,
+      "train_seconds": 265.509,
+      "eval_seconds": 10.226,
+      "boundary_seconds": 0.0,
+      "cil_top1": 95.93,
+      "til_top1": null,
+      "trainable_params": 303371,
+      "persistent_params": 5906699,
+      "persistent_mb": 23.6573,
+      "persistent_state_breakdown": {
+        "lora_slots": 5898240,
+        "head": 8459,
+        "tree_grad_store": 1179648
+      },
+      "peak_vram_mb": 0.0
+    },
+    {
+      "task": 2,
+      "train_seconds": 266.891,
+      "eval_seconds": 14.546,
+      "boundary_seconds": 0.0,
+      "cil_top1": 93.78,
+      "til_top1": null,
+      "trainable_params": 307216,
+      "persistent_params": 5910544,
+      "persistent_mb": 24.2344,
+      "persistent_state_breakdown": {
+        "lora_slots": 5898240,
+        "head": 12304,
+        "tree_grad_store": 1769472
+      },
+      "peak_vram_mb": 0.0
+    }
+  ],
+  "train_seconds_total": 837.7822172641754,
+  "eval_seconds_total": 30.596121788024902,
+  "boundary_seconds_total": 0.0,
+  "inference_ms_per_image": 0.2183,
+  "inference_flops_per_image": 40839980304.0,
+  "cil_summary": {
+    "final_average_accuracy": 94.0033,
+    "average_incremental_accuracy": 96.3811,
+    "forgetting": 5.255,
+    "backward_transfer": -5.255,
+    "last_task_accuracy": 95.04
+  }
+}

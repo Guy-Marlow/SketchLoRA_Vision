@@ -1,0 +1,487 @@
+2026-06-18 02:24:31,163 [trainer.py] => config: ./exps/sketchlora_smoke.json
+2026-06-18 02:24:31,163 [trainer.py] => prefix: smoke
+2026-06-18 02:24:31,163 [trainer.py] => dataset: cifar224
+2026-06-18 02:24:31,163 [trainer.py] => memory_size: 0
+2026-06-18 02:24:31,163 [trainer.py] => memory_per_class: 0
+2026-06-18 02:24:31,163 [trainer.py] => fixed_memory: False
+2026-06-18 02:24:31,163 [trainer.py] => shuffle: True
+2026-06-18 02:24:31,163 [trainer.py] => init_cls: 50
+2026-06-18 02:24:31,163 [trainer.py] => increment: 50
+2026-06-18 02:24:31,163 [trainer.py] => model_name: sketchlora
+2026-06-18 02:24:31,164 [trainer.py] => backbone_type: vit_base_patch16_224_lora
+2026-06-18 02:24:31,164 [trainer.py] => device: [device(type='cuda', index=0)]
+2026-06-18 02:24:31,164 [trainer.py] => seed: 1993
+2026-06-18 02:24:31,164 [trainer.py] => scenario: both
+2026-06-18 02:24:31,164 [trainer.py] => lora_rank: 10
+2026-06-18 02:24:31,164 [trainer.py] => lora_alpha: None
+2026-06-18 02:24:31,164 [trainer.py] => lora_merge: True
+2026-06-18 02:24:31,164 [trainer.py] => lora_train_merge: True
+2026-06-18 02:24:31,164 [trainer.py] => svd_rank: 10
+2026-06-18 02:24:31,164 [trainer.py] => svd_oversampling: 10
+2026-06-18 02:24:31,164 [trainer.py] => tuned_epoch: 1
+2026-06-18 02:24:31,164 [trainer.py] => init_lr: 0.0003
+2026-06-18 02:24:31,164 [trainer.py] => batch_size: 48
+2026-06-18 02:24:31,164 [trainer.py] => weight_decay: 0.0005
+2026-06-18 02:24:31,164 [trainer.py] => min_lr: 0.0
+2026-06-18 02:24:31,164 [trainer.py] => pretrained: True
+2026-06-18 02:24:31,164 [trainer.py] => print_forget: True
+2026-06-18 02:24:32,819 [data_manager.py] => [68, 56, 78, 8, 23, 84, 90, 65, 74, 76, 40, 89, 3, 92, 55, 9, 26, 80, 43, 38, 58, 70, 77, 1, 85, 19, 17, 50, 28, 53, 13, 81, 45, 82, 6, 59, 83, 16, 15, 44, 91, 41, 72, 60, 79, 52, 20, 10, 31, 54, 37, 95, 14, 71, 96, 98, 97, 2, 64, 66, 42, 22, 35, 86, 24, 34, 87, 21, 99, 0, 88, 27, 18, 94, 11, 12, 47, 25, 30, 46, 62, 69, 36, 61, 7, 63, 75, 5, 32, 4, 51, 48, 73, 93, 39, 67, 29, 49, 57, 33]
+2026-06-18 02:24:35,631 [trainer.py] => All params: 86535936
+2026-06-18 02:24:35,632 [trainer.py] => Trainable params: 737280
+2026-06-18 02:24:36,205 [lora.py] => Learning on 0-50
+2026-06-18 02:24:36,207 [lora.py] => Trainable params this task: 407,090 / 86,574,386
+2026-06-18 02:27:03,123 [lora.py] => Task 0 finished. Train_accy 65.62
+2026-06-18 02:27:33,422 [til_base.py] => TIL top1: 92.4
+2026-06-18 02:27:33,422 [til_base.py] => CIL top1: 92.4 | TIL top1: 92.4
+2026-06-18 02:27:33,423 [trainer.py] => No NME accuracy.
+2026-06-18 02:27:33,423 [trainer.py] => CNN: {'total': np.float64(92.4), '00-49': np.float64(92.4), 'old': 0, 'new': np.float64(92.4)}
+2026-06-18 02:27:33,423 [trainer.py] => CNN top1 curve: [np.float64(92.4)]
+2026-06-18 02:27:33,423 [trainer.py] => CNN top5 curve: [np.float64(99.28)]
+
+2026-06-18 02:27:33,423 [trainer.py] => Average Accuracy (CNN): 92.4 
+
+2026-06-18 02:27:33,424 [trainer.py] => All params: 86574386
+2026-06-18 02:27:33,426 [trainer.py] => Trainable params: 407090
+2026-06-18 02:27:33,428 [lora.py] => Learning on 50-100
+2026-06-18 02:27:33,432 [lora.py] => Trainable params this task: 445,540 / 86,612,836
+2026-06-18 02:30:00,816 [lora.py] => Task 1 finished. Train_accy 69.24
+2026-06-18 02:31:00,544 [til_base.py] => TIL top1: 90.17
+2026-06-18 02:31:00,544 [til_base.py] => CIL top1: 80.29 | TIL top1: 90.17
+2026-06-18 02:31:00,544 [trainer.py] => No NME accuracy.
+2026-06-18 02:31:00,545 [trainer.py] => CNN: {'total': np.float64(80.29), '00-49': np.float64(70.16), '50-99': np.float64(90.42), 'old': np.float64(70.16), 'new': np.float64(90.42)}
+2026-06-18 02:31:00,545 [trainer.py] => CNN top1 curve: [np.float64(92.4), np.float64(80.29)]
+2026-06-18 02:31:00,545 [trainer.py] => CNN top5 curve: [np.float64(99.28), np.float64(97.38)]
+
+2026-06-18 02:31:00,545 [trainer.py] => Average Accuracy (CNN): 86.345 
+
+2026-06-18 02:31:00,546 [trainer.py] => Forgetting (CNN): 22.24000000000001
+2026-06-18 02:31:00,546 [trainer.py] => Forgetting (NME): 22.24000000000001
+2026-06-18 02:44:29,062 [trainer.py] => config: ./exps/sketchlora_smoke.json
+2026-06-18 02:44:29,062 [trainer.py] => prefix: smoke
+2026-06-18 02:44:29,063 [trainer.py] => dataset: cifar224
+2026-06-18 02:44:29,063 [trainer.py] => memory_size: 0
+2026-06-18 02:44:29,063 [trainer.py] => memory_per_class: 0
+2026-06-18 02:44:29,063 [trainer.py] => fixed_memory: False
+2026-06-18 02:44:29,063 [trainer.py] => shuffle: True
+2026-06-18 02:44:29,063 [trainer.py] => init_cls: 50
+2026-06-18 02:44:29,063 [trainer.py] => increment: 50
+2026-06-18 02:44:29,063 [trainer.py] => model_name: sketchlora
+2026-06-18 02:44:29,063 [trainer.py] => backbone_type: vit_base_patch16_224_lora
+2026-06-18 02:44:29,063 [trainer.py] => device: [device(type='cuda', index=0)]
+2026-06-18 02:44:29,063 [trainer.py] => seed: 1993
+2026-06-18 02:44:29,063 [trainer.py] => scenario: both
+2026-06-18 02:44:29,063 [trainer.py] => lora_rank: 10
+2026-06-18 02:44:29,063 [trainer.py] => lora_alpha: None
+2026-06-18 02:44:29,063 [trainer.py] => lora_merge: True
+2026-06-18 02:44:29,063 [trainer.py] => lora_train_merge: True
+2026-06-18 02:44:29,063 [trainer.py] => svd_rank: 10
+2026-06-18 02:44:29,063 [trainer.py] => svd_oversampling: 10
+2026-06-18 02:44:29,063 [trainer.py] => tuned_epoch: 1
+2026-06-18 02:44:29,063 [trainer.py] => init_lr: 0.0003
+2026-06-18 02:44:29,063 [trainer.py] => batch_size: 48
+2026-06-18 02:44:29,063 [trainer.py] => weight_decay: 0.0005
+2026-06-18 02:44:29,063 [trainer.py] => min_lr: 0.0
+2026-06-18 02:44:29,063 [trainer.py] => pretrained: True
+2026-06-18 02:44:29,063 [trainer.py] => print_forget: True
+2026-06-18 02:44:30,728 [data_manager.py] => [68, 56, 78, 8, 23, 84, 90, 65, 74, 76, 40, 89, 3, 92, 55, 9, 26, 80, 43, 38, 58, 70, 77, 1, 85, 19, 17, 50, 28, 53, 13, 81, 45, 82, 6, 59, 83, 16, 15, 44, 91, 41, 72, 60, 79, 52, 20, 10, 31, 54, 37, 95, 14, 71, 96, 98, 97, 2, 64, 66, 42, 22, 35, 86, 24, 34, 87, 21, 99, 0, 88, 27, 18, 94, 11, 12, 47, 25, 30, 46, 62, 69, 36, 61, 7, 63, 75, 5, 32, 4, 51, 48, 73, 93, 39, 67, 29, 49, 57, 33]
+2026-06-18 02:44:33,516 [trainer.py] => All params: 86535936
+2026-06-18 02:44:33,517 [trainer.py] => Trainable params: 737280
+2026-06-18 02:44:34,125 [lora.py] => Learning on 0-50
+2026-06-18 02:44:34,127 [lora.py] => Trainable params this task: 407,090 / 86,574,386
+2026-06-18 02:47:01,167 [lora.py] => Task 0 finished. Train_accy 65.62
+2026-06-18 02:47:03,512 [sketchlora.py] => [SketchDiag] task 0: retained-energy mean=1.000 min=1.000 | ||ΔW||_F mean=0.821
+2026-06-18 02:47:33,667 [til_base.py] => TIL top1: 92.4
+2026-06-18 02:47:33,667 [til_base.py] => CIL top1: 92.4 | TIL top1: 92.4
+2026-06-18 02:47:33,667 [trainer.py] => No NME accuracy.
+2026-06-18 02:47:33,667 [trainer.py] => CNN: {'total': np.float64(92.4), '00-49': np.float64(92.4), 'old': 0, 'new': np.float64(92.4)}
+2026-06-18 02:47:33,668 [trainer.py] => CNN top1 curve: [np.float64(92.4)]
+2026-06-18 02:47:33,668 [trainer.py] => CNN top5 curve: [np.float64(99.28)]
+
+2026-06-18 02:47:33,668 [trainer.py] => Average Accuracy (CNN): 92.4 
+
+2026-06-18 02:47:33,668 [trainer.py] => All params: 86574386
+2026-06-18 02:47:33,669 [trainer.py] => Trainable params: 407090
+2026-06-18 02:47:33,670 [lora.py] => Learning on 50-100
+2026-06-18 02:47:33,672 [lora.py] => Trainable params this task: 445,540 / 86,612,836
+2026-06-18 02:50:01,093 [lora.py] => Task 1 finished. Train_accy 69.24
+2026-06-18 02:50:03,952 [sketchlora.py] => [SketchDiag] task 1: retained-energy mean=0.967 min=0.918 | ||ΔW||_F mean=1.087
+2026-06-18 02:51:12,667 [til_base.py] => TIL top1: 90.17
+2026-06-18 02:51:12,667 [til_base.py] => CIL top1: 80.29 | TIL top1: 90.17
+2026-06-18 02:51:12,667 [trainer.py] => No NME accuracy.
+2026-06-18 02:51:12,667 [trainer.py] => CNN: {'total': np.float64(80.29), '00-49': np.float64(70.16), '50-99': np.float64(90.42), 'old': np.float64(70.16), 'new': np.float64(90.42)}
+2026-06-18 02:51:12,667 [trainer.py] => CNN top1 curve: [np.float64(92.4), np.float64(80.29)]
+2026-06-18 02:51:12,667 [trainer.py] => CNN top5 curve: [np.float64(99.28), np.float64(97.38)]
+
+2026-06-18 02:51:12,667 [trainer.py] => Average Accuracy (CNN): 86.345 
+
+2026-06-18 02:51:12,668 [trainer.py] => Forgetting (CNN): 22.24000000000001
+2026-06-18 02:51:12,668 [trainer.py] => Forgetting (NME): 22.24000000000001
+2026-06-18 12:42:34,873 [trainer.py] => config: ./exps/sketchlora_r8_l3_smoke.json
+2026-06-18 12:42:34,873 [trainer.py] => prefix: smoke
+2026-06-18 12:42:34,873 [trainer.py] => dataset: cifar224
+2026-06-18 12:42:34,873 [trainer.py] => memory_size: 0
+2026-06-18 12:42:34,873 [trainer.py] => memory_per_class: 0
+2026-06-18 12:42:34,873 [trainer.py] => fixed_memory: False
+2026-06-18 12:42:34,873 [trainer.py] => shuffle: True
+2026-06-18 12:42:34,873 [trainer.py] => init_cls: 50
+2026-06-18 12:42:34,873 [trainer.py] => increment: 50
+2026-06-18 12:42:34,873 [trainer.py] => model_name: sketchlora
+2026-06-18 12:42:34,873 [trainer.py] => backbone_type: vit_base_patch16_224_lora
+2026-06-18 12:42:34,873 [trainer.py] => device: [device(type='cuda', index=0)]
+2026-06-18 12:42:34,873 [trainer.py] => seed: 1993
+2026-06-18 12:42:34,873 [trainer.py] => scenario: both
+2026-06-18 12:42:34,873 [trainer.py] => lora_rank: 8
+2026-06-18 12:42:34,873 [trainer.py] => lora_alpha: None
+2026-06-18 12:42:34,873 [trainer.py] => lora_merge: True
+2026-06-18 12:42:34,874 [trainer.py] => lora_train_merge: True
+2026-06-18 12:42:34,874 [trainer.py] => svd_rank: 8
+2026-06-18 12:42:34,874 [trainer.py] => svd_oversampling: 10
+2026-06-18 12:42:34,874 [trainer.py] => n_lora_blocks: 3
+2026-06-18 12:42:34,874 [trainer.py] => tuned_epoch: 1
+2026-06-18 12:42:34,874 [trainer.py] => init_lr: 0.0003
+2026-06-18 12:42:34,874 [trainer.py] => batch_size: 48
+2026-06-18 12:42:34,874 [trainer.py] => weight_decay: 0.0005
+2026-06-18 12:42:34,874 [trainer.py] => min_lr: 0.0
+2026-06-18 12:42:34,874 [trainer.py] => pretrained: True
+2026-06-18 12:42:34,874 [trainer.py] => print_forget: True
+2026-06-18 12:42:34,946 [trainer.py] => config: ./exps/sketchlora_r40_smoke.json
+2026-06-18 12:42:34,946 [trainer.py] => prefix: smoke
+2026-06-18 12:42:34,946 [trainer.py] => dataset: cifar224
+2026-06-18 12:42:34,946 [trainer.py] => memory_size: 0
+2026-06-18 12:42:34,946 [trainer.py] => memory_per_class: 0
+2026-06-18 12:42:34,946 [trainer.py] => fixed_memory: False
+2026-06-18 12:42:34,946 [trainer.py] => shuffle: True
+2026-06-18 12:42:34,946 [trainer.py] => init_cls: 50
+2026-06-18 12:42:34,946 [trainer.py] => increment: 50
+2026-06-18 12:42:34,946 [trainer.py] => model_name: sketchlora
+2026-06-18 12:42:34,946 [trainer.py] => backbone_type: vit_base_patch16_224_lora
+2026-06-18 12:42:34,946 [trainer.py] => device: [device(type='cuda', index=0)]
+2026-06-18 12:42:34,946 [trainer.py] => seed: 1993
+2026-06-18 12:42:34,946 [trainer.py] => scenario: both
+2026-06-18 12:42:34,946 [trainer.py] => lora_rank: 10
+2026-06-18 12:42:34,947 [trainer.py] => lora_alpha: None
+2026-06-18 12:42:34,947 [trainer.py] => lora_merge: True
+2026-06-18 12:42:34,947 [trainer.py] => lora_train_merge: True
+2026-06-18 12:42:34,947 [trainer.py] => svd_rank: 40
+2026-06-18 12:42:34,947 [trainer.py] => svd_oversampling: 10
+2026-06-18 12:42:34,947 [trainer.py] => tuned_epoch: 1
+2026-06-18 12:42:34,947 [trainer.py] => init_lr: 0.0003
+2026-06-18 12:42:34,947 [trainer.py] => batch_size: 48
+2026-06-18 12:42:34,947 [trainer.py] => weight_decay: 0.0005
+2026-06-18 12:42:34,947 [trainer.py] => min_lr: 0.0
+2026-06-18 12:42:34,947 [trainer.py] => pretrained: True
+2026-06-18 12:42:34,947 [trainer.py] => print_forget: True
+2026-06-18 12:42:36,531 [data_manager.py] => [68, 56, 78, 8, 23, 84, 90, 65, 74, 76, 40, 89, 3, 92, 55, 9, 26, 80, 43, 38, 58, 70, 77, 1, 85, 19, 17, 50, 28, 53, 13, 81, 45, 82, 6, 59, 83, 16, 15, 44, 91, 41, 72, 60, 79, 52, 20, 10, 31, 54, 37, 95, 14, 71, 96, 98, 97, 2, 64, 66, 42, 22, 35, 86, 24, 34, 87, 21, 99, 0, 88, 27, 18, 94, 11, 12, 47, 25, 30, 46, 62, 69, 36, 61, 7, 63, 75, 5, 32, 4, 51, 48, 73, 93, 39, 67, 29, 49, 57, 33]
+2026-06-18 12:42:36,608 [data_manager.py] => [68, 56, 78, 8, 23, 84, 90, 65, 74, 76, 40, 89, 3, 92, 55, 9, 26, 80, 43, 38, 58, 70, 77, 1, 85, 19, 17, 50, 28, 53, 13, 81, 45, 82, 6, 59, 83, 16, 15, 44, 91, 41, 72, 60, 79, 52, 20, 10, 31, 54, 37, 95, 14, 71, 96, 98, 97, 2, 64, 66, 42, 22, 35, 86, 24, 34, 87, 21, 99, 0, 88, 27, 18, 94, 11, 12, 47, 25, 30, 46, 62, 69, 36, 61, 7, 63, 75, 5, 32, 4, 51, 48, 73, 93, 39, 67, 29, 49, 57, 33]
+2026-06-18 12:42:39,596 [trainer.py] => All params: 86388480
+2026-06-18 12:42:39,597 [trainer.py] => Trainable params: 589824
+2026-06-18 12:42:39,659 [trainer.py] => All params: 87641856
+2026-06-18 12:42:39,659 [trainer.py] => Trainable params: 368640
+2026-06-18 12:42:40,198 [lora.py] => Learning on 0-50
+2026-06-18 12:42:40,200 [lora.py] => Trainable params this task: 333,362 / 86,426,930
+2026-06-18 12:42:40,365 [lora.py] => Learning on 0-50
+2026-06-18 12:42:40,368 [lora.py] => Trainable params this task: 407,090 / 87,680,306
+2026-06-18 12:47:59,412 [lora.py] => Task 0 finished. Train_accy 66.40
+2026-06-18 12:48:05,138 [lora.py] => Task 0 finished. Train_accy 58.86
+2026-06-18 12:48:06,282 [sketchlora.py] => [SketchDiag] task 0: retained-energy mean=1.000 min=1.000 | ||ΔW||_F mean=0.803
+2026-06-18 12:48:07,070 [sketchlora.py] => [SketchDiag] task 0: retained-energy mean=1.000 min=1.000 | ||ΔW||_F mean=0.973
+2026-06-18 12:49:07,813 [til_base.py] => TIL top1: 92.66
+2026-06-18 12:49:07,814 [til_base.py] => CIL top1: 92.66 | TIL top1: 92.66
+2026-06-18 12:49:07,814 [trainer.py] => No NME accuracy.
+2026-06-18 12:49:07,814 [trainer.py] => CNN: {'total': np.float64(92.66), '00-49': np.float64(92.66), 'old': 0, 'new': np.float64(92.66)}
+2026-06-18 12:49:07,814 [trainer.py] => CNN top1 curve: [np.float64(92.66)]
+2026-06-18 12:49:07,814 [trainer.py] => CNN top5 curve: [np.float64(99.2)]
+
+2026-06-18 12:49:07,814 [trainer.py] => Average Accuracy (CNN): 92.66 
+
+2026-06-18 12:49:07,816 [trainer.py] => All params: 87680306
+2026-06-18 12:49:07,817 [trainer.py] => Trainable params: 407090
+2026-06-18 12:49:07,821 [lora.py] => Learning on 50-100
+2026-06-18 12:49:07,825 [lora.py] => Trainable params this task: 445,540 / 87,718,756
+2026-06-18 12:49:08,943 [til_base.py] => TIL top1: 90.52
+2026-06-18 12:49:08,944 [til_base.py] => CIL top1: 90.52 | TIL top1: 90.52
+2026-06-18 12:49:08,944 [trainer.py] => No NME accuracy.
+2026-06-18 12:49:08,944 [trainer.py] => CNN: {'total': np.float64(90.52), '00-49': np.float64(90.52), 'old': 0, 'new': np.float64(90.52)}
+2026-06-18 12:49:08,944 [trainer.py] => CNN top1 curve: [np.float64(90.52)]
+2026-06-18 12:49:08,944 [trainer.py] => CNN top5 curve: [np.float64(98.4)]
+
+2026-06-18 12:49:08,944 [trainer.py] => Average Accuracy (CNN): 90.52 
+
+2026-06-18 12:49:08,944 [trainer.py] => All params: 86426930
+2026-06-18 12:49:08,945 [trainer.py] => Trainable params: 112178
+2026-06-18 12:49:08,947 [lora.py] => Learning on 50-100
+2026-06-18 12:49:08,949 [lora.py] => Trainable params this task: 371,812 / 86,465,380
+2026-06-18 12:54:26,307 [lora.py] => Task 1 finished. Train_accy 69.39
+2026-06-18 12:54:32,408 [lora.py] => Task 1 finished. Train_accy 63.47
+2026-06-18 12:54:34,218 [sketchlora.py] => [SketchDiag] task 1: retained-energy mean=0.981 min=0.951 | ||ΔW||_F mean=1.187
+2026-06-18 12:54:34,748 [sketchlora.py] => [SketchDiag] task 1: retained-energy mean=1.000 min=1.000 | ||ΔW||_F mean=1.041
+2026-06-18 12:56:48,217 [til_base.py] => TIL top1: 90.36
+2026-06-18 12:56:48,217 [til_base.py] => CIL top1: 83.95 | TIL top1: 90.36
+2026-06-18 12:56:48,218 [trainer.py] => No NME accuracy.
+2026-06-18 12:56:48,218 [trainer.py] => CNN: {'total': np.float64(83.95), '00-49': np.float64(79.52), '50-99': np.float64(88.38), 'old': np.float64(79.52), 'new': np.float64(88.38)}
+2026-06-18 12:56:48,218 [trainer.py] => CNN top1 curve: [np.float64(92.66), np.float64(83.95)]
+2026-06-18 12:56:48,218 [trainer.py] => CNN top5 curve: [np.float64(99.2), np.float64(97.58)]
+
+2026-06-18 12:56:48,218 [trainer.py] => Average Accuracy (CNN): 88.305 
+
+2026-06-18 12:56:48,218 [trainer.py] => Forgetting (CNN): 13.14
+2026-06-18 12:56:48,218 [trainer.py] => Forgetting (NME): 13.14
+2026-06-18 12:56:51,936 [til_base.py] => TIL top1: 88.89
+2026-06-18 12:56:51,937 [til_base.py] => CIL top1: 83.09 | TIL top1: 88.89
+2026-06-18 12:56:51,937 [trainer.py] => No NME accuracy.
+2026-06-18 12:56:51,937 [trainer.py] => CNN: {'total': np.float64(83.09), '00-49': np.float64(82.94), '50-99': np.float64(83.24), 'old': np.float64(82.94), 'new': np.float64(83.24)}
+2026-06-18 12:56:51,937 [trainer.py] => CNN top1 curve: [np.float64(90.52), np.float64(83.09)]
+2026-06-18 12:56:51,937 [trainer.py] => CNN top5 curve: [np.float64(98.4), np.float64(96.58)]
+
+2026-06-18 12:56:51,937 [trainer.py] => Average Accuracy (CNN): 86.805 
+
+2026-06-18 12:56:51,938 [trainer.py] => Forgetting (CNN): 7.579999999999998
+2026-06-18 12:56:51,938 [trainer.py] => Forgetting (NME): 7.579999999999998
+2026-06-18 14:40:02,945 [trainer.py] => config: ./exps/sketchlora_smoke.json
+2026-06-18 14:40:02,945 [trainer.py] => prefix: smoke
+2026-06-18 14:40:02,945 [trainer.py] => dataset: cifar224
+2026-06-18 14:40:02,945 [trainer.py] => memory_size: 0
+2026-06-18 14:40:02,945 [trainer.py] => memory_per_class: 0
+2026-06-18 14:40:02,946 [trainer.py] => fixed_memory: False
+2026-06-18 14:40:02,946 [trainer.py] => shuffle: True
+2026-06-18 14:40:02,946 [trainer.py] => init_cls: 50
+2026-06-18 14:40:02,946 [trainer.py] => increment: 50
+2026-06-18 14:40:02,946 [trainer.py] => model_name: sketchlora
+2026-06-18 14:40:02,946 [trainer.py] => backbone_type: vit_base_patch16_224_lora
+2026-06-18 14:40:02,946 [trainer.py] => device: [device(type='cuda', index=0)]
+2026-06-18 14:40:02,946 [trainer.py] => seed: 1993
+2026-06-18 14:40:02,946 [trainer.py] => scenario: both
+2026-06-18 14:40:02,946 [trainer.py] => lora_rank: 10
+2026-06-18 14:40:02,946 [trainer.py] => lora_alpha: None
+2026-06-18 14:40:02,946 [trainer.py] => lora_merge: True
+2026-06-18 14:40:02,946 [trainer.py] => lora_train_merge: True
+2026-06-18 14:40:02,946 [trainer.py] => svd_rank: 10
+2026-06-18 14:40:02,946 [trainer.py] => svd_oversampling: 10
+2026-06-18 14:40:02,946 [trainer.py] => lora_n_slots: 2
+2026-06-18 14:40:02,946 [trainer.py] => tuned_epoch: 1
+2026-06-18 14:40:02,946 [trainer.py] => init_lr: 0.0003
+2026-06-18 14:40:02,946 [trainer.py] => batch_size: 48
+2026-06-18 14:40:02,946 [trainer.py] => weight_decay: 0.0005
+2026-06-18 14:40:02,946 [trainer.py] => min_lr: 0.0
+2026-06-18 14:40:02,946 [trainer.py] => pretrained: True
+2026-06-18 14:40:02,946 [trainer.py] => print_forget: True
+2026-06-18 14:40:04,624 [data_manager.py] => [68, 56, 78, 8, 23, 84, 90, 65, 74, 76, 40, 89, 3, 92, 55, 9, 26, 80, 43, 38, 58, 70, 77, 1, 85, 19, 17, 50, 28, 53, 13, 81, 45, 82, 6, 59, 83, 16, 15, 44, 91, 41, 72, 60, 79, 52, 20, 10, 31, 54, 37, 95, 14, 71, 96, 98, 97, 2, 64, 66, 42, 22, 35, 86, 24, 34, 87, 21, 99, 0, 88, 27, 18, 94, 11, 12, 47, 25, 30, 46, 62, 69, 36, 61, 7, 63, 75, 5, 32, 4, 51, 48, 73, 93, 39, 67, 29, 49, 57, 33]
+2026-06-18 14:40:07,528 [trainer.py] => All params: 86535936
+2026-06-18 14:40:07,529 [trainer.py] => Trainable params: 737280
+2026-06-18 14:40:08,019 [lora.py] => Learning on 0-50
+2026-06-18 14:40:08,021 [lora.py] => Trainable params this task: 407,090 / 86,574,386
+2026-06-18 14:42:36,386 [lora.py] => Task 0 finished. Train_accy 65.62
+2026-06-18 14:42:38,739 [sketchlora.py] => [SketchDiag] task 0: retained-energy mean=1.000 min=1.000 | ||ΔW||_F mean=0.821
+2026-06-18 14:43:08,831 [til_base.py] => TIL top1: 92.4
+2026-06-18 14:43:08,831 [til_base.py] => CIL top1: 92.4 | TIL top1: 92.4
+2026-06-18 14:43:08,831 [trainer.py] => No NME accuracy.
+2026-06-18 14:43:08,831 [trainer.py] => CNN: {'total': np.float64(92.4), '00-49': np.float64(92.4), 'old': 0, 'new': np.float64(92.4)}
+2026-06-18 14:43:08,831 [trainer.py] => CNN top1 curve: [np.float64(92.4)]
+2026-06-18 14:43:08,831 [trainer.py] => CNN top5 curve: [np.float64(99.28)]
+
+2026-06-18 14:43:08,831 [trainer.py] => Average Accuracy (CNN): 92.4 
+
+2026-06-18 14:43:08,832 [trainer.py] => All params: 86574386
+2026-06-18 14:43:08,833 [trainer.py] => Trainable params: 407090
+2026-06-18 14:43:08,834 [lora.py] => Learning on 50-100
+2026-06-18 14:43:08,836 [lora.py] => Trainable params this task: 445,540 / 86,612,836
+2026-06-18 14:45:37,466 [lora.py] => Task 1 finished. Train_accy 69.24
+2026-06-18 14:45:40,340 [sketchlora.py] => [SketchDiag] task 1: retained-energy mean=0.967 min=0.918 | ||ΔW||_F mean=1.087
+2026-06-18 14:46:40,083 [til_base.py] => TIL top1: 90.17
+2026-06-18 14:46:40,084 [til_base.py] => CIL top1: 80.29 | TIL top1: 90.17
+2026-06-18 14:46:40,084 [trainer.py] => No NME accuracy.
+2026-06-18 14:46:40,084 [trainer.py] => CNN: {'total': np.float64(80.29), '00-49': np.float64(70.16), '50-99': np.float64(90.42), 'old': np.float64(70.16), 'new': np.float64(90.42)}
+2026-06-18 14:46:40,084 [trainer.py] => CNN top1 curve: [np.float64(92.4), np.float64(80.29)]
+2026-06-18 14:46:40,084 [trainer.py] => CNN top5 curve: [np.float64(99.28), np.float64(97.38)]
+
+2026-06-18 14:46:40,084 [trainer.py] => Average Accuracy (CNN): 86.345 
+
+2026-06-18 14:46:40,084 [trainer.py] => Forgetting (CNN): 22.24000000000001
+2026-06-18 14:46:40,084 [trainer.py] => Forgetting (NME): 22.24000000000001
+2026-06-18 15:41:33,285 [trainer.py] => config: ./exps/sketchlora_smoke.json
+2026-06-18 15:41:33,285 [trainer.py] => prefix: smoke
+2026-06-18 15:41:33,285 [trainer.py] => dataset: cifar224
+2026-06-18 15:41:33,285 [trainer.py] => memory_size: 0
+2026-06-18 15:41:33,285 [trainer.py] => memory_per_class: 0
+2026-06-18 15:41:33,285 [trainer.py] => fixed_memory: False
+2026-06-18 15:41:33,285 [trainer.py] => shuffle: True
+2026-06-18 15:41:33,285 [trainer.py] => init_cls: 50
+2026-06-18 15:41:33,285 [trainer.py] => increment: 50
+2026-06-18 15:41:33,286 [trainer.py] => model_name: sketchlora
+2026-06-18 15:41:33,286 [trainer.py] => backbone_type: vit_base_patch16_224_lora
+2026-06-18 15:41:33,286 [trainer.py] => device: [device(type='cuda', index=0)]
+2026-06-18 15:41:33,286 [trainer.py] => seed: 1993
+2026-06-18 15:41:33,286 [trainer.py] => scenario: both
+2026-06-18 15:41:33,286 [trainer.py] => lora_rank: 10
+2026-06-18 15:41:33,286 [trainer.py] => lora_alpha: None
+2026-06-18 15:41:33,286 [trainer.py] => lora_merge: True
+2026-06-18 15:41:33,286 [trainer.py] => lora_train_merge: True
+2026-06-18 15:41:33,286 [trainer.py] => svd_rank: 10
+2026-06-18 15:41:33,286 [trainer.py] => svd_oversampling: 10
+2026-06-18 15:41:33,286 [trainer.py] => lora_n_slots: 2
+2026-06-18 15:41:33,286 [trainer.py] => tuned_epoch: 1
+2026-06-18 15:41:33,286 [trainer.py] => init_lr: 0.0003
+2026-06-18 15:41:33,286 [trainer.py] => batch_size: 48
+2026-06-18 15:41:33,286 [trainer.py] => weight_decay: 0.0005
+2026-06-18 15:41:33,286 [trainer.py] => min_lr: 0.0
+2026-06-18 15:41:33,286 [trainer.py] => pretrained: True
+2026-06-18 15:41:33,286 [trainer.py] => print_forget: True
+2026-06-18 15:41:34,965 [data_manager.py] => [68, 56, 78, 8, 23, 84, 90, 65, 74, 76, 40, 89, 3, 92, 55, 9, 26, 80, 43, 38, 58, 70, 77, 1, 85, 19, 17, 50, 28, 53, 13, 81, 45, 82, 6, 59, 83, 16, 15, 44, 91, 41, 72, 60, 79, 52, 20, 10, 31, 54, 37, 95, 14, 71, 96, 98, 97, 2, 64, 66, 42, 22, 35, 86, 24, 34, 87, 21, 99, 0, 88, 27, 18, 94, 11, 12, 47, 25, 30, 46, 62, 69, 36, 61, 7, 63, 75, 5, 32, 4, 51, 48, 73, 93, 39, 67, 29, 49, 57, 33]
+2026-06-18 15:41:38,208 [trainer.py] => All params: 86535936
+2026-06-18 15:41:38,208 [trainer.py] => Trainable params: 737280
+2026-06-18 15:41:38,728 [lora.py] => Learning on 0-50
+2026-06-18 15:41:38,730 [lora.py] => Trainable params this task: 407,090 / 86,574,386
+2026-06-18 15:46:45,719 [lora.py] => Task 0 finished. Train_accy 65.62
+2026-06-18 15:46:52,037 [sketchlora.py] => [SketchDiag] task 0: retained-energy mean=1.000 min=1.000 | ||ΔW||_F mean=0.821
+2026-06-18 15:47:50,871 [til_base.py] => TIL top1: 92.4
+2026-06-18 15:47:50,871 [til_base.py] => CIL top1: 92.4 | TIL top1: 92.4
+2026-06-18 15:47:50,871 [trainer.py] => No NME accuracy.
+2026-06-18 15:47:50,871 [trainer.py] => CNN: {'total': np.float64(92.4), '00-49': np.float64(92.4), 'old': 0, 'new': np.float64(92.4)}
+2026-06-18 15:47:50,872 [trainer.py] => CNN top1 curve: [np.float64(92.4)]
+2026-06-18 15:47:50,872 [trainer.py] => CNN top5 curve: [np.float64(99.28)]
+
+2026-06-18 15:47:50,872 [trainer.py] => Average Accuracy (CNN): 92.4 
+
+2026-06-18 15:47:50,873 [trainer.py] => All params: 86574386
+2026-06-18 15:47:50,874 [trainer.py] => Trainable params: 407090
+2026-06-18 15:47:50,878 [lora.py] => Learning on 50-100
+2026-06-18 15:47:50,882 [lora.py] => Trainable params this task: 445,540 / 86,612,836
+2026-06-18 15:52:57,926 [lora.py] => Task 1 finished. Train_accy 69.24
+2026-06-18 15:53:05,637 [sketchlora.py] => [SketchDiag] task 1: retained-energy mean=0.967 min=0.918 | ||ΔW||_F mean=1.087
+2026-06-18 15:55:02,492 [til_base.py] => TIL top1: 90.17
+2026-06-18 15:55:02,492 [til_base.py] => CIL top1: 80.29 | TIL top1: 90.17
+2026-06-18 15:55:02,492 [trainer.py] => No NME accuracy.
+2026-06-18 15:55:02,492 [trainer.py] => CNN: {'total': np.float64(80.29), '00-49': np.float64(70.16), '50-99': np.float64(90.42), 'old': np.float64(70.16), 'new': np.float64(90.42)}
+2026-06-18 15:55:02,492 [trainer.py] => CNN top1 curve: [np.float64(92.4), np.float64(80.29)]
+2026-06-18 15:55:02,492 [trainer.py] => CNN top5 curve: [np.float64(99.28), np.float64(97.38)]
+
+2026-06-18 15:55:02,492 [trainer.py] => Average Accuracy (CNN): 86.345 
+
+2026-06-18 15:55:02,493 [trainer.py] => Forgetting (CNN): 22.24000000000001
+2026-06-18 15:55:02,493 [trainer.py] => Forgetting (NME): 22.24000000000001
+2026-06-18 15:55:02,494 [trainer.py] => Forgetting (TIL): 3.5200000000000102
+2026-06-20 23:05:27,006 [trainer.py] => config: ./exps/sketchlora_smoke.json
+2026-06-20 23:05:27,006 [trainer.py] => prefix: smoke
+2026-06-20 23:05:27,006 [trainer.py] => dataset: cifar224
+2026-06-20 23:05:27,006 [trainer.py] => memory_size: 0
+2026-06-20 23:05:27,006 [trainer.py] => memory_per_class: 0
+2026-06-20 23:05:27,006 [trainer.py] => fixed_memory: False
+2026-06-20 23:05:27,006 [trainer.py] => shuffle: True
+2026-06-20 23:05:27,006 [trainer.py] => init_cls: 50
+2026-06-20 23:05:27,006 [trainer.py] => increment: 50
+2026-06-20 23:05:27,006 [trainer.py] => model_name: sketchlora
+2026-06-20 23:05:27,006 [trainer.py] => backbone_type: vit_base_patch16_224_lora
+2026-06-20 23:05:27,006 [trainer.py] => device: [device(type='cuda', index=0)]
+2026-06-20 23:05:27,006 [trainer.py] => seed: 1993
+2026-06-20 23:05:27,006 [trainer.py] => scenario: both
+2026-06-20 23:05:27,006 [trainer.py] => lora_rank: 10
+2026-06-20 23:05:27,006 [trainer.py] => lora_alpha: None
+2026-06-20 23:05:27,006 [trainer.py] => lora_merge: True
+2026-06-20 23:05:27,006 [trainer.py] => lora_train_merge: True
+2026-06-20 23:05:27,006 [trainer.py] => svd_rank: 10
+2026-06-20 23:05:27,007 [trainer.py] => svd_oversampling: 10
+2026-06-20 23:05:27,007 [trainer.py] => lora_n_slots: 2
+2026-06-20 23:05:27,007 [trainer.py] => tuned_epoch: 1
+2026-06-20 23:05:27,007 [trainer.py] => init_lr: 0.0003
+2026-06-20 23:05:27,007 [trainer.py] => batch_size: 48
+2026-06-20 23:05:27,007 [trainer.py] => weight_decay: 0.0005
+2026-06-20 23:05:27,007 [trainer.py] => min_lr: 0.0
+2026-06-20 23:05:27,007 [trainer.py] => pretrained: True
+2026-06-20 23:05:27,007 [trainer.py] => print_forget: True
+2026-06-20 23:05:28,627 [data_manager.py] => [68, 56, 78, 8, 23, 84, 90, 65, 74, 76, 40, 89, 3, 92, 55, 9, 26, 80, 43, 38, 58, 70, 77, 1, 85, 19, 17, 50, 28, 53, 13, 81, 45, 82, 6, 59, 83, 16, 15, 44, 91, 41, 72, 60, 79, 52, 20, 10, 31, 54, 37, 95, 14, 71, 96, 98, 97, 2, 64, 66, 42, 22, 35, 86, 24, 34, 87, 21, 99, 0, 88, 27, 18, 94, 11, 12, 47, 25, 30, 46, 62, 69, 36, 61, 7, 63, 75, 5, 32, 4, 51, 48, 73, 93, 39, 67, 29, 49, 57, 33]
+2026-06-20 23:05:31,073 [trainer.py] => All params: 86535936
+2026-06-20 23:05:31,073 [trainer.py] => Trainable params: 737280
+2026-06-20 23:05:31,582 [lora.py] => Learning on 0-50
+2026-06-20 23:05:31,584 [lora.py] => Trainable params this task: 407,090 / 86,574,386
+2026-06-20 23:07:58,778 [lora.py] => Task 0 finished. Train_accy 65.62
+2026-06-20 23:08:01,128 [sketchlora.py] => [SketchDiag] task 0: retained-energy mean=1.000 min=1.000 | ||ΔW||_F mean=0.821 | r_hat mean=10.0 total=240
+2026-06-20 23:08:30,803 [til_base.py] => TIL top1: 92.4
+2026-06-20 23:08:30,803 [til_base.py] => CIL top1: 92.4 | TIL top1: 92.4
+2026-06-20 23:08:30,803 [trainer.py] => No NME accuracy.
+2026-06-20 23:08:30,803 [trainer.py] => CNN: {'total': np.float64(92.4), '00-49': np.float64(92.4), 'old': 0, 'new': np.float64(92.4)}
+2026-06-20 23:08:30,803 [trainer.py] => CNN top1 curve: [np.float64(92.4)]
+2026-06-20 23:08:30,803 [trainer.py] => CNN top5 curve: [np.float64(99.28)]
+
+2026-06-20 23:08:30,804 [trainer.py] => Average Accuracy (CNN): 92.4 
+
+2026-06-20 23:08:30,804 [trainer.py] => All params: 86574386
+2026-06-20 23:08:30,805 [trainer.py] => Trainable params: 407090
+2026-06-20 23:08:30,806 [lora.py] => Learning on 50-100
+2026-06-20 23:08:30,808 [lora.py] => Trainable params this task: 445,540 / 86,612,836
+2026-06-20 23:10:58,331 [lora.py] => Task 1 finished. Train_accy 69.24
+2026-06-20 23:11:01,190 [sketchlora.py] => [SketchDiag] task 1: retained-energy mean=0.967 min=0.918 | ||ΔW||_F mean=1.087 | r_hat mean=10.0 total=240
+2026-06-20 23:12:00,286 [til_base.py] => TIL top1: 90.17
+2026-06-20 23:12:00,286 [til_base.py] => CIL top1: 80.29 | TIL top1: 90.17
+2026-06-20 23:12:00,286 [trainer.py] => No NME accuracy.
+2026-06-20 23:12:00,286 [trainer.py] => CNN: {'total': np.float64(80.29), '00-49': np.float64(70.16), '50-99': np.float64(90.42), 'old': np.float64(70.16), 'new': np.float64(90.42)}
+2026-06-20 23:12:00,286 [trainer.py] => CNN top1 curve: [np.float64(92.4), np.float64(80.29)]
+2026-06-20 23:12:00,286 [trainer.py] => CNN top5 curve: [np.float64(99.28), np.float64(97.38)]
+
+2026-06-20 23:12:00,286 [trainer.py] => Average Accuracy (CNN): 86.345 
+
+2026-06-20 23:12:00,287 [trainer.py] => Forgetting (CNN): 22.24000000000001
+2026-06-20 23:12:00,287 [trainer.py] => Forgetting (NME): 22.24000000000001
+2026-06-20 23:12:00,287 [trainer.py] => Forgetting (TIL): 3.5200000000000102
+2026-06-20 23:12:03,226 [trainer.py] => config: ./exps/sketchlora_adapt_smoke.json
+2026-06-20 23:12:03,226 [trainer.py] => prefix: smoke
+2026-06-20 23:12:03,226 [trainer.py] => dataset: cifar224
+2026-06-20 23:12:03,226 [trainer.py] => memory_size: 0
+2026-06-20 23:12:03,226 [trainer.py] => memory_per_class: 0
+2026-06-20 23:12:03,226 [trainer.py] => fixed_memory: False
+2026-06-20 23:12:03,226 [trainer.py] => shuffle: True
+2026-06-20 23:12:03,226 [trainer.py] => init_cls: 50
+2026-06-20 23:12:03,226 [trainer.py] => increment: 50
+2026-06-20 23:12:03,226 [trainer.py] => model_name: sketchlora
+2026-06-20 23:12:03,226 [trainer.py] => backbone_type: vit_base_patch16_224_lora
+2026-06-20 23:12:03,227 [trainer.py] => device: [device(type='cuda', index=0)]
+2026-06-20 23:12:03,227 [trainer.py] => seed: 1993
+2026-06-20 23:12:03,227 [trainer.py] => scenario: both
+2026-06-20 23:12:03,227 [trainer.py] => lora_rank: 10
+2026-06-20 23:12:03,227 [trainer.py] => lora_alpha: None
+2026-06-20 23:12:03,227 [trainer.py] => lora_merge: True
+2026-06-20 23:12:03,227 [trainer.py] => lora_train_merge: True
+2026-06-20 23:12:03,227 [trainer.py] => svd_rank: 10
+2026-06-20 23:12:03,227 [trainer.py] => svd_oversampling: 10
+2026-06-20 23:12:03,227 [trainer.py] => svd_energy_target: 0.005
+2026-06-20 23:12:03,227 [trainer.py] => lora_n_slots: 2
+2026-06-20 23:12:03,227 [trainer.py] => tuned_epoch: 1
+2026-06-20 23:12:03,227 [trainer.py] => init_lr: 0.0003
+2026-06-20 23:12:03,227 [trainer.py] => batch_size: 48
+2026-06-20 23:12:03,227 [trainer.py] => weight_decay: 0.0005
+2026-06-20 23:12:03,227 [trainer.py] => min_lr: 0.0
+2026-06-20 23:12:03,227 [trainer.py] => pretrained: True
+2026-06-20 23:12:03,227 [trainer.py] => print_forget: True
+2026-06-20 23:12:04,894 [data_manager.py] => [68, 56, 78, 8, 23, 84, 90, 65, 74, 76, 40, 89, 3, 92, 55, 9, 26, 80, 43, 38, 58, 70, 77, 1, 85, 19, 17, 50, 28, 53, 13, 81, 45, 82, 6, 59, 83, 16, 15, 44, 91, 41, 72, 60, 79, 52, 20, 10, 31, 54, 37, 95, 14, 71, 96, 98, 97, 2, 64, 66, 42, 22, 35, 86, 24, 34, 87, 21, 99, 0, 88, 27, 18, 94, 11, 12, 47, 25, 30, 46, 62, 69, 36, 61, 7, 63, 75, 5, 32, 4, 51, 48, 73, 93, 39, 67, 29, 49, 57, 33]
+2026-06-20 23:12:07,358 [trainer.py] => All params: 86535936
+2026-06-20 23:12:07,359 [trainer.py] => Trainable params: 737280
+2026-06-20 23:12:07,849 [lora.py] => Learning on 0-50
+2026-06-20 23:12:07,851 [lora.py] => Trainable params this task: 407,090 / 86,574,386
+2026-06-20 23:14:35,612 [lora.py] => Task 0 finished. Train_accy 65.62
+2026-06-20 23:14:37,995 [sketchlora.py] => [SketchDiag] task 0: retained-energy mean=0.997 min=0.995 | ||ΔW||_F mean=0.821 | r_hat mean=7.8 total=186
+2026-06-20 23:15:08,077 [til_base.py] => TIL top1: 92.4
+2026-06-20 23:15:08,077 [til_base.py] => CIL top1: 92.4 | TIL top1: 92.4
+2026-06-20 23:15:08,077 [trainer.py] => No NME accuracy.
+2026-06-20 23:15:08,078 [trainer.py] => CNN: {'total': np.float64(92.4), '00-49': np.float64(92.4), 'old': 0, 'new': np.float64(92.4)}
+2026-06-20 23:15:08,078 [trainer.py] => CNN top1 curve: [np.float64(92.4)]
+2026-06-20 23:15:08,078 [trainer.py] => CNN top5 curve: [np.float64(99.28)]
+
+2026-06-20 23:15:08,078 [trainer.py] => Average Accuracy (CNN): 92.4 
+
+2026-06-20 23:15:08,079 [trainer.py] => All params: 86491442
+2026-06-20 23:15:08,080 [trainer.py] => Trainable params: 407090
+2026-06-20 23:15:08,082 [lora.py] => Learning on 50-100
+2026-06-20 23:15:08,085 [lora.py] => Trainable params this task: 445,540 / 86,529,892
+2026-06-20 23:17:36,220 [lora.py] => Task 1 finished. Train_accy 68.75
+2026-06-20 23:17:39,053 [sketchlora.py] => [SketchDiag] task 1: retained-energy mean=0.996 min=0.995 | ||ΔW||_F mean=1.070 | r_hat mean=14.8 total=354
+2026-06-20 23:18:38,805 [til_base.py] => TIL top1: 90.48
+2026-06-20 23:18:38,806 [til_base.py] => CIL top1: 81.92 | TIL top1: 90.48
+2026-06-20 23:18:38,806 [trainer.py] => No NME accuracy.
+2026-06-20 23:18:38,806 [trainer.py] => CNN: {'total': np.float64(81.92), '00-49': np.float64(73.82), '50-99': np.float64(90.02), 'old': np.float64(73.82), 'new': np.float64(90.02)}
+2026-06-20 23:18:38,806 [trainer.py] => CNN top1 curve: [np.float64(92.4), np.float64(81.92)]
+2026-06-20 23:18:38,806 [trainer.py] => CNN top5 curve: [np.float64(99.28), np.float64(97.68)]
+
+2026-06-20 23:18:38,806 [trainer.py] => Average Accuracy (CNN): 87.16 
+
+2026-06-20 23:18:38,806 [trainer.py] => Forgetting (CNN): 18.580000000000013
+2026-06-20 23:18:38,806 [trainer.py] => Forgetting (NME): 18.580000000000013
+2026-06-20 23:18:38,807 [trainer.py] => Forgetting (TIL): 2.5200000000000102

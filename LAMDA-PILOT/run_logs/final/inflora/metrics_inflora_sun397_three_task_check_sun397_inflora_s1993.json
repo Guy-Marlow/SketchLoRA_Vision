@@ -1,0 +1,84 @@
+{
+  "args_subset": {
+    "model_name": "inflora",
+    "dataset": "sun397",
+    "init_cls": 17,
+    "increment": 20,
+    "seed": 1993,
+    "scenario": "cil",
+    "boundary_mode": null,
+    "budget_mb": null,
+    "n_lora_blocks": null,
+    "lora_rank": 8,
+    "lora_alpha": 32,
+    "svd_energy_target": null,
+    "svd_rank": null,
+    "svd_period": null,
+    "merge_op": null,
+    "cs_rank": null,
+    "lamda_1": null,
+    "lamda_2": null,
+    "lamb": 0.95,
+    "lame": 1.0
+  },
+  "status": "done",
+  "per_task": [
+    {
+      "task": 0,
+      "train_seconds": 88.241,
+      "eval_seconds": 5.728,
+      "boundary_seconds": 0.0,
+      "cil_top1": 93.41,
+      "til_top1": null,
+      "persistent_params": 5911313,
+      "persistent_mb": 22.5499,
+      "persistent_state_breakdown": {
+        "lora_slots": 5898240,
+        "head": 13073
+      },
+      "peak_vram_mb": 0.0
+    },
+    {
+      "task": 1,
+      "train_seconds": 97.005,
+      "eval_seconds": 8.883,
+      "boundary_seconds": 0.0,
+      "cil_top1": 81.73,
+      "til_top1": null,
+      "persistent_params": 5926693,
+      "persistent_mb": 22.6085,
+      "persistent_state_breakdown": {
+        "lora_slots": 5898240,
+        "head": 28453
+      },
+      "peak_vram_mb": 0.0
+    },
+    {
+      "task": 2,
+      "train_seconds": 97.768,
+      "eval_seconds": 12.118,
+      "boundary_seconds": 0.0,
+      "cil_top1": 72.67,
+      "til_top1": null,
+      "persistent_params": 5942073,
+      "persistent_mb": 22.6672,
+      "persistent_state_breakdown": {
+        "lora_slots": 5898240,
+        "head": 43833
+      },
+      "peak_vram_mb": 0.0
+    }
+  ],
+  "train_seconds_total": 283.0148038864136,
+  "eval_seconds_total": 26.728743076324463,
+  "boundary_seconds_total": 0.0,
+  "inference_ms_per_image": 0.0799,
+  "inference_flops_per_image": null,
+  "cil_summary": {
+    "final_average_accuracy": 72.4333,
+    "average_incremental_accuracy": 82.4078,
+    "forgetting": 20.255,
+    "backward_transfer": -20.255,
+    "last_task_accuracy": 78.7
+  }
+}

@@ -1,0 +1,386 @@
+2026-07-29 00:09:16,250 [trainer.py] => config: exps/sketchlora_boltons/_smoke2_sharedfull.json
+2026-07-29 00:09:16,250 [trainer.py] => dataset: omnibenchmark1k
+2026-07-29 00:09:16,250 [trainer.py] => memory_size: 0
+2026-07-29 00:09:16,250 [trainer.py] => memory_per_class: 0
+2026-07-29 00:09:16,250 [trainer.py] => fixed_memory: False
+2026-07-29 00:09:16,250 [trainer.py] => shuffle: True
+2026-07-29 00:09:16,250 [trainer.py] => init_cls: 10
+2026-07-29 00:09:16,250 [trainer.py] => increment: 10
+2026-07-29 00:09:16,250 [trainer.py] => seed: 1993
+2026-07-29 00:09:16,250 [trainer.py] => scenario: cil
+2026-07-29 00:09:16,250 [trainer.py] => pretrained: True
+2026-07-29 00:09:16,250 [trainer.py] => print_forget: False
+2026-07-29 00:09:16,250 [trainer.py] => final_metrics: False
+2026-07-29 00:09:16,251 [trainer.py] => backbone_type: vit_base_patch16_224_lora
+2026-07-29 00:09:16,251 [trainer.py] => lora_rank: 10
+2026-07-29 00:09:16,251 [trainer.py] => lora_alpha: None
+2026-07-29 00:09:16,251 [trainer.py] => batch_size: 48
+2026-07-29 00:09:16,251 [trainer.py] => weight_decay: 0.0005
+2026-07-29 00:09:16,251 [trainer.py] => min_lr: 0.0
+2026-07-29 00:09:16,251 [trainer.py] => tuned_epoch: 2
+2026-07-29 00:09:16,251 [trainer.py] => boundary_mode: bounded_memory
+2026-07-29 00:09:16,251 [trainer.py] => stop_after_tasks: 5
+2026-07-29 00:09:16,251 [trainer.py] => device: [device(type='cuda', index=2)]
+2026-07-29 00:09:16,251 [trainer.py] => model_name: sketchlora
+2026-07-29 00:09:16,251 [trainer.py] => lora_merge: True
+2026-07-29 00:09:16,251 [trainer.py] => lora_train_merge: True
+2026-07-29 00:09:16,251 [trainer.py] => svd_rank: 10
+2026-07-29 00:09:16,251 [trainer.py] => svd_oversampling: 10
+2026-07-29 00:09:16,251 [trainer.py] => svd_energy_target: 0.01
+2026-07-29 00:09:16,251 [trainer.py] => lora_n_slots: 2
+2026-07-29 00:09:16,251 [trainer.py] => sketch_diag: True
+2026-07-29 00:09:16,251 [trainer.py] => merge_op: randsvd
+2026-07-29 00:09:16,251 [trainer.py] => sketchlora_admission: bounded_eviction
+2026-07-29 00:09:16,251 [trainer.py] => sketchlora_rank_cap: 128
+2026-07-29 00:09:16,251 [trainer.py] => sketchlora_lora_wd: 0.0
+2026-07-29 00:09:16,251 [trainer.py] => sketchlora_eviction_reading: conformant
+2026-07-29 00:09:16,251 [trainer.py] => init_lr: 0.001
+2026-07-29 00:09:16,251 [trainer.py] => classifier_alignment: True
+2026-07-29 00:09:16,251 [trainer.py] => ca_steps: 300
+2026-07-29 00:09:16,251 [trainer.py] => ca_batch: 128
+2026-07-29 00:09:16,251 [trainer.py] => ca_lr: 0.001
+2026-07-29 00:09:16,252 [trainer.py] => bm_budget_mb: 100
+2026-07-29 00:09:16,252 [trainer.py] => prefix: smoke2_ca_v2_sharedfull
+2026-07-29 00:09:16,252 [trainer.py] => ca_cov_mode: shared_full
+2026-07-29 00:09:16,814 [data_manager.py] => [54, 7, 894, 512, 126, 337, 988, 11, 284, 493, 133, 783, 192, 979, 622, 215, 240, 548, 238, 419, 274, 108, 928, 856, 494, 836, 473, 650, 85, 262, 508, 590, 390, 174, 637, 288, 658, 219, 912, 142, 852, 160, 704, 289, 123, 323, 600, 542, 999, 634, 391, 761, 490, 842, 127, 850, 665, 990, 597, 722, 748, 14, 77, 437, 394, 859, 279, 539, 75, 466, 886, 312, 303, 62, 966, 413, 959, 782, 509, 400, 471, 632, 275, 730, 105, 523, 224, 186, 478, 507, 470, 906, 699, 989, 324, 812, 260, 911, 446, 44, 765, 759, 67, 36, 5, 30, 184, 797, 159, 741, 954, 465, 533, 585, 150, 101, 897, 363, 818, 620, 824, 154, 956, 176, 588, 986, 172, 223, 461, 94, 141, 621, 659, 360, 136, 578, 163, 427, 70, 226, 925, 596, 336, 412, 731, 755, 381, 810, 69, 898, 310, 120, 752, 93, 39, 326, 537, 905, 448, 347, 51, 615, 601, 229, 947, 348, 220, 949, 972, 73, 913, 522, 193, 753, 921, 257, 957, 691, 155, 820, 584, 948, 92, 582, 89, 379, 392, 64, 904, 169, 216, 694, 103, 410, 374, 515, 484, 624, 409, 156, 455, 846, 344, 371, 468, 844, 276, 740, 562, 503, 831, 516, 663, 630, 763, 456, 179, 996, 936, 248, 333, 941, 63, 738, 802, 372, 828, 74, 540, 299, 750, 335, 177, 822, 643, 593, 800, 459, 580, 933, 306, 378, 76, 227, 426, 403, 322, 321, 808, 393, 27, 200, 764, 651, 244, 479, 3, 415, 23, 964, 671, 195, 569, 917, 611, 644, 707, 355, 855, 8, 534, 657, 571, 811, 681, 543, 313, 129, 978, 592, 573, 128, 243, 520, 887, 892, 696, 26, 551, 168, 71, 398, 778, 529, 526, 792, 868, 266, 443, 24, 57, 15, 871, 678, 745, 845, 208, 188, 674, 175, 406, 421, 833, 106, 994, 815, 581, 676, 49, 619, 217, 631, 934, 932, 568, 353, 863, 827, 425, 420, 99, 823, 113, 974, 438, 874, 343, 118, 340, 472, 552, 937, 0, 10, 675, 316, 879, 561, 387, 726, 255, 407, 56, 927, 655, 809, 839, 640, 297, 34, 497, 210, 606, 971, 589, 138, 263, 587, 993, 973, 382, 572, 735, 535, 139, 524, 314, 463, 895, 376, 939, 157, 858, 457, 935, 183, 114, 903, 767, 666, 22, 525, 902, 233, 250, 825, 79, 843, 221, 214, 205, 166, 431, 860, 292, 976, 739, 899, 475, 242, 961, 531, 110, 769, 55, 701, 532, 586, 729, 253, 486, 787, 774, 165, 627, 32, 291, 962, 922, 222, 705, 454, 356, 445, 746, 776, 404, 950, 241, 452, 245, 487, 706, 2, 137, 6, 98, 647, 50, 91, 202, 556, 38, 68, 649, 258, 345, 361, 464, 514, 958, 504, 826, 668, 880, 28, 920, 918, 339, 315, 320, 768, 201, 733, 575, 781, 864, 617, 171, 795, 132, 145, 368, 147, 327, 713, 688, 848, 690, 975, 354, 853, 148, 648, 300, 436, 780, 693, 682, 246, 449, 492, 162, 97, 59, 357, 198, 519, 90, 236, 375, 359, 230, 476, 784, 117, 940, 396, 849, 102, 122, 282, 181, 130, 467, 88, 271, 793, 151, 847, 914, 42, 834, 521, 121, 29, 806, 607, 510, 837, 301, 669, 78, 256, 474, 840, 52, 505, 547, 641, 987, 801, 629, 491, 605, 112, 429, 401, 742, 528, 87, 442, 910, 638, 785, 264, 711, 369, 428, 805, 744, 380, 725, 480, 318, 997, 153, 384, 252, 985, 538, 654, 388, 100, 432, 832, 565, 908, 367, 591, 294, 272, 231, 213, 196, 743, 817, 433, 328, 970, 969, 4, 613, 182, 685, 724, 915, 311, 931, 865, 86, 119, 203, 268, 718, 317, 926, 269, 161, 209, 807, 645, 513, 261, 518, 305, 758, 872, 58, 65, 146, 395, 481, 747, 41, 283, 204, 564, 185, 777, 33, 500, 609, 286, 567, 80, 228, 683, 757, 942, 134, 673, 616, 960, 450, 350, 544, 830, 736, 170, 679, 838, 819, 485, 430, 190, 566, 511, 482, 232, 527, 411, 560, 281, 342, 614, 662, 47, 771, 861, 692, 686, 277, 373, 16, 946, 265, 35, 9, 884, 909, 610, 358, 18, 737, 977, 677, 803, 595, 135, 458, 12, 46, 418, 599, 187, 107, 992, 770, 298, 104, 351, 893, 698, 929, 502, 273, 20, 96, 791, 636, 708, 267, 867, 772, 604, 618, 346, 330, 554, 816, 664, 716, 189, 31, 721, 712, 397, 43, 943, 804, 296, 109, 576, 869, 955, 17, 506, 963, 786, 720, 628, 779, 982, 633, 891, 734, 980, 386, 365, 794, 325, 841, 878, 370, 695, 293, 951, 66, 594, 717, 116, 488, 796, 983, 646, 499, 53, 1, 603, 45, 424, 875, 254, 237, 199, 414, 307, 362, 557, 866, 341, 19, 965, 143, 555, 687, 235, 790, 125, 173, 364, 882, 727, 728, 563, 495, 21, 558, 709, 719, 877, 352, 83, 998, 991, 469, 967, 760, 498, 814, 612, 715, 290, 72, 131, 259, 441, 924, 773, 48, 625, 501, 440, 82, 684, 862, 574, 309, 408, 680, 623, 439, 180, 652, 968, 889, 334, 61, 766, 399, 598, 798, 653, 930, 149, 249, 890, 308, 881, 40, 835, 577, 422, 703, 813, 857, 995, 602, 583, 167, 670, 212, 751, 496, 608, 84, 639, 579, 178, 489, 37, 197, 789, 530, 111, 876, 570, 700, 444, 287, 366, 883, 385, 536, 460, 851, 81, 144, 60, 251, 13, 953, 270, 944, 319, 885, 710, 952, 517, 278, 656, 919, 377, 550, 207, 660, 984, 447, 553, 338, 234, 383, 749, 916, 626, 462, 788, 434, 714, 799, 821, 477, 549, 661, 206, 667, 541, 642, 689, 194, 152, 981, 938, 854, 483, 332, 280, 546, 389, 405, 545, 239, 896, 672, 923, 402, 423, 907, 888, 140, 870, 559, 756, 25, 211, 158, 723, 635, 302, 702, 453, 218, 164, 829, 247, 775, 191, 732, 115, 331, 901, 416, 873, 754, 900, 435, 762, 124, 304, 329, 349, 295, 95, 451, 285, 225, 945, 697, 417]
+This is for the BaseNet initialization.
+I'm using ViT with per-task LoRA (q,v).
+_IncompatibleKeys(missing_keys=['blocks.0.attn.cur_matrix', 'blocks.0.attn.frozen_delta_q', 'blocks.0.attn.frozen_delta_v', 'blocks.0.attn.lora_A_q.0.weight', 'blocks.0.attn.lora_A_q.1.weight', 'blocks.0.attn.lora_B_q.0.weight', 'blocks.0.attn.lora_B_q.1.weight', 'blocks.0.attn.lora_A_v.0.weight', 'blocks.0.attn.lora_A_v.1.weight', 'blocks.0.attn.lora_B_v.0.weight', 'blocks.0.attn.lora_B_v.1.weight', 'blocks.1.attn.cur_matrix', 'blocks.1.attn.frozen_delta_q', 'blocks.1.attn.frozen_delta_v', 'blocks.1.attn.lora_A_q.0.weight', 'blocks.1.attn.lora_A_q.1.weight', 'blocks.1.attn.lora_B_q.0.weight', 'blocks.1.attn.lora_B_q.1.weight', 'blocks.1.attn.lora_A_v.0.weight', 'blocks.1.attn.lora_A_v.1.weight', 'blocks.1.attn.lora_B_v.0.weight', 'blocks.1.attn.lora_B_v.1.weight', 'blocks.2.attn.cur_matrix', 'blocks.2.attn.frozen_delta_q', 'blocks.2.attn.frozen_delta_v', 'blocks.2.attn.lora_A_q.0.weight', 'blocks.2.attn.lora_A_q.1.weight', 'blocks.2.attn.lora_B_q.0.weight', 'blocks.2.attn.lora_B_q.1.weight', 'blocks.2.attn.lora_A_v.0.weight', 'blocks.2.attn.lora_A_v.1.weight', 'blocks.2.attn.lora_B_v.0.weight', 'blocks.2.attn.lora_B_v.1.weight', 'blocks.3.attn.cur_matrix', 'blocks.3.attn.frozen_delta_q', 'blocks.3.attn.frozen_delta_v', 'blocks.3.attn.lora_A_q.0.weight', 'blocks.3.attn.lora_A_q.1.weight', 'blocks.3.attn.lora_B_q.0.weight', 'blocks.3.attn.lora_B_q.1.weight', 'blocks.3.attn.lora_A_v.0.weight', 'blocks.3.attn.lora_A_v.1.weight', 'blocks.3.attn.lora_B_v.0.weight', 'blocks.3.attn.lora_B_v.1.weight', 'blocks.4.attn.cur_matrix', 'blocks.4.attn.frozen_delta_q', 'blocks.4.attn.frozen_delta_v', 'blocks.4.attn.lora_A_q.0.weight', 'blocks.4.attn.lora_A_q.1.weight', 'blocks.4.attn.lora_B_q.0.weight', 'blocks.4.attn.lora_B_q.1.weight', 'blocks.4.attn.lora_A_v.0.weight', 'blocks.4.attn.lora_A_v.1.weight', 'blocks.4.attn.lora_B_v.0.weight', 'blocks.4.attn.lora_B_v.1.weight', 'blocks.5.attn.cur_matrix', 'blocks.5.attn.frozen_delta_q', 'blocks.5.attn.frozen_delta_v', 'blocks.5.attn.lora_A_q.0.weight', 'blocks.5.attn.lora_A_q.1.weight', 'blocks.5.attn.lora_B_q.0.weight', 'blocks.5.attn.lora_B_q.1.weight', 'blocks.5.attn.lora_A_v.0.weight', 'blocks.5.attn.lora_A_v.1.weight', 'blocks.5.attn.lora_B_v.0.weight', 'blocks.5.attn.lora_B_v.1.weight', 'blocks.6.attn.cur_matrix', 'blocks.6.attn.frozen_delta_q', 'blocks.6.attn.frozen_delta_v', 'blocks.6.attn.lora_A_q.0.weight', 'blocks.6.attn.lora_A_q.1.weight', 'blocks.6.attn.lora_B_q.0.weight', 'blocks.6.attn.lora_B_q.1.weight', 'blocks.6.attn.lora_A_v.0.weight', 'blocks.6.attn.lora_A_v.1.weight', 'blocks.6.attn.lora_B_v.0.weight', 'blocks.6.attn.lora_B_v.1.weight', 'blocks.7.attn.cur_matrix', 'blocks.7.attn.frozen_delta_q', 'blocks.7.attn.frozen_delta_v', 'blocks.7.attn.lora_A_q.0.weight', 'blocks.7.attn.lora_A_q.1.weight', 'blocks.7.attn.lora_B_q.0.weight', 'blocks.7.attn.lora_B_q.1.weight', 'blocks.7.attn.lora_A_v.0.weight', 'blocks.7.attn.lora_A_v.1.weight', 'blocks.7.attn.lora_B_v.0.weight', 'blocks.7.attn.lora_B_v.1.weight', 'blocks.8.attn.cur_matrix', 'blocks.8.attn.frozen_delta_q', 'blocks.8.attn.frozen_delta_v', 'blocks.8.attn.lora_A_q.0.weight', 'blocks.8.attn.lora_A_q.1.weight', 'blocks.8.attn.lora_B_q.0.weight', 'blocks.8.attn.lora_B_q.1.weight', 'blocks.8.attn.lora_A_v.0.weight', 'blocks.8.attn.lora_A_v.1.weight', 'blocks.8.attn.lora_B_v.0.weight', 'blocks.8.attn.lora_B_v.1.weight', 'blocks.9.attn.cur_matrix', 'blocks.9.attn.frozen_delta_q', 'blocks.9.attn.frozen_delta_v', 'blocks.9.attn.lora_A_q.0.weight', 'blocks.9.attn.lora_A_q.1.weight', 'blocks.9.attn.lora_B_q.0.weight', 'blocks.9.attn.lora_B_q.1.weight', 'blocks.9.attn.lora_A_v.0.weight', 'blocks.9.attn.lora_A_v.1.weight', 'blocks.9.attn.lora_B_v.0.weight', 'blocks.9.attn.lora_B_v.1.weight', 'blocks.10.attn.cur_matrix', 'blocks.10.attn.frozen_delta_q', 'blocks.10.attn.frozen_delta_v', 'blocks.10.attn.lora_A_q.0.weight', 'blocks.10.attn.lora_A_q.1.weight', 'blocks.10.attn.lora_B_q.0.weight', 'blocks.10.attn.lora_B_q.1.weight', 'blocks.10.attn.lora_A_v.0.weight', 'blocks.10.attn.lora_A_v.1.weight', 'blocks.10.attn.lora_B_v.0.weight', 'blocks.10.attn.lora_B_v.1.weight', 'blocks.11.attn.cur_matrix', 'blocks.11.attn.frozen_delta_q', 'blocks.11.attn.frozen_delta_v', 'blocks.11.attn.lora_A_q.0.weight', 'blocks.11.attn.lora_A_q.1.weight', 'blocks.11.attn.lora_B_q.0.weight', 'blocks.11.attn.lora_B_q.1.weight', 'blocks.11.attn.lora_A_v.0.weight', 'blocks.11.attn.lora_A_v.1.weight', 'blocks.11.attn.lora_B_v.0.weight', 'blocks.11.attn.lora_B_v.1.weight'], unexpected_keys=[])
+After BaseNet initialization.
+2026-07-29 00:09:23,007 [bounded_memory_mixin.py] => [bounded_mem] stop_after_tasks=5 (of 100 total)
+2026-07-29 00:09:23,014 [bounded_memory_mixin.py] => [bounded_mem] budget_mb=100.0 -> cycle=697 images (mean_task=1754.4 images, so this budget is 0.40x mean task size); 8772 total images -> 13 cycles (T=13 sessions); 10 eval checkpoints
+2026-07-29 00:09:38,183 [sketchlora.py] => [SketchDiag] task 0: retained-energy mean=1.000 min=1.000 | ||ΔW||_F mean=0.398 | r_hat mean=10.0 total=240
+2026-07-29 00:09:42,924 [sketchlora.py] => [CA] cycle 0: steps=300 final_loss=0.0006048406939953566 stopped_early=False
+Target rank: 19
+Target rank: 18
+Target rank: 19
+Target rank: 18
+Target rank: 19
+Target rank: 19
+Target rank: 19
+Target rank: 17
+Target rank: 19
+Target rank: 18
+Target rank: 19
+Target rank: 19
+Target rank: 19
+Target rank: 18
+Target rank: 19
+Target rank: 19
+Target rank: 19
+Target rank: 19
+Target rank: 19
+Target rank: 19
+Target rank: 18
+Target rank: 18
+Target rank: 13
+Target rank: 18
+2026-07-29 00:09:56,314 [sketchlora.py] => [SketchDiag] task 1: retained-energy mean=0.992 min=0.990 | ||ΔW||_F mean=0.494 | r_hat mean=18.4 total=441
+2026-07-29 00:10:00,903 [sketchlora.py] => [CA] cycle 1: steps=300 final_loss=0.0005125796305947006 stopped_early=False
+2026-07-29 00:10:03,361 [bounded_memory_mixin.py] => [bounded_mem eval] volume 0.10 | cycle 1 | classes_seen 10 | CIL top1 94.97 | top5 100.00 | (nearest latent task ~0) | param_hash 999618258ac95c9b | per-task [94.97]
+Target rank: 28
+Target rank: 25
+Target rank: 27
+Target rank: 26
+Target rank: 28
+Target rank: 27
+Target rank: 27
+Target rank: 24
+Target rank: 28
+Target rank: 26
+Target rank: 28
+Target rank: 26
+Target rank: 28
+Target rank: 26
+Target rank: 28
+Target rank: 27
+Target rank: 28
+Target rank: 28
+Target rank: 28
+Target rank: 28
+Target rank: 25
+Target rank: 26
+Target rank: 17
+Target rank: 25
+2026-07-29 00:10:16,836 [sketchlora.py] => [SketchDiag] task 2: retained-energy mean=0.993 min=0.990 | ||ΔW||_F mean=0.587 | r_hat mean=26.4 total=634
+2026-07-29 00:10:21,520 [sketchlora.py] => [CA] cycle 2: steps=300 final_loss=0.013680356554687023 stopped_early=False
+2026-07-29 00:10:24,520 [bounded_memory_mixin.py] => [bounded_mem eval] volume 0.20 | cycle 2 | classes_seen 20 | CIL top1 91.18 | top5 99.75 | (nearest latent task ~1) | param_hash 7b01fd56251fd1e6 | per-task [91.96, 90.4]
+Target rank: 36
+Target rank: 32
+Target rank: 35
+Target rank: 33
+Target rank: 36
+Target rank: 35
+Target rank: 35
+Target rank: 31
+Target rank: 36
+Target rank: 34
+Target rank: 37
+Target rank: 34
+Target rank: 37
+Target rank: 34
+Target rank: 36
+Target rank: 35
+Target rank: 36
+Target rank: 36
+Target rank: 37
+Target rank: 36
+Target rank: 32
+Target rank: 33
+Target rank: 22
+Target rank: 30
+2026-07-29 00:10:38,091 [sketchlora.py] => [SketchDiag] task 3: retained-energy mean=0.992 min=0.990 | ||ΔW||_F mean=0.649 | r_hat mean=34.1 total=818
+2026-07-29 00:10:42,685 [sketchlora.py] => [CA] cycle 3: steps=300 final_loss=0.0037277373485267162 stopped_early=False
+2026-07-29 00:10:45,657 [bounded_memory_mixin.py] => [bounded_mem eval] volume 0.30 | cycle 3 | classes_seen 20 | CIL top1 94.71 | top5 99.75 | (nearest latent task ~1) | param_hash c6c114a161d3d723 | per-task [93.97, 95.45]
+Target rank: 43
+Target rank: 38
+Target rank: 42
+Target rank: 40
+Target rank: 43
+Target rank: 41
+Target rank: 43
+Target rank: 38
+Target rank: 44
+Target rank: 41
+Target rank: 45
+Target rank: 41
+Target rank: 45
+Target rank: 41
+Target rank: 44
+Target rank: 43
+Target rank: 44
+Target rank: 44
+Target rank: 45
+Target rank: 43
+Target rank: 39
+Target rank: 39
+Target rank: 25
+Target rank: 33
+2026-07-29 00:10:59,391 [sketchlora.py] => [SketchDiag] task 4: retained-energy mean=0.992 min=0.990 | ||ΔW||_F mean=0.698 | r_hat mean=41.0 total=984
+2026-07-29 00:11:04,016 [sketchlora.py] => [CA] cycle 4: steps=300 final_loss=0.0031674206256866455 stopped_early=False
+Target rank: 49
+Target rank: 44
+Target rank: 48
+Target rank: 46
+Target rank: 50
+Target rank: 46
+Target rank: 50
+Target rank: 44
+Target rank: 52
+Target rank: 47
+Target rank: 52
+Target rank: 47
+Target rank: 52
+Target rank: 47
+Target rank: 51
+Target rank: 50
+Target rank: 51
+Target rank: 51
+Target rank: 52
+Target rank: 50
+Target rank: 45
+Target rank: 45
+Target rank: 26
+Target rank: 38
+2026-07-29 00:11:17,917 [sketchlora.py] => [SketchDiag] task 5: retained-energy mean=0.992 min=0.990 | ||ΔW||_F mean=0.800 | r_hat mean=47.2 total=1133
+2026-07-29 00:11:22,531 [sketchlora.py] => [CA] cycle 5: steps=300 final_loss=0.0006855458486825228 stopped_early=False
+2026-07-29 00:11:26,137 [bounded_memory_mixin.py] => [bounded_mem eval] volume 0.40 | cycle 5 | classes_seen 30 | CIL top1 91.79 | top5 98.32 | (nearest latent task ~2) | param_hash fa2f3f1c06bcf0c6 | per-task [87.94, 89.9, 97.5]
+Target rank: 54
+Target rank: 49
+Target rank: 53
+Target rank: 52
+Target rank: 56
+Target rank: 52
+Target rank: 56
+Target rank: 50
+Target rank: 59
+Target rank: 53
+Target rank: 59
+Target rank: 53
+Target rank: 59
+Target rank: 53
+Target rank: 58
+Target rank: 56
+Target rank: 57
+Target rank: 57
+Target rank: 59
+Target rank: 56
+Target rank: 50
+Target rank: 50
+Target rank: 27
+Target rank: 41
+2026-07-29 00:11:40,074 [sketchlora.py] => [SketchDiag] task 6: retained-energy mean=0.991 min=0.991 | ||ΔW||_F mean=0.845 | r_hat mean=52.9 total=1269
+2026-07-29 00:11:44,654 [sketchlora.py] => [CA] cycle 6: steps=300 final_loss=0.0022983725648373365 stopped_early=False
+2026-07-29 00:11:48,285 [bounded_memory_mixin.py] => [bounded_mem eval] volume 0.50 | cycle 6 | classes_seen 30 | CIL top1 91.62 | top5 98.49 | (nearest latent task ~2) | param_hash 71684a3af836aaba | per-task [87.94, 88.89, 98.0]
+Target rank: 59
+Target rank: 53
+Target rank: 58
+Target rank: 57
+Target rank: 62
+Target rank: 57
+Target rank: 62
+Target rank: 55
+Target rank: 65
+Target rank: 58
+Target rank: 65
+Target rank: 58
+Target rank: 66
+Target rank: 58
+Target rank: 65
+Target rank: 61
+Target rank: 63
+Target rank: 63
+Target rank: 66
+Target rank: 61
+Target rank: 54
+Target rank: 56
+Target rank: 28
+Target rank: 46
+2026-07-29 00:12:02,255 [sketchlora.py] => [SketchDiag] task 7: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=0.911 | r_hat mean=58.2 total=1396
+2026-07-29 00:12:06,945 [sketchlora.py] => [CA] cycle 7: steps=300 final_loss=0.0005143492599017918 stopped_early=False
+2026-07-29 00:12:11,121 [bounded_memory_mixin.py] => [bounded_mem eval] volume 0.60 | cycle 7 | classes_seen 40 | CIL top1 85.70 | top5 97.49 | (nearest latent task ~3) | param_hash d5a774cc8fc5fe2c | per-task [88.44, 73.74, 93.0, 87.5]
+Target rank: 63
+Target rank: 57
+Target rank: 62
+Target rank: 62
+Target rank: 67
+Target rank: 62
+Target rank: 67
+Target rank: 60
+Target rank: 70
+Target rank: 62
+Target rank: 71
+Target rank: 63
+Target rank: 72
+Target rank: 64
+Target rank: 71
+Target rank: 66
+Target rank: 69
+Target rank: 67
+Target rank: 72
+Target rank: 65
+Target rank: 59
+Target rank: 60
+Target rank: 28
+Target rank: 49
+2026-07-29 00:12:25,099 [sketchlora.py] => [SketchDiag] task 8: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=0.947 | r_hat mean=62.8 total=1508
+2026-07-29 00:12:29,701 [sketchlora.py] => [CA] cycle 8: steps=300 final_loss=0.0006551332189701498 stopped_early=False
+2026-07-29 00:12:33,891 [bounded_memory_mixin.py] => [bounded_mem eval] volume 0.70 | cycle 8 | classes_seen 40 | CIL top1 85.82 | top5 97.87 | (nearest latent task ~3) | param_hash 023867b163084e04 | per-task [87.94, 73.23, 95.5, 86.5]
+Target rank: 67
+Target rank: 61
+Target rank: 66
+Target rank: 66
+Target rank: 72
+Target rank: 67
+Target rank: 72
+Target rank: 64
+Target rank: 75
+Target rank: 66
+Target rank: 77
+Target rank: 68
+Target rank: 78
+Target rank: 69
+Target rank: 77
+Target rank: 70
+Target rank: 75
+Target rank: 72
+Target rank: 78
+Target rank: 70
+Target rank: 63
+Target rank: 65
+Target rank: 30
+Target rank: 53
+2026-07-29 00:12:47,825 [sketchlora.py] => [SketchDiag] task 9: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=0.992 | r_hat mean=67.5 total=1621
+2026-07-29 00:12:52,459 [sketchlora.py] => [CA] cycle 9: steps=300 final_loss=0.004113395698368549 stopped_early=False
+Target rank: 70
+Target rank: 63
+Target rank: 69
+Target rank: 69
+Target rank: 76
+Target rank: 72
+Target rank: 76
+Target rank: 68
+Target rank: 80
+Target rank: 69
+Target rank: 82
+Target rank: 72
+Target rank: 83
+Target rank: 73
+Target rank: 82
+Target rank: 75
+Target rank: 80
+Target rank: 76
+Target rank: 83
+Target rank: 74
+Target rank: 67
+Target rank: 68
+Target rank: 32
+Target rank: 56
+2026-07-29 00:13:06,681 [sketchlora.py] => [SketchDiag] task 10: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=1.023 | r_hat mean=71.5 total=1715
+2026-07-29 00:13:11,287 [sketchlora.py] => [CA] cycle 10: steps=300 final_loss=5.173110912437551e-05 stopped_early=False
+2026-07-29 00:13:16,047 [bounded_memory_mixin.py] => [bounded_mem eval] volume 0.80 | cycle 10 | classes_seen 50 | CIL top1 86.14 | top5 97.69 | (nearest latent task ~4) | param_hash 17ec4d7dadf3e9f2 | per-task [86.93, 73.74, 89.5, 87.0, 93.47]
+Target rank: 73
+Target rank: 67
+Target rank: 72
+Target rank: 73
+Target rank: 80
+Target rank: 77
+Target rank: 80
+Target rank: 72
+Target rank: 84
+Target rank: 73
+Target rank: 87
+Target rank: 77
+Target rank: 88
+Target rank: 77
+Target rank: 87
+Target rank: 80
+Target rank: 85
+Target rank: 80
+Target rank: 88
+Target rank: 79
+Target rank: 71
+Target rank: 72
+Target rank: 32
+Target rank: 58
+2026-07-29 00:13:30,115 [sketchlora.py] => [SketchDiag] task 11: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=1.056 | r_hat mean=75.5 total=1812
+2026-07-29 00:13:34,716 [sketchlora.py] => [CA] cycle 11: steps=300 final_loss=2.399447839707136e-05 stopped_early=False
+2026-07-29 00:13:39,488 [bounded_memory_mixin.py] => [bounded_mem eval] volume 0.90 | cycle 11 | classes_seen 50 | CIL top1 86.35 | top5 97.99 | (nearest latent task ~4) | param_hash 69517a4d08c30841 | per-task [86.93, 72.73, 88.5, 88.5, 94.97]
+Target rank: 74
+Target rank: 69
+Target rank: 74
+Target rank: 76
+Target rank: 83
+Target rank: 80
+Target rank: 83
+Target rank: 75
+Target rank: 87
+Target rank: 75
+Target rank: 90
+Target rank: 80
+Target rank: 92
+Target rank: 80
+Target rank: 91
+Target rank: 83
+Target rank: 89
+Target rank: 83
+Target rank: 91
+Target rank: 80
+Target rank: 73
+Target rank: 74
+Target rank: 33
+Target rank: 58
+2026-07-29 00:13:50,041 [sketchlora.py] => [SketchDiag] task 12: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=1.072 | r_hat mean=78.0 total=1873
+2026-07-29 00:13:54,624 [sketchlora.py] => [CA] cycle 12: steps=300 final_loss=0.00010616255167406052 stopped_early=False
+2026-07-29 00:13:59,389 [bounded_memory_mixin.py] => [bounded_mem eval] volume 1.00 | cycle 12 | classes_seen 50 | CIL top1 86.55 | top5 98.09 | (nearest latent task ~4) | param_hash 8a88fa574d6bee46 | per-task [87.44, 72.22, 89.0, 88.0, 95.98]
+2026-07-29 00:14:03,187 [metrics_logger.py] => [metrics] wrote run_logs/final/sketchlora/metrics_sketchlora_smoke2_ca_v2_sharedfull_s1993.json
+2026-07-29 00:14:03,187 [bounded_memory_mixin.py] => [CE metric] sketchlora = 0.9979849267651351 (eps=2, N=13 cycles)
+2026-07-29 00:14:03,188 [trainer.py] => [bounded_mem] volume checkpoints: [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+2026-07-29 00:14:03,188 [trainer.py] => [bounded_mem] CIL top1 curve: [94.97, 91.18, 94.71, 91.79, 91.62, 85.7, 85.82, 86.14, 86.35, 86.55]
+2026-07-29 00:14:03,188 [trainer.py] => [bounded_mem] CIL top5 curve: [100.0, 99.75, 99.75, 98.32, 98.49, 97.49, 97.87, 97.69, 97.99, 98.09]
+[bounded_mem] checkpoints (fraction of stream): [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+[bounded_mem] CIL top1: [94.97, 91.18, 94.71, 91.79, 91.62, 85.7, 85.82, 86.14, 86.35, 86.55]
+[bounded_mem] CIL top5: [100.0, 99.75, 99.75, 98.32, 98.49, 97.49, 97.87, 97.69, 97.99, 98.09]
+2026-07-29 00:14:03,188 [trainer.py] => [bounded_mem] FINAL CIL top1 86.55 | top5 98.09 (at 100% of stream)
+[bounded_mem] FINAL CIL top1 86.55 | top5 98.09
+[bounded_mem] wrote run_logs/boundedmem_sketchlora_smoke2_ca_v2_sharedfull_s1993.json

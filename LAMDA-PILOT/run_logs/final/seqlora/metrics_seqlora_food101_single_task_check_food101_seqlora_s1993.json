@@ -1,0 +1,54 @@
+{
+  "args_subset": {
+    "model_name": "seqlora",
+    "dataset": "food101",
+    "init_cls": 6,
+    "increment": 5,
+    "seed": 1993,
+    "scenario": "cil",
+    "boundary_mode": null,
+    "budget_mb": null,
+    "n_lora_blocks": null,
+    "lora_rank": 8,
+    "lora_alpha": 32,
+    "svd_energy_target": null,
+    "svd_rank": null,
+    "svd_period": null,
+    "merge_op": null,
+    "cs_rank": null,
+    "lamda_1": null,
+    "lamda_2": null,
+    "lamb": null,
+    "lame": null
+  },
+  "status": "done",
+  "per_task": [
+    {
+      "task": 0,
+      "train_seconds": 266.171,
+      "eval_seconds": 5.466,
+      "boundary_seconds": 0.0,
+      "cil_top1": 99.0,
+      "til_top1": null,
+      "persistent_params": 5902854,
+      "persistent_mb": 22.5176,
+      "persistent_state_breakdown": {
+        "lora_slots": 5898240,
+        "head": 4614
+      },
+      "peak_vram_mb": 0.0
+    }
+  ],
+  "train_seconds_total": 266.1714491844177,
+  "eval_seconds_total": 5.466052770614624,
+  "boundary_seconds_total": 0.0,
+  "inference_ms_per_image": 0.0754,
+  "inference_flops_per_image": null,
+  "cil_summary": {
+    "final_average_accuracy": 99.0,
+    "average_incremental_accuracy": 99.0,
+    "forgetting": null,
+    "backward_transfer": null,
+    "last_task_accuracy": 99.0
+  }
+}

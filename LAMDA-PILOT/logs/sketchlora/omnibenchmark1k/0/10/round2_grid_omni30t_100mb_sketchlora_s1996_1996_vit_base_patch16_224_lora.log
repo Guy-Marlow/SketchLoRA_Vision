@@ -1,0 +1,128 @@
+2026-07-26 22:19:20,208 [trainer.py] => config: exps/round2_grid/_patched_sketchlora_100mb_s1996_gpu4.json
+2026-07-26 22:19:20,208 [trainer.py] => dataset: omnibenchmark1k
+2026-07-26 22:19:20,208 [trainer.py] => memory_size: 0
+2026-07-26 22:19:20,208 [trainer.py] => memory_per_class: 0
+2026-07-26 22:19:20,208 [trainer.py] => fixed_memory: False
+2026-07-26 22:19:20,208 [trainer.py] => shuffle: True
+2026-07-26 22:19:20,208 [trainer.py] => init_cls: 10
+2026-07-26 22:19:20,209 [trainer.py] => increment: 10
+2026-07-26 22:19:20,209 [trainer.py] => scenario: cil
+2026-07-26 22:19:20,209 [trainer.py] => pretrained: True
+2026-07-26 22:19:20,209 [trainer.py] => print_forget: False
+2026-07-26 22:19:20,209 [trainer.py] => final_metrics: False
+2026-07-26 22:19:20,209 [trainer.py] => backbone_type: vit_base_patch16_224_lora
+2026-07-26 22:19:20,209 [trainer.py] => lora_rank: 10
+2026-07-26 22:19:20,209 [trainer.py] => lora_alpha: None
+2026-07-26 22:19:20,209 [trainer.py] => batch_size: 48
+2026-07-26 22:19:20,209 [trainer.py] => weight_decay: 0.0005
+2026-07-26 22:19:20,209 [trainer.py] => min_lr: 0.0
+2026-07-26 22:19:20,209 [trainer.py] => tuned_epoch: 20
+2026-07-26 22:19:20,209 [trainer.py] => boundary_mode: bounded_memory
+2026-07-26 22:19:20,209 [trainer.py] => stop_after_tasks: 30
+2026-07-26 22:19:20,209 [trainer.py] => model_name: sketchlora
+2026-07-26 22:19:20,209 [trainer.py] => lora_merge: True
+2026-07-26 22:19:20,209 [trainer.py] => lora_train_merge: True
+2026-07-26 22:19:20,209 [trainer.py] => svd_rank: 10
+2026-07-26 22:19:20,209 [trainer.py] => svd_oversampling: 10
+2026-07-26 22:19:20,209 [trainer.py] => svd_energy_target: 0.01
+2026-07-26 22:19:20,209 [trainer.py] => lora_n_slots: 2
+2026-07-26 22:19:20,209 [trainer.py] => sketch_diag: True
+2026-07-26 22:19:20,209 [trainer.py] => merge_op: exactsvd
+2026-07-26 22:19:20,209 [trainer.py] => sketchlora_admission: bounded_eviction
+2026-07-26 22:19:20,209 [trainer.py] => sketchlora_rank_cap: 128
+2026-07-26 22:19:20,210 [trainer.py] => sketchlora_lora_wd: 0.0
+2026-07-26 22:19:20,210 [trainer.py] => sketchlora_eviction_reading: conformant
+2026-07-26 22:19:20,210 [trainer.py] => init_lr: 0.001
+2026-07-26 22:19:20,210 [trainer.py] => seed: 1996
+2026-07-26 22:19:20,210 [trainer.py] => bm_budget_mb: 100
+2026-07-26 22:19:20,210 [trainer.py] => prefix: round2_grid_omni30t_100mb_sketchlora_s1996
+2026-07-26 22:19:20,210 [trainer.py] => device: [device(type='cuda', index=4)]
+2026-07-26 22:19:20,780 [data_manager.py] => [438, 831, 338, 46, 856, 850, 593, 53, 230, 71, 34, 91, 794, 884, 358, 68, 585, 804, 601, 488, 443, 290, 699, 811, 898, 416, 424, 72, 235, 116, 908, 669, 569, 47, 983, 464, 545, 267, 383, 408, 96, 760, 935, 321, 511, 819, 253, 671, 945, 919, 209, 705, 711, 448, 106, 552, 486, 734, 978, 394, 654, 527, 522, 51, 774, 583, 234, 127, 958, 933, 398, 886, 21, 465, 104, 572, 377, 537, 50, 188, 697, 128, 28, 158, 855, 382, 496, 562, 225, 560, 242, 647, 255, 400, 274, 743, 775, 824, 258, 280, 806, 480, 652, 252, 528, 744, 578, 232, 203, 662, 474, 134, 403, 649, 250, 574, 638, 753, 926, 436, 785, 379, 27, 61, 543, 563, 826, 960, 879, 861, 214, 690, 776, 571, 798, 266, 590, 427, 622, 679, 0, 849, 902, 2, 925, 984, 92, 220, 674, 818, 848, 916, 959, 864, 29, 204, 482, 420, 322, 31, 207, 217, 869, 223, 271, 605, 558, 923, 710, 16, 469, 778, 497, 733, 874, 216, 777, 385, 841, 606, 183, 86, 717, 559, 277, 117, 114, 769, 462, 262, 814, 973, 348, 171, 291, 846, 112, 458, 78, 365, 74, 431, 272, 737, 937, 575, 166, 56, 534, 815, 353, 857, 952, 33, 144, 761, 211, 771, 359, 766, 133, 894, 816, 882, 366, 892, 852, 747, 546, 842, 355, 703, 553, 931, 317, 645, 36, 863, 890, 489, 900, 672, 370, 283, 80, 722, 109, 198, 614, 122, 356, 939, 725, 667, 459, 110, 18, 342, 102, 612, 823, 592, 419, 928, 210, 529, 411, 524, 772, 454, 943, 336, 873, 835, 118, 901, 751, 224, 75, 877, 439, 951, 93, 714, 15, 435, 992, 685, 59, 599, 659, 414, 52, 119, 239, 708, 310, 867, 298, 702, 401, 687, 386, 247, 570, 484, 616, 862, 428, 300, 971, 598, 557, 808, 977, 946, 508, 41, 539, 222, 412, 749, 790, 79, 131, 675, 579, 957, 344, 314, 677, 121, 161, 487, 970, 700, 129, 715, 390, 520, 719, 646, 201, 32, 704, 770, 876, 828, 82, 429, 989, 561, 905, 476, 248, 940, 384, 682, 406, 783, 839, 878, 123, 453, 643, 536, 493, 665, 202, 442, 872, 809, 532, 609, 880, 812, 391, 694, 173, 49, 650, 221, 44, 588, 944, 287, 349, 404, 481, 623, 154, 288, 301, 334, 227, 941, 917, 281, 25, 706, 228, 963, 485, 292, 728, 913, 124, 153, 306, 688, 955, 501, 607, 921, 765, 333, 449, 43, 986, 345, 907, 980, 500, 805, 120, 1, 914, 632, 695, 434, 651, 604, 184, 177, 825, 368, 445, 844, 847, 182, 663, 498, 88, 101, 479, 912, 212, 997, 372, 165, 30, 307, 530, 108, 352, 180, 237, 834, 375, 817, 795, 906, 587, 279, 625, 735, 328, 142, 194, 460, 141, 568, 380, 738, 936, 999, 17, 683, 888, 289, 360, 523, 789, 833, 40, 594, 354, 22, 326, 19, 832, 930, 293, 341, 716, 226, 470, 160, 788, 147, 361, 392, 64, 624, 245, 531, 241, 4, 396, 660, 433, 720, 514, 265, 264, 351, 103, 302, 655, 947, 376, 270, 617, 726, 455, 313, 903, 63, 263, 363, 787, 273, 137, 243, 595, 350, 807, 233, 259, 990, 452, 550, 409, 938, 975, 871, 724, 430, 910, 318, 780, 698, 473, 845, 399, 581, 178, 932, 332, 924, 407, 170, 472, 799, 566, 620, 296, 621, 723, 506, 393, 346, 904, 367, 60, 415, 192, 580, 8, 176, 85, 324, 554, 820, 186, 918, 69, 206, 752, 991, 740, 762, 260, 174, 754, 410, 475, 544, 246, 589, 269, 478, 803, 684, 801, 613, 979, 985, 693, 969, 66, 854, 89, 229, 282, 55, 389, 135, 150, 268, 821, 577, 730, 100, 729, 276, 875, 727, 556, 691, 373, 145, 791, 240, 149, 213, 909, 653, 374, 130, 155, 219, 929, 840, 98, 136, 896, 859, 3, 140, 564, 426, 866, 586, 70, 343, 962, 829, 640, 739, 922, 767, 513, 369, 525, 982, 67, 236, 325, 172, 73, 143, 444, 151, 953, 169, 35, 499, 657, 337, 538, 316, 94, 83, 309, 895, 319, 584, 591, 152, 13, 745, 320, 956, 830, 796, 633, 437, 87, 642, 713, 993, 518, 519, 215, 865, 689, 6, 187, 502, 763, 5, 950, 972, 335, 602, 115, 548, 779, 967, 927, 516, 718, 339, 299, 996, 966, 547, 507, 800, 630, 39, 603, 441, 742, 994, 417, 666, 615, 185, 628, 97, 231, 709, 26, 786, 942, 157, 111, 218, 504, 397, 329, 54, 308, 456, 636, 949, 193, 99, 853, 305, 249, 477, 634, 755, 509, 126, 168, 707, 190, 7, 286, 658, 988, 107, 510, 555, 512, 736, 541, 200, 37, 14, 362, 567, 24, 961, 12, 378, 9, 948, 315, 205, 303, 600, 899, 810, 284, 868, 673, 505, 792, 987, 492, 405, 889, 517, 858, 181, 189, 635, 457, 422, 768, 860, 891, 611, 294, 197, 664, 446, 191, 741, 756, 976, 95, 421, 998, 597, 105, 681, 670, 686, 851, 179, 468, 995, 413, 388, 781, 402, 113, 629, 731, 84, 285, 466, 934, 146, 20, 244, 802, 450, 254, 680, 515, 637, 644, 125, 295, 164, 251, 661, 696, 712, 58, 483, 920, 576, 175, 782, 503, 721, 381, 357, 371, 159, 327, 195, 521, 639, 238, 423, 304, 893, 887, 347, 631, 668, 784, 965, 81, 582, 533, 45, 138, 163, 261, 77, 542, 494, 648, 619, 750, 196, 275, 311, 440, 418, 701, 447, 57, 565, 618, 758, 495, 331, 813, 156, 822, 676, 627, 656, 491, 897, 432, 490, 981, 843, 911, 881, 62, 148, 11, 626, 387, 641, 964, 471, 773, 608, 746, 764, 732, 10, 551, 797, 535, 395, 692, 838, 199, 208, 425, 76, 23, 837, 974, 883, 90, 312, 678, 759, 836, 167, 42, 596, 748, 461, 915, 256, 278, 870, 757, 968, 364, 65, 573, 467, 330, 827, 793, 549, 48, 340, 162, 540, 132, 139, 885, 526, 463, 451, 297, 38, 323, 610, 257, 954]
+2026-07-26 22:19:27,114 [bounded_memory_mixin.py] => [bounded_mem] stop_after_tasks=30 (of 100 total)
+2026-07-26 22:19:27,157 [bounded_memory_mixin.py] => [bounded_mem] budget_mb=100.0 -> cycle=697 images (mean_task=1660.6 images, so this budget is 0.42x mean task size); 49817 total images -> 72 cycles (T=72 sessions); 10 eval checkpoints
+2026-07-26 22:21:04,183 [sketchlora.py] => [SketchDiag] task 0: retained-energy mean=1.000 min=1.000 | ||ΔW||_F mean=0.799 | r_hat mean=10.0 total=240
+2026-07-26 22:22:43,726 [sketchlora.py] => [SketchDiag] task 1: retained-energy mean=0.993 min=0.990 | ||ΔW||_F mean=1.065 | r_hat mean=17.7 total=425
+2026-07-26 22:24:24,123 [sketchlora.py] => [SketchDiag] task 2: retained-energy mean=0.992 min=0.990 | ||ΔW||_F mean=1.337 | r_hat mean=24.4 total=585
+2026-07-26 22:26:05,054 [sketchlora.py] => [SketchDiag] task 3: retained-energy mean=0.992 min=0.990 | ||ΔW||_F mean=1.528 | r_hat mean=31.0 total=745
+2026-07-26 22:27:46,320 [sketchlora.py] => [SketchDiag] task 4: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=1.719 | r_hat mean=36.8 total=884
+2026-07-26 22:29:27,703 [sketchlora.py] => [SketchDiag] task 5: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=1.945 | r_hat mean=41.7 total=1001
+2026-07-26 22:31:09,138 [sketchlora.py] => [SketchDiag] task 6: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=2.090 | r_hat mean=46.2 total=1110
+2026-07-26 22:32:50,961 [sketchlora.py] => [SketchDiag] task 7: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=2.233 | r_hat mean=49.7 total=1192
+2026-07-26 22:32:55,005 [bounded_memory_mixin.py] => [bounded_mem eval] volume 0.10 | cycle 7 | classes_seen 40 | CIL top1 85.34 | top5 96.97 | (nearest latent task ~3) | param_hash 3863974a22b02910 | per-task [91.96, 93.5, 64.97, 90.77]
+2026-07-26 22:34:37,332 [sketchlora.py] => [SketchDiag] task 8: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=2.323 | r_hat mean=53.8 total=1291
+2026-07-26 22:36:19,675 [sketchlora.py] => [SketchDiag] task 9: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=2.451 | r_hat mean=56.5 total=1357
+2026-07-26 22:38:02,537 [sketchlora.py] => [SketchDiag] task 10: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=2.557 | r_hat mean=60.2 total=1444
+2026-07-26 22:39:45,425 [sketchlora.py] => [SketchDiag] task 11: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=2.660 | r_hat mean=62.9 total=1510
+2026-07-26 22:41:28,257 [sketchlora.py] => [SketchDiag] task 12: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=2.743 | r_hat mean=66.1 total=1586
+2026-07-26 22:43:11,248 [sketchlora.py] => [SketchDiag] task 13: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=2.840 | r_hat mean=68.6 total=1647
+2026-07-26 22:44:54,004 [sketchlora.py] => [SketchDiag] task 14: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=2.917 | r_hat mean=71.0 total=1704
+2026-07-26 22:44:59,733 [bounded_memory_mixin.py] => [bounded_mem eval] volume 0.20 | cycle 14 | classes_seen 70 | CIL top1 81.37 | top5 95.83 | (nearest latent task ~6) | param_hash 2a7602b011f830d0 | per-task [82.41, 87.5, 44.16, 76.92, 90.5, 95.98, 91.5]
+2026-07-26 22:46:42,765 [sketchlora.py] => [SketchDiag] task 15: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=2.997 | r_hat mean=73.5 total=1765
+2026-07-26 22:48:25,748 [sketchlora.py] => [SketchDiag] task 16: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=3.075 | r_hat mean=74.9 total=1797
+2026-07-26 22:50:08,677 [sketchlora.py] => [SketchDiag] task 17: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=3.135 | r_hat mean=77.0 total=1849
+2026-07-26 22:51:51,534 [sketchlora.py] => [SketchDiag] task 18: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=3.205 | r_hat mean=78.2 total=1876
+2026-07-26 22:53:34,640 [sketchlora.py] => [SketchDiag] task 19: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=3.260 | r_hat mean=79.5 total=1909
+2026-07-26 22:55:17,979 [sketchlora.py] => [SketchDiag] task 20: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=3.314 | r_hat mean=81.0 total=1944
+2026-07-26 22:57:01,218 [sketchlora.py] => [SketchDiag] task 21: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=3.422 | r_hat mean=81.9 total=1965
+2026-07-26 22:57:08,757 [bounded_memory_mixin.py] => [bounded_mem eval] volume 0.30 | cycle 21 | classes_seen 100 | CIL top1 75.15 | top5 94.57 | (nearest latent task ~9) | param_hash 455680b94c675edc | per-task [76.38, 71.0, 36.55, 67.69, 76.5, 79.9, 80.5, 81.5, 84.0, 96.97]
+2026-07-26 22:58:51,965 [sketchlora.py] => [SketchDiag] task 22: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=3.480 | r_hat mean=83.3 total=1999
+2026-07-26 23:00:35,213 [sketchlora.py] => [SketchDiag] task 23: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=3.557 | r_hat mean=84.2 total=2021
+2026-07-26 23:02:18,415 [sketchlora.py] => [SketchDiag] task 24: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=3.622 | r_hat mean=85.6 total=2055
+2026-07-26 23:04:01,819 [sketchlora.py] => [SketchDiag] task 25: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=3.697 | r_hat mean=86.4 total=2073
+2026-07-26 23:05:45,115 [sketchlora.py] => [SketchDiag] task 26: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=3.758 | r_hat mean=87.5 total=2100
+2026-07-26 23:07:28,485 [sketchlora.py] => [SketchDiag] task 27: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=3.825 | r_hat mean=88.2 total=2118
+2026-07-26 23:09:12,096 [sketchlora.py] => [SketchDiag] task 28: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=3.876 | r_hat mean=88.9 total=2133
+2026-07-26 23:09:21,377 [bounded_memory_mixin.py] => [bounded_mem eval] volume 0.40 | cycle 28 | classes_seen 130 | CIL top1 71.31 | top5 93.65 | (nearest latent task ~12) | param_hash 0d2465c0d5818a0a | per-task [57.79, 63.5, 38.58, 60.51, 77.0, 70.35, 76.5, 68.5, 77.5, 88.38, 85.86, 79.19, 83.0]
+2026-07-26 23:11:05,089 [sketchlora.py] => [SketchDiag] task 29: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=3.929 | r_hat mean=89.1 total=2138
+2026-07-26 23:12:48,655 [sketchlora.py] => [SketchDiag] task 30: retained-energy mean=0.992 min=0.990 | ||ΔW||_F mean=3.981 | r_hat mean=89.8 total=2155
+2026-07-26 23:14:32,274 [sketchlora.py] => [SketchDiag] task 31: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=4.025 | r_hat mean=90.6 total=2175
+2026-07-26 23:16:15,988 [sketchlora.py] => [SketchDiag] task 32: retained-energy mean=0.992 min=0.990 | ||ΔW||_F mean=4.081 | r_hat mean=91.2 total=2189
+2026-07-26 23:17:59,670 [sketchlora.py] => [SketchDiag] task 33: retained-energy mean=0.992 min=0.990 | ||ΔW||_F mean=4.119 | r_hat mean=91.5 total=2195
+2026-07-26 23:19:43,350 [sketchlora.py] => [SketchDiag] task 34: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=4.161 | r_hat mean=91.8 total=2203
+2026-07-26 23:21:27,149 [sketchlora.py] => [SketchDiag] task 35: retained-energy mean=0.992 min=0.990 | ||ΔW||_F mean=4.214 | r_hat mean=92.0 total=2209
+2026-07-26 23:21:38,268 [bounded_memory_mixin.py] => [bounded_mem eval] volume 0.50 | cycle 35 | classes_seen 160 | CIL top1 69.06 | top5 91.89 | (nearest latent task ~15) | param_hash a2a2ff76e4953e9d | per-task [52.26, 63.5, 38.07, 54.87, 77.0, 67.84, 71.0, 62.0, 77.5, 86.36, 76.77, 67.01, 79.5, 76.26, 74.5, 79.9]
+2026-07-26 23:23:22,374 [sketchlora.py] => [SketchDiag] task 36: retained-energy mean=0.992 min=0.991 | ||ΔW||_F mean=4.255 | r_hat mean=92.3 total=2216
+2026-07-26 23:25:06,125 [sketchlora.py] => [SketchDiag] task 37: retained-energy mean=0.992 min=0.990 | ||ΔW||_F mean=4.306 | r_hat mean=92.4 total=2218
+2026-07-26 23:26:49,550 [sketchlora.py] => [SketchDiag] task 38: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=4.361 | r_hat mean=92.9 total=2230
+2026-07-26 23:28:33,485 [sketchlora.py] => [SketchDiag] task 39: retained-energy mean=0.992 min=0.990 | ||ΔW||_F mean=4.412 | r_hat mean=93.5 total=2243
+2026-07-26 23:30:17,386 [sketchlora.py] => [SketchDiag] task 40: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=4.452 | r_hat mean=93.6 total=2246
+2026-07-26 23:32:01,267 [sketchlora.py] => [SketchDiag] task 41: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=4.494 | r_hat mean=94.0 total=2255
+2026-07-26 23:33:45,448 [sketchlora.py] => [SketchDiag] task 42: retained-energy mean=0.992 min=0.990 | ||ΔW||_F mean=4.540 | r_hat mean=94.0 total=2257
+2026-07-26 23:33:58,589 [bounded_memory_mixin.py] => [bounded_mem eval] volume 0.60 | cycle 42 | classes_seen 190 | CIL top1 65.04 | top5 90.95 | (nearest latent task ~18) | param_hash f0e8b405a63bc6c6 | per-task [45.23, 55.5, 33.5, 46.15, 71.5, 67.84, 71.0, 60.5, 67.0, 77.27, 72.73, 59.39, 78.0, 73.23, 70.5, 70.35, 65.33, 82.0, 68.0]
+2026-07-26 23:35:42,791 [sketchlora.py] => [SketchDiag] task 43: retained-energy mean=0.992 min=0.990 | ||ΔW||_F mean=4.579 | r_hat mean=94.2 total=2260
+2026-07-26 23:37:26,537 [sketchlora.py] => [SketchDiag] task 44: retained-energy mean=0.992 min=0.990 | ||ΔW||_F mean=4.610 | r_hat mean=94.2 total=2260
+2026-07-26 23:39:10,486 [sketchlora.py] => [SketchDiag] task 45: retained-energy mean=0.993 min=0.990 | ||ΔW||_F mean=4.643 | r_hat mean=94.2 total=2262
+2026-07-26 23:40:54,268 [sketchlora.py] => [SketchDiag] task 46: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=4.678 | r_hat mean=94.2 total=2262
+2026-07-26 23:42:38,310 [sketchlora.py] => [SketchDiag] task 47: retained-energy mean=0.992 min=0.990 | ||ΔW||_F mean=4.729 | r_hat mean=94.2 total=2262
+2026-07-26 23:44:22,302 [sketchlora.py] => [SketchDiag] task 48: retained-energy mean=0.992 min=0.990 | ||ΔW||_F mean=4.783 | r_hat mean=94.4 total=2265
+2026-07-26 23:46:06,133 [sketchlora.py] => [SketchDiag] task 49: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=4.836 | r_hat mean=94.6 total=2270
+2026-07-26 23:47:50,269 [sketchlora.py] => [SketchDiag] task 50: retained-energy mean=0.992 min=0.990 | ||ΔW||_F mean=4.873 | r_hat mean=94.8 total=2274
+2026-07-26 23:48:05,023 [bounded_memory_mixin.py] => [bounded_mem eval] volume 0.70 | cycle 50 | classes_seen 220 | CIL top1 63.49 | top5 89.92 | (nearest latent task ~21) | param_hash 3ac6602e851e6062 | per-task [49.25, 56.5, 35.53, 48.72, 66.5, 62.31, 68.0, 59.5, 65.0, 73.74, 68.69, 52.28, 78.0, 75.76, 67.0, 69.35, 68.84, 78.0, 69.0, 65.33, 62.31, 56.5]
+2026-07-26 23:49:49,211 [sketchlora.py] => [SketchDiag] task 51: retained-energy mean=0.992 min=0.990 | ||ΔW||_F mean=4.910 | r_hat mean=94.8 total=2275
+2026-07-26 23:51:33,191 [sketchlora.py] => [SketchDiag] task 52: retained-energy mean=0.992 min=0.990 | ||ΔW||_F mean=4.947 | r_hat mean=94.8 total=2276
+2026-07-26 23:53:17,308 [sketchlora.py] => [SketchDiag] task 53: retained-energy mean=0.993 min=0.991 | ||ΔW||_F mean=4.976 | r_hat mean=94.8 total=2276
+2026-07-26 23:55:01,363 [sketchlora.py] => [SketchDiag] task 54: retained-energy mean=0.993 min=0.990 | ||ΔW||_F mean=5.019 | r_hat mean=95.0 total=2279
+2026-07-26 23:56:45,344 [sketchlora.py] => [SketchDiag] task 55: retained-energy mean=0.992 min=0.991 | ||ΔW||_F mean=5.051 | r_hat mean=95.0 total=2279
+2026-07-26 23:58:29,356 [sketchlora.py] => [SketchDiag] task 56: retained-energy mean=0.992 min=0.991 | ||ΔW||_F mean=5.091 | r_hat mean=95.0 total=2281
+2026-07-27 00:00:13,333 [sketchlora.py] => [SketchDiag] task 57: retained-energy mean=0.992 min=0.990 | ||ΔW||_F mean=5.137 | r_hat mean=95.1 total=2282
+2026-07-27 00:00:29,911 [bounded_memory_mixin.py] => [bounded_mem eval] volume 0.80 | cycle 57 | classes_seen 250 | CIL top1 59.22 | top5 87.55 | (nearest latent task ~24) | param_hash 3b643779699412fd | per-task [33.67, 58.0, 28.43, 45.64, 56.5, 63.82, 65.0, 52.5, 64.5, 65.66, 60.1, 41.62, 70.5, 70.71, 52.0, 68.34, 61.81, 70.5, 65.5, 55.78, 51.26, 65.0, 58.88, 82.23, 72.0]
+2026-07-27 00:02:13,721 [sketchlora.py] => [SketchDiag] task 58: retained-energy mean=0.992 min=0.990 | ||ΔW||_F mean=5.170 | r_hat mean=95.1 total=2282
+2026-07-27 00:03:57,691 [sketchlora.py] => [SketchDiag] task 59: retained-energy mean=0.993 min=0.991 | ||ΔW||_F mean=5.217 | r_hat mean=95.2 total=2284
+2026-07-27 00:05:41,420 [sketchlora.py] => [SketchDiag] task 60: retained-energy mean=0.992 min=0.990 | ||ΔW||_F mean=5.252 | r_hat mean=95.2 total=2284
+2026-07-27 00:07:25,288 [sketchlora.py] => [SketchDiag] task 61: retained-energy mean=0.992 min=0.990 | ||ΔW||_F mean=5.289 | r_hat mean=95.2 total=2285
+2026-07-27 00:09:09,392 [sketchlora.py] => [SketchDiag] task 62: retained-energy mean=0.993 min=0.991 | ||ΔW||_F mean=5.328 | r_hat mean=95.2 total=2285
+2026-07-27 00:10:53,451 [sketchlora.py] => [SketchDiag] task 63: retained-energy mean=0.993 min=0.990 | ||ΔW||_F mean=5.354 | r_hat mean=95.2 total=2286
+2026-07-27 00:12:37,531 [sketchlora.py] => [SketchDiag] task 64: retained-energy mean=0.993 min=0.991 | ||ΔW||_F mean=5.386 | r_hat mean=95.3 total=2287
+2026-07-27 00:12:55,880 [bounded_memory_mixin.py] => [bounded_mem eval] volume 0.90 | cycle 64 | classes_seen 280 | CIL top1 58.42 | top5 87.00 | (nearest latent task ~27) | param_hash 760c2b8c9095db30 | per-task [31.16, 55.5, 29.95, 43.08, 55.0, 66.83, 63.5, 40.0, 61.5, 59.09, 62.63, 41.62, 70.0, 69.7, 58.5, 65.33, 57.79, 71.0, 65.5, 52.76, 47.74, 60.5, 59.9, 80.71, 49.0, 80.81, 73.37, 63.0]
+2026-07-27 00:14:40,168 [sketchlora.py] => [SketchDiag] task 65: retained-energy mean=0.993 min=0.992 | ||ΔW||_F mean=5.413 | r_hat mean=95.3 total=2287
+2026-07-27 00:16:24,346 [sketchlora.py] => [SketchDiag] task 66: retained-energy mean=0.993 min=0.992 | ||ΔW||_F mean=5.445 | r_hat mean=95.3 total=2288
+2026-07-27 00:18:08,285 [sketchlora.py] => [SketchDiag] task 67: retained-energy mean=0.993 min=0.991 | ||ΔW||_F mean=5.479 | r_hat mean=95.4 total=2289
+2026-07-27 00:19:51,829 [sketchlora.py] => [SketchDiag] task 68: retained-energy mean=0.993 min=0.992 | ||ΔW||_F mean=5.502 | r_hat mean=95.4 total=2289
+2026-07-27 00:21:35,870 [sketchlora.py] => [SketchDiag] task 69: retained-energy mean=0.993 min=0.991 | ||ΔW||_F mean=5.541 | r_hat mean=95.5 total=2291
+2026-07-27 00:23:19,913 [sketchlora.py] => [SketchDiag] task 70: retained-energy mean=0.992 min=0.991 | ||ΔW||_F mean=5.574 | r_hat mean=95.5 total=2291
+2026-07-27 00:24:16,340 [sketchlora.py] => [SketchDiag] task 71: retained-energy mean=0.996 min=0.995 | ||ΔW||_F mean=5.573 | r_hat mean=95.5 total=2291
+2026-07-27 00:24:35,910 [bounded_memory_mixin.py] => [bounded_mem eval] volume 1.00 | cycle 71 | classes_seen 300 | CIL top1 54.80 | top5 84.74 | (nearest latent task ~29) | param_hash 8221675791dac25b | per-task [26.13, 57.5, 24.87, 40.0, 46.0, 61.81, 59.0, 42.0, 50.5, 51.01, 54.04, 32.99, 61.5, 60.61, 53.0, 60.8, 52.76, 67.5, 58.5, 46.23, 47.24, 54.0, 56.85, 68.02, 47.5, 75.25, 68.34, 83.0, 57.87, 78.5]
+2026-07-27 00:24:35,911 [trainer.py] => [bounded_mem] volume checkpoints: [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+2026-07-27 00:24:35,911 [trainer.py] => [bounded_mem] CIL top1 curve: [85.34, 81.37, 75.15, 71.31, 69.06, 65.04, 63.49, 59.22, 58.42, 54.8]
+2026-07-27 00:24:35,912 [trainer.py] => [bounded_mem] CIL top5 curve: [96.97, 95.83, 94.57, 93.65, 91.89, 90.95, 89.92, 87.55, 87.0, 84.74]
+2026-07-27 00:24:35,912 [trainer.py] => [bounded_mem] FINAL CIL top1 54.80 | top5 84.74 (at 100% of stream)

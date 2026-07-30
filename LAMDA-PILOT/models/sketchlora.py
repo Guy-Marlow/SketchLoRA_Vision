@@ -38,6 +38,32 @@ Inference (single shared sketch, like SeqLoRA but compressed):
            the result is W·x + s·B̂Â·x.
   * TIL -> route to slot 0 (``_eval_adapter`` -> 0), merge=False -> W·x + s·B̂Â·x,
            masked to the known task's class slice.
+
+SketchLoRA v2 (impl_plan_7.28.2026): decisions locked by the bolt-on ablation
+data, recorded here per plan sec 0 --
+  * FD shrinkage (fd_shrinkage=True) is OFF the v2 path: cost 2-4 top1 at 15T
+    locally, no accuracy benefit found. Retained as the rank/accuracy
+    compression dial, not refuted outright -- e.g. lazy-merge@100MB: 65.82
+    top1 at r_hat~22 vs 66.42 at r_hat~93 baseline is the tradeoff figure to
+    report. Its long-horizon (>15-task) claim remains untested, so it is
+    documented as off-path, not disproven.
+  * An annealing-epsilon admission proposal was REJECTED: it requires a
+    known clock/horizon to anneal against, which reintroduces exactly the
+    stream-length-oracle dependency this project criticizes InfLoRA's
+    DualGPM for -- it treats the symptom (rank growth) rather than the cause
+    (which directions get evicted).
+  * A tree-merge (pairwise balanced merging) proposal is DEFERRED to v3+.
+    Structurally this is the mergeable-summaries / distributed-FD construction
+    (Agarwal et al. 2012; Ghashami et al. SICOMP 2016's merge theorem): error
+    composes additively over a log-depth root path, so retained state becomes
+    O(log K) rather than O(1), and loss is scheduled fairly across the merge
+    tree rather than eliminated. Worth a pilot only if research-time reserve
+    remains after the v2 money runs.
+  * The two 2026-07-28 admission-rule ablations (guaranteed_admission,
+    force_increase) are RETIRED and replaced by admission_rule="floor" (sec 1
+    below) -- a single codepath that fixes force_increase's at-cap floor-
+    collapse bug by construction instead of patching the eviction-count
+    formula a second time.
 """
 
 import json
@@ -48,12 +74,14 @@ import sys
 
 import torch
 from torch import nn
+from torch.nn import functional as F
 
 from models.lora import Learner as LoRALearner
 
 # trusted randomized-SVD implementation (vendored into utils/ for self-containment)
 from utils.randsvd import rand_svd
 from utils.countsketch import countsketch_compress
+from utils.admission import floor_admission_merge
 
 # fixed-slot convention: 0 = frozen sketch, 1 = trainable residual
 SKETCH = 0
@@ -89,6 +117,17 @@ class Learner(LoRALearner):
         # behaviour above.
         self.merge_op = args.get("merge_op", "randsvd")
         assert self.merge_op in ("randsvd", "exactsvd", "countsketch", "naive_sum", "nocompress")
+        # -- FD shrinkage bolt-on (impl_plan_7.27.2026 sec 1.1). Only meaningful for
+        # SVD-truncation merge_ops -- "Sigma[l]" (the first discarded singular value)
+        # has no analogue for naive_sum (no SVD) or countsketch (hashed, not truncated),
+        # so it's a documented no-op there rather than a hard error.
+        self.fd_shrinkage = bool(args.get("fd_shrinkage", False))
+        if self.fd_shrinkage and self.merge_op not in ("randsvd", "exactsvd"):
+            logging.warning(
+                "[SketchLoRA] fd_shrinkage=True but merge_op=%s has no truncated-SVD "
+                "spectrum to shrink -- fd_shrinkage will be a no-op for this run.",
+                self.merge_op)
+        self._fd_cumulative_rent = []   # per-module running total of FD "rent" charged
         # -- Plan A §A5.1/§A5.2 "frozen" SketchLoRA variant (impl_plan_7.25.2026) --
         # All three knobs below default to the ORIGINAL, unmodified behavior --
         # every existing config/run is byte-for-byte unaffected. Set explicitly
@@ -96,12 +135,38 @@ class Learner(LoRALearner):
         # sketchlora_lora_wd=0.0) to opt into the frozen variant Plan C requires.
         # See docs/sketchlora_frozen_variant.md for the full design writeup.
         self.admission_rule = args.get("sketchlora_admission", "global_eps")
-        assert self.admission_rule in ("global_eps", "bounded_eviction")
-        if self.admission_rule == "bounded_eviction":
+        assert self.admission_rule in ("global_eps", "bounded_eviction", "floor")
+        if self.admission_rule in ("bounded_eviction", "floor"):
             assert self.energy_target is not None, \
-                "bounded_eviction is a rank-SELECTION refinement of adaptive (energy_target) " \
-                "mode -- it has nothing to bound in fixed-rank mode, where svd_rank already " \
-                "pins the rank every merge. Set svd_energy_target to use it."
+                "bounded_eviction/floor are rank-SELECTION refinements of adaptive " \
+                "(energy_target) mode -- nothing to bound in fixed-rank mode, where svd_rank " \
+                "already pins the rank every merge. Set svd_energy_target to use it."
+        # -- admission rule v2: floor + cap-turnover (impl_plan_7.28.2026 sec 1).
+        # Single codepath REPLACING the two 2026-07-28-direction ablations
+        # guaranteed_admission (reserved-slot protection, no floor-survives-cap
+        # guarantee) and force_increase (floor via an eviction-count adjustment
+        # that a live H200-bound run proved does NOT survive the at-cap branch --
+        # evict = composite_rank - cap there ignored the floor entirely, so
+        # force_increase silently degenerated to plain bounded_eviction once rank
+        # hit rank_cap). "floor" fixes this by construction: protect the top-k
+        # directions of the residual's component orthogonal to the pre-merge
+        # sketch (guaranteed_admission's idea), but size the energy-fill budget
+        # as r_hat_t - k (r_hat_t from the UNCHANGED bounded_eviction formula)
+        # so the protected k are additive to, never competing with, the target
+        # rank -- they cannot be evicted at any cap. See utils/admission.py for
+        # the full algorithm + rationale; unit tests:
+        # scripts/test_floor_admission_synthetic.py (floor survives at cap),
+        # scripts/test_floor_golden_bitexact.py (k=0 == bounded_eviction, bit-exact).
+        self.admission_floor_k = args.get("sketchlora_admission_floor_k", 1)
+        if self.admission_rule == "floor":
+            assert self.energy_target is not None, \
+                "floor fills its non-protected slots by the same energy-threshold " \
+                "rule as adaptive mode -- requires svd_energy_target"
+            assert self.merge_op == "randsvd", \
+                "floor is only implemented for merge_op='randsvd' (our project " \
+                "default) -- exactsvd/countsketch/naive_sum/nocompress are not " \
+                "wired into utils.admission.floor_admission_merge"
+            assert self.admission_floor_k >= 1
         self.rank_cap = args.get("sketchlora_rank_cap", None)   # r_max; None = unbounded (old default)
         # Round 2 §2.4: the bounded-eviction FORMULA has two possible readings
         # of the source spec's "t = min(r_residual, k_eps)"; both implemented,
@@ -116,18 +181,94 @@ class Learner(LoRALearner):
         # aggressive (see the unit test's "responsiveness check").
         self.eviction_reading = args.get("sketchlora_eviction_reading", "conformant")
         assert self.eviction_reading in ("conformant", "literal_keeprank")
-        # -- Plan C §C1 lazy_merge (non-default, sign-off gated per §C8 -- runs
-        # as a labeled experimental arm only, never the default). Accumulate the
-        # residual across multiple bounded-memory cycles instead of folding
-        # every cycle; fold only once an internal, boundary-blind saturation
-        # statistic trips. See _lazy_should_fold's docstring for the exact
-        # statistic and its rationale.
-        self.lazy_merge = bool(args.get("lazy_merge", False))
-        self.lazy_merge_frac = args.get("lazy_merge_frac", 0.9)
-        if self.lazy_merge:
+        # -- lazy merge (impl_plan_7.27.2026 sec 1.2). Generalizes/supersedes the
+        # earlier Plan C §C1 boolean+frac design (kept, unrenamed in behavior, as
+        # the "legacy_saturation" mode below, for exact backward compat with any
+        # config still passing a bare bool -- "lazy_merge": true means exactly what
+        # it always meant). New surface: lazy_merge in {"off","period","plateau"}.
+        #   period:  ALIASES svd_period (does not duplicate it) -- lazy_merge_period
+        #            just sets self.svd_period, and streaming folds at period
+        #            boundaries exactly like the oracle path's at_period_boundary
+        #            check (see _stream_slot/_stream_end_chunk).
+        #   plateau: NEW. utils.lazy.PlateauTracker -- folds once the residual's
+        #            own drift plateaus for 2 consecutive cycles, or
+        #            lazy_merge_max_holdoff cycles have passed since the last fold.
+        raw_lazy = args.get("lazy_merge", "off")
+        if isinstance(raw_lazy, bool):
+            self.lazy_merge_mode = "legacy_saturation" if raw_lazy else "off"
+        else:
+            assert raw_lazy in ("off", "period", "plateau"), \
+                "lazy_merge must be a bool (legacy) or one of off/period/plateau"
+            self.lazy_merge_mode = raw_lazy
+        self.lazy_merge = self.lazy_merge_mode != "off"   # legacy boolean, kept for gating below
+        self.lazy_merge_frac = args.get("lazy_merge_frac", 0.9)             # legacy_saturation only
+        self.lazy_merge_period = args.get("lazy_merge_period", None)        # period only
+        self.lazy_merge_delta = args.get("lazy_merge_delta", 0.05)          # plateau only
+        self.lazy_merge_max_holdoff = args.get("lazy_merge_max_holdoff", 10)  # period-mode: unused; plateau: staleness cap
+        if self.lazy_merge_mode == "legacy_saturation":
             assert self.energy_target is not None, \
                 "lazy_merge's saturation check is an energy-threshold rank measurement -- " \
                 "requires svd_energy_target (adaptive mode)."
+        if self.lazy_merge_mode == "period":
+            assert self.lazy_merge_period is not None and self.lazy_merge_period >= 1, \
+                "lazy_merge=period requires lazy_merge_period >= 1"
+            configured_svd_period = args.get("svd_period", 1)
+            if configured_svd_period != 1 and configured_svd_period != self.lazy_merge_period:
+                raise ValueError(
+                    "svd_period and lazy_merge_period are the SAME underlying knob "
+                    "(impl_plan_7.27.2026 sec 1.2: 'this generalizes the existing period "
+                    "hyperparameter; alias them, do not duplicate') -- set only one, or "
+                    "set both to the same value")
+            self.svd_period = self.lazy_merge_period   # overrides the svd_period=1 default above
+        self._plateau_tracker = None
+        if self.lazy_merge_mode == "plateau":
+            assert self.svd_period == 1, \
+                "plateau mode is a single-residual accumulate-until-triggered design " \
+                "(impl_plan_7.27.2026 sec 1.2) -- does not combine with svd_period>1"
+            from utils.lazy import PlateauTracker
+            self._plateau_tracker = PlateauTracker(self.lazy_merge_delta, self.lazy_merge_max_holdoff)
+        # -- classifier alignment (impl_plan_7.27.2026 sec 1.3). SLCA-style,
+        # exemplar-free: online per-class {mean, diagvar} over penultimate
+        # features (utils.ca.ClassStats), head-only realignment on pseudo-
+        # features sampled from those per-class Gaussians, run every stream
+        # cycle (see _stream_end_chunk). ClassStats needs self._network.fc's
+        # width, which does not exist yet at __init__ time (update_fc runs
+        # later, in bounded_memory_run) -- deferred to _stream_init.
+        self.classifier_alignment = bool(args.get("classifier_alignment", False))
+        self.ca_steps = args.get("ca_steps", 300)
+        self.ca_batch = args.get("ca_batch", 128)
+        self.ca_lr = args.get("ca_lr", 1e-3)
+        self.ca_store = args.get("ca_store", "mean_diagvar")
+        if self.classifier_alignment:
+            assert self.ca_store == "mean_diagvar", \
+                "only ca_store='mean_diagvar' is implemented (impl_plan_7.27.2026 sec 1.3 default)"
+        # -- CA repair sweep, v2 variants (impl_plan_7.28.2026 sec 2) --
+        # (b) covariance mode: "diag" (v1, unchanged default) / "shared_full" /
+        # "low_rank_diag" -- see utils/ca.py::ClassStats.
+        self.ca_cov_mode = args.get("ca_cov_mode", "diag")
+        # (a) ca_steps sweep is just ca_steps itself (already a config knob);
+        # early stopping against a held-out pseudo-feature batch, checked
+        # every 10 steps, patience in units of checks (None = off, v1 behavior).
+        self.ca_early_stop_patience = args.get("ca_early_stop_patience", None)
+        self.ca_val_batch = args.get("ca_val_batch", None)   # None -> defaults to ca_batch
+        # (c) real-feature mixing: fraction of each align_head batch drawn from
+        # a bounded per-cycle reservoir of ACTUAL current-cycle features
+        # (collected in _bounded_train_epoch) instead of sampled pseudo-features.
+        self.ca_real_mix_frac = args.get("ca_real_mix_frac", 0.0)
+        self.ca_real_reservoir_size = args.get("ca_real_reservoir_size", 512)
+        # (d) logit-adjustment-ONLY arm: no head retraining at all -- additive
+        # per-class prior correction from stored class COUNTS (2026-07-28
+        # user-resolved reading of the plan's "counts/means" phrasing; see
+        # utils/ca.py::logit_adjust_bias). Mutually exclusive with the
+        # ordinary align_head path (this is a structurally different arm, not
+        # a combinable knob).
+        self.ca_logit_adjust_only = bool(args.get("ca_logit_adjust_only", False))
+        self.ca_logit_adjust_tau = args.get("ca_logit_adjust_tau", 1.0)
+        self._ca_logit_correction = None   # running applied bias, for delta-tracking
+        self._ca_real_buffer_feats = None  # reservoir tensors, built lazily
+        self._ca_real_buffer_labels = None
+        self._ca_real_buffer_n_seen = 0
+        self._ca_stats = None
         # Per-parameter-group weight_decay override for LoRA params only (Plan A
         # §A5.1: "weight_decay = 0 for all LoRA parameters"). None = old behavior
         # (single AdamW group, uniform self.weight_decay for everything, built
@@ -254,38 +395,204 @@ class Learner(LoRALearner):
                         p.requires_grad = False
 
     # -- sample-boundary streaming hooks (reuse _compress) --------------
-    # Each chunk trains the residual (slot 1) over the frozen sketch (slot 0); the
-    # boundary folds (sketch (+) residual) -> sketch via randomized SVD and resets the
-    # residual, exactly like the per-task path but fired on the sample clock so eval
-    # always sees the folded sketch. NOT period-aware (always pins slot 1) -- the
-    # fixed-target-rank sensitivity sweep (svd_period > 1) is task-boundary-only
-    # (Experiments_Timeline.pdf sec 1.b.ii); guarded below rather than silently wrong.
+    # Each chunk trains residual slot(s) over the frozen sketch (slot 0); the
+    # boundary folds (sketch (+) residuals) -> sketch via randomized SVD and resets
+    # them, exactly like the per-task path but fired on the sample clock so eval
+    # always sees the folded sketch. NOW period-aware (impl_plan_7.27.2026 sec 1.2 --
+    # was previously "NOT period-aware, task-boundary only", guarded by an assert):
+    # _stream_slot cycles through residual slots 1..P exactly like the oracle path's
+    # _train_adapter, and _stream_end_chunk folds at period boundaries instead of
+    # every cycle. svd_period defaults to 1, so the off-path (and any existing
+    # config that never touched svd_period) is completely unaffected -- P=1 makes
+    # every formula below reduce to the original single-slot-every-cycle behavior
+    # exactly, same invariant the oracle path already documented.
+    #
+    # KNOWN LIMITATION (flagged, not solved this round): a trailing PARTIAL period
+    # at the very end of a bounded-memory stream has no forced final fold (unlike
+    # the oracle path's `_train`, which knows `_n_run_effective` and force-folds on
+    # the last task). The harness does not expose "is this the last cycle" to the
+    # model. This does NOT affect accuracy (eval/CIL forward sums sketch + every
+    # trained residual slot via merge=True regardless of fold timing) -- it only
+    # means persistent_state()/`_deployed_forward`'s end-of-run FLOPs/latency
+    # measurement could slightly undercount if the very last period never closes.
+    # Only matters for lazy_merge_mode="period"; plateau's max_holdoff cap bounds
+    # the same risk to at most max_holdoff cycles and legacy_saturation/off fold
+    # every cycle (P=1), so neither has this gap.
     def _stream_init(self):
-        assert self.svd_period == 1, \
-            "sketchlora stream/budget mode does not support svd_period > 1 (period is " \
-            "defined over TASK boundaries; combine with sample/budget boundaries by " \
-            "extending _stream_slot to be period-aware first, or run task-boundary only)"
         self._cur_task = -1                       # diagnostic chunk id used by _compress
+        if self.classifier_alignment:
+            from utils.ca import ClassStats
+            net = self._network.module if hasattr(self._network, "module") else self._network
+            self._ca_stats = ClassStats(feat_dim=net.fc.in_features, device=self._device,
+                                         cov_mode=self.ca_cov_mode)
 
     def _stream_slot(self):
-        return RESIDUAL
+        return RESIDUAL + (self._cur_task % self.svd_period)
 
     def _stream_begin_chunk(self, loader):
-        self._freeze_inactive_blocks()
-        super()._stream_begin_chunk(loader)       # freeze_to_task(1) + fresh optimizer
-
-    def _stream_end_chunk(self, loader):
+        # advance the chunk counter BEFORE training (not at chunk end) so
+        # _stream_slot's modulo routing is correct DURING this chunk's training,
+        # mirroring how the oracle path's self._cur_task is set before _train_adapter().
         self._cur_task += 1
         self._freeze_inactive_blocks()
-        if self.lazy_merge and not self._lazy_should_fold():
-            # Accumulate: DON'T compress, don't reset the residual -- leave its
-            # (now further-trained) weights exactly as they are. The next
-            # cycle's _stream_begin_chunk only re-establishes trainability +
-            # a fresh optimizer (StreamMixin's default), it does not touch the
-            # residual's weights, so training simply continues on the SAME
-            # residual across cycles until this returns True.
-            return
-        self._compress()                          # fold -> sketch, reset residual (folded)
+        if self.ca_real_mix_frac > 0:
+            # (c) reset the real-feature reservoir at the START of each cycle,
+            # so align_head (called at cycle end) only ever mixes in features
+            # that genuinely came from THIS cycle's own training, never a
+            # stale previous cycle's leftovers.
+            self._ca_real_buffer_feats = None
+            self._ca_real_buffer_labels = None
+            self._ca_real_buffer_n_seen = 0
+        super()._stream_begin_chunk(loader)       # freeze_to_task(slot) + fresh optimizer
+
+    def _stream_end_chunk(self, loader):
+        self._freeze_inactive_blocks()
+        if self.lazy_merge_mode in ("off", "period"):
+            at_period_boundary = (self._cur_task + 1) % self.svd_period == 0
+            should_fold = at_period_boundary
+        elif self.lazy_merge_mode == "legacy_saturation":
+            should_fold = self._lazy_should_fold()
+        else:   # plateau
+            should_fold = self._plateau_tracker.should_fold(self._residual_products())
+
+        self._last_cycle_folded = should_fold   # read by _ce_boundary_macs_this_cycle
+        if should_fold:
+            self._compress()                      # fold -> sketch, reset residual(s)
+            if self.lazy_merge_mode == "plateau":
+                self._plateau_tracker.reset()
+        # else: accumulate -- leave the residual's (now further-trained) weights
+        # exactly as they are; the next cycle's _stream_begin_chunk only
+        # re-establishes trainability + a fresh optimizer, it does not touch
+        # residual weights, so training continues on the SAME residual(s).
+
+        # Classifier alignment (impl_plan_7.27.2026 sec 1.3): "after each fold (or
+        # each cycle if no fold)" -- runs every cycle, independent of fold timing.
+        # v2 (impl_plan_7.28.2026 sec 2): (d) logit_adjust_only is a STRUCTURALLY
+        # different arm (no head retraining, just an additive bias) -- dispatched
+        # separately, never combined with the ordinary align_head path.
+        if self.classifier_alignment and self.ca_logit_adjust_only:
+            from utils.ca import apply_logit_adjustment
+            net = self._network.module if hasattr(self._network, "module") else self._network
+            self._ca_logit_correction = apply_logit_adjustment(
+                net.fc, self._ca_stats, self.ca_logit_adjust_tau, self._ca_logit_correction)
+            logging.info("[CA] cycle {}: logit_adjust_only tau={}".format(
+                self._cur_task, self.ca_logit_adjust_tau))
+        elif self.classifier_alignment:
+            from utils.ca import align_head
+            net = self._network.module if hasattr(self._network, "module") else self._network
+            real_buf = None
+            if self.ca_real_mix_frac > 0 and self._ca_real_buffer_feats is not None \
+                    and self._ca_real_buffer_feats.shape[0] > 0:
+                real_buf = (self._ca_real_buffer_feats, self._ca_real_buffer_labels)
+            ca_result = align_head(
+                net.fc, self._ca_stats, self.ca_steps, self.ca_batch, self.ca_lr, self._device,
+                real_feature_buffer=real_buf, real_mix_frac=self.ca_real_mix_frac,
+                early_stop_patience=self.ca_early_stop_patience, val_batch_size=self.ca_val_batch)
+            logging.info("[CA] cycle {}: steps={} final_loss={} stopped_early={}".format(
+                self._cur_task, ca_result["steps"], ca_result["final_loss"],
+                ca_result["stopped_early"]))
+
+    def _ce_aux_macs_per_step(self):
+        # impl_plan_7.27.2026 sec 2.3(a): sketch-inclusion forward overhead,
+        # 2*d*r_hat MACs/token/module, GROWING over the stream as r_hat grows --
+        # read the CURRENT mean rank from the diagnostics log (updated every
+        # fold), not a fixed constant. 0 before the first fold has ever happened
+        # (sketch slot still zero-width in effect).
+        if not self._diag_records:
+            return 0.0
+        from utils.ce_formulas import sketchlora_step_macs_sketch_inclusion
+        r_hat = self._diag_records[-1]["r_hat_mean"]
+        if r_hat is None:
+            return 0.0
+        return sketchlora_step_macs_sketch_inclusion(r_hat)
+
+    def _ce_boundary_macs_this_cycle(self, chunk_images):
+        # impl_plan_7.27.2026 sec 2.3(b/c): per-fold merge cost (only charged on
+        # cycles that actually folded -- lazy-merge variants skip most cycles)
+        # + CA alignment cost (charged every cycle CA runs, matching
+        # _stream_end_chunk's own "every cycle" cadence for CA above).
+        from utils.ce_formulas import sketchlora_fold_macs, sketchlora_ca_macs, N_MODULES
+        out = {}
+        if getattr(self, "_last_cycle_folded", False) and self._diag_records:
+            r_hat = self._diag_records[-1]["r_hat_mean"] or 0.0
+            out["fold_merge"] = sketchlora_fold_macs(r_hat, oversampling=self.oversampling,
+                                                       merge_op=self.merge_op) * N_MODULES
+        if self.classifier_alignment and not self.ca_logit_adjust_only:
+            # (d) logit_adjust_only does no gradient-based training at all --
+            # its cost is a per-class closed-form bias update, negligible
+            # against a real forward/backward pass, so it's left uncosted here
+            # (matching the plan's "no head retraining" framing) rather than
+            # invented a MAC estimate for a handful of scalar log() calls.
+            net = self._network.module if hasattr(self._network, "module") else self._network
+            n_classes = net.fc.out_features
+            out["ca_alignment"] = sketchlora_ca_macs(self.ca_steps, self.ca_batch, n_classes)
+        return out
+
+    def _residual_products(self):
+        """[d,d] float B_r @ A_r per (block, {q,v}) x residual slot, in a FIXED,
+        stable order across calls -- required by the plateau tracker's per-cycle
+        element-wise comparison. (legacy_saturation's own check computes the same
+        quantity inline and is left untouched to avoid any risk to its behavior.)"""
+        products = []
+        for attn in self._active_attns():
+            for A_list, B_list in ((attn.lora_A_q, attn.lora_B_q), (attn.lora_A_v, attn.lora_B_v)):
+                for slot in self._residual_slots():
+                    A_r, B_r = A_list[slot].weight, B_list[slot].weight
+                    products.append((B_r @ A_r).float())
+        return products
+
+    def _bounded_train_epoch(self, loader, optimizer, scheduler, cycle_class_mask):
+        """Identical to the base (bounded_memory_mixin.py) generic loop when
+        classifier_alignment is off -- delegates straight to super(), so the
+        off-path is bit-for-bit the base class's own method, not a reimplementation
+        of it. When on, the SAME forward pass already computed for the training
+        loss also yields "features" (no extra forward), fed to ClassStats."""
+        if not self.classifier_alignment:
+            return super()._bounded_train_epoch(loader, optimizer, scheduler, cycle_class_mask)
+        self._network.train()
+        slot, merge = self._stream_slot(), self._stream_train_merge()
+        for _, inputs, targets in loader:
+            inputs, targets = inputs.to(self._device), targets.to(self._device)
+            output = self._network(inputs, task=slot, merge=merge)
+            logits = output["logits"]
+            masked_logits = logits + cycle_class_mask
+            loss = F.cross_entropy(masked_logits, targets)
+            extra = self._stream_extra_loss(0, logits.shape[1])
+            if not (isinstance(extra, float) and extra == 0.0):
+                loss = loss + extra
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+            self._ca_stats.update(output["features"], targets)
+            if self.ca_real_mix_frac > 0:
+                self._ca_buffer_update(output["features"].detach(), targets.detach())
+        if scheduler is not None:
+            scheduler.step()
+
+    @torch.no_grad()
+    def _ca_buffer_update(self, features, labels):
+        """(c) real-feature mixing: bounded reservoir of ACTUAL current-cycle
+        features (classic reservoir sampling, uniform over everything seen
+        this cycle so far) -- reset at the start of each cycle in
+        _stream_begin_chunk so align_head only ever mixes in features that
+        genuinely came from the chunk it's aligning after, never a stale
+        cycle's leftovers."""
+        cap = self.ca_real_reservoir_size
+        if self._ca_real_buffer_feats is None:
+            self._ca_real_buffer_feats = torch.zeros(0, features.shape[1], device=features.device)
+            self._ca_real_buffer_labels = torch.zeros(0, dtype=labels.dtype, device=labels.device)
+        for i in range(features.shape[0]):
+            self._ca_real_buffer_n_seen += 1
+            if self._ca_real_buffer_feats.shape[0] < cap:
+                self._ca_real_buffer_feats = torch.cat(
+                    [self._ca_real_buffer_feats, features[i:i + 1]], dim=0)
+                self._ca_real_buffer_labels = torch.cat(
+                    [self._ca_real_buffer_labels, labels[i:i + 1]], dim=0)
+            else:
+                j = torch.randint(0, self._ca_real_buffer_n_seen, (1,)).item()
+                if j < cap:
+                    self._ca_real_buffer_feats[j] = features[i]
+                    self._ca_real_buffer_labels[j] = labels[i]
 
     @torch.no_grad()
     def _lazy_should_fold(self):
@@ -398,6 +705,9 @@ class Learner(LoRALearner):
         projection at their nominal rank, so this must be measured to stay comparable across
         merge_op ablations."""
         retained, sigma_next, fro, rhat = [], [], [], []   # per (layer,proj) diagnostics
+        fd_rents = []   # per (layer,proj) FD-shrinkage stats this merge (fd_shrinkage only)
+        floor_k_protected = []    # per (layer,proj) reserved-slot count actually used
+        floor_energy_filled = [] # per (layer,proj) energy-filled slot count this merge
         residual_slots = self._residual_slots()
         # Nothing to combine yet: before the sketch has ever been populated, a
         # single residual slot is the ONLY contributor to delta_W (the sketch
@@ -410,7 +720,7 @@ class Learner(LoRALearner):
         skip_compression = (not self._sketch_populated) and len(residual_slots) == 1
         full_svd_needed = (not skip_compression) and self.merge_op in ("exactsvd", "nocompress")
         need_svdvals = (not skip_compression) and (not full_svd_needed) and \
-            (self.sketch_diag or self.energy_target is not None)
+            (self.sketch_diag or self.energy_target is not None or self.fd_shrinkage)
         module_idx = 0     # unique per (layer,proj) -- seeds countsketch's hash/sign draw
         for attn in self._active_attns():
             for A_list, B_list in ((attn.lora_A_q, attn.lora_B_q),
@@ -451,6 +761,51 @@ class Learner(LoRALearner):
                     for slot in residual_slots:
                         nn.init.kaiming_uniform_(A_list[slot].weight, a=math.sqrt(5))
                         nn.init.zeros_(B_list[slot].weight)
+                    module_idx += 1
+                    continue
+
+                if self.admission_rule == "floor":
+                    # Structurally different from every other admission_rule: not a
+                    # single top-r_hat_t truncation of the composite, but a
+                    # protected-k + energy-filled construction (utils/admission.py).
+                    # Fully self-contained (computes its own S, B_hat, A_hat,
+                    # final_rank); everything AFTER this block (FD shrinkage,
+                    # diagnostics, slot write-back) is shared/unchanged.
+                    R = None
+                    for slot in residual_slots:
+                        A_r, B_r = A_list[slot].weight, B_list[slot].weight
+                        term = (B_r @ A_r).float()
+                        R = term if R is None else R + term
+                    residual_total = sum(A_list[slot].weight.shape[0] for slot in residual_slots)
+                    B_hat, A_hat, final_rank, S, g_stats = floor_admission_merge(
+                        delta_W.float(), B_s.float(), R, residual_total,
+                        self.energy_target, self.admission_floor_k, self.rank_cap,
+                        self.oversampling, rand_svd)
+                    B_hat, A_hat = B_hat.to(dev, dt), A_hat.to(dev, dt)
+                    floor_k_protected.append(g_stats["k_protected"])
+                    floor_energy_filled.append(g_stats["energy_filled"])
+                    if self.sketch_diag:
+                        recon_err = (delta_W.float() - (B_hat.float() @ A_hat.float())).norm()
+                        fro_delta = delta_W.float().norm()
+                        retained.append(1.0 - (recon_err / fro_delta).item() ** 2 if fro_delta > 0 else 1.0)
+                        sigma_next.append(S[final_rank].item() if S.numel() > final_rank else 0.0)
+                        fro.append(fro_delta.item())
+                        rhat.append(final_rank)
+                    for slot in residual_slots:
+                        nn.init.kaiming_uniform_(A_list[slot].weight, a=math.sqrt(5))
+                        nn.init.zeros_(B_list[slot].weight)
+                    if final_rank == B_s.shape[1]:
+                        B_s.data.copy_(B_hat)
+                        A_s.data.copy_(A_hat)
+                    else:
+                        newA = nn.Linear(delta_W.shape[0], final_rank, bias=False).to(dev, dt)
+                        newB = nn.Linear(final_rank, delta_W.shape[0], bias=False).to(dev, dt)
+                        newA.weight.data.copy_(A_hat)
+                        newB.weight.data.copy_(B_hat)
+                        for p in list(newA.parameters()) + list(newB.parameters()):
+                            p.requires_grad = False
+                        A_list[SKETCH] = newA
+                        B_list[SKETCH] = newB
                     module_idx += 1
                     continue
 
@@ -502,13 +857,19 @@ class Learner(LoRALearner):
                         #     nothing whenever the threshold is aggressive (small
                         #     keep-rank), the opposite of the rule's purpose; kept only
                         #     as a documented, tested, never-used-in-production path.
+                        # (The floor variant of this formula -- never evict more than
+                        # residual_total - k of the new directions -- was tried as
+                        # "force_increase" and RETIRED 2026-07-28: its at-cap branch
+                        # below ignored the floor entirely, so it silently degenerated
+                        # to plain bounded_eviction once rank hit the cap. Superseded by
+                        # admission_rule="floor", a separate top-level dispatch above
+                        # that fixes this by construction -- see utils/admission.py.)
                         prev_rank = A_s.shape[0]
                         residual_total = sum(A_list[slot].weight.shape[0] for slot in residual_slots)
                         composite_rank = prev_rank + residual_total
                         cap = self.rank_cap if self.rank_cap is not None else composite_rank
                         if composite_rank > cap:
-                            # at/above the cap: evict exactly enough to return to r_max,
-                            # even if that's more than residual_total.
+                            # at/above the cap: evict exactly enough to return to r_max.
                             evict = composite_rank - cap
                         elif self.eviction_reading == "literal_keeprank":
                             evict = min(residual_total, k_eps)
@@ -552,6 +913,22 @@ class Learner(LoRALearner):
                 B_hat, A_hat = B_hat.to(dev, dt), A_hat.to(dev, dt)
                 final_rank = B_hat.shape[1]
 
+                # -- FD shrinkage (impl_plan_7.27.2026 sec 1.1): AFTER the eviction
+                # count/rank l is chosen and the composite is truncated, BEFORE
+                # diagnostics (so retained-energy below reflects the post-shrink
+                # state -- shrinkage deliberately trades reconstruction fidelity for
+                # bounding growth, the intended effect). Scoped to randsvd/exactsvd
+                # (the two truncated-SVD merge_ops); no-op (with a startup warning
+                # already logged) otherwise, since "Sigma[l]" has no meaning for a
+                # hash-based or literal-sum merge.
+                if self.fd_shrinkage and self.merge_op in ("randsvd", "exactsvd") and S is not None:
+                    from utils.fd import apply_fd_shrinkage
+                    B_hat, A_hat, fd_stats = apply_fd_shrinkage(B_hat, A_hat, S, final_rank)
+                    fd_rents.append(fd_stats)
+                    while len(self._fd_cumulative_rent) <= module_idx:
+                        self._fd_cumulative_rent.append(0.0)
+                    self._fd_cumulative_rent[module_idx] += fd_stats["rent"]
+
                 if self.sketch_diag:
                     # ACTUAL achieved retained energy from the real reconstruction, not the
                     # idealized truncated-SVD value -- naive_sum/countsketch do not achieve the
@@ -590,9 +967,11 @@ class Learner(LoRALearner):
                 module_idx += 1
         self._sketch_populated = True
         if self.sketch_diag:
-            self._record_diag(retained, sigma_next, fro, rhat)
+            self._record_diag(retained, sigma_next, fro, rhat, fd_rents,
+                               floor_k_protected, floor_energy_filled)
 
-    def _record_diag(self, retained, sigma_next, fro, rhat):
+    def _record_diag(self, retained, sigma_next, fro, rhat, fd_rents=None,
+                      floor_k_protected=None, floor_energy_filled=None):
         """Aggregate + persist the per-compression singular-spectrum stats."""
         import numpy as np
         rec = {
@@ -608,6 +987,19 @@ class Learner(LoRALearner):
             "r_hat_max": int(np.max(rhat)) if rhat else None,
             "r_hat_total": int(np.sum(rhat)) if rhat else None,
         }
+        if fd_rents:
+            # impl_plan_7.27.2026 sec 1.1: pre/post-shrink total energy, rent
+            # (=Sigma[l]^2 charged per kept direction), cumulative rent per module.
+            rec["fd_pre_shrink_energy"] = [r["pre_shrink_energy"] for r in fd_rents]
+            rec["fd_post_shrink_energy"] = [r["post_shrink_energy"] for r in fd_rents]
+            rec["fd_rent"] = [r["rent"] for r in fd_rents]
+            rec["fd_cumulative_rent"] = list(self._fd_cumulative_rent)
+        if floor_k_protected:
+            # 2026-07-28 guaranteed-admission direction: how many of the k reserved
+            # slots actually had a nonzero orthogonal direction to admit this merge,
+            # and how many additional slots the energy-fill step contributed.
+            rec["floor_k_protected"] = floor_k_protected
+            rec["floor_energy_filled"] = floor_energy_filled
         self._diag_records.append(rec)
         os.makedirs(os.path.dirname(self._diag_path), exist_ok=True)
         with open(self._diag_path, "w") as f:

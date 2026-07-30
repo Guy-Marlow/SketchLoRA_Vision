@@ -1,0 +1,67 @@
+2026-07-19 20:06:18,878 [trainer.py] => config: exps/review/three_task_check_bs48_lr3e5/imagenetr_seqlora.json
+2026-07-19 20:06:18,878 [trainer.py] => dataset: imagenetr
+2026-07-19 20:06:18,878 [trainer.py] => memory_size: 0
+2026-07-19 20:06:18,878 [trainer.py] => memory_per_class: 0
+2026-07-19 20:06:18,878 [trainer.py] => fixed_memory: False
+2026-07-19 20:06:18,878 [trainer.py] => shuffle: True
+2026-07-19 20:06:18,878 [trainer.py] => init_cls: 10
+2026-07-19 20:06:18,878 [trainer.py] => increment: 10
+2026-07-19 20:06:18,878 [trainer.py] => seed: 1993
+2026-07-19 20:06:18,878 [trainer.py] => scenario: cil
+2026-07-19 20:06:18,878 [trainer.py] => stop_after_tasks: 3
+2026-07-19 20:06:18,878 [trainer.py] => pretrained: True
+2026-07-19 20:06:18,878 [trainer.py] => print_forget: True
+2026-07-19 20:06:18,878 [trainer.py] => final_metrics: True
+2026-07-19 20:06:18,878 [trainer.py] => backbone_type: vit_base_patch16_224_lora
+2026-07-19 20:06:18,879 [trainer.py] => lora_rank: 8
+2026-07-19 20:06:18,879 [trainer.py] => lora_alpha: 32
+2026-07-19 20:06:18,879 [trainer.py] => tuned_epoch: 10
+2026-07-19 20:06:18,879 [trainer.py] => init_lr: 3e-05
+2026-07-19 20:06:18,879 [trainer.py] => batch_size: 48
+2026-07-19 20:06:18,879 [trainer.py] => weight_decay: 0.0005
+2026-07-19 20:06:18,879 [trainer.py] => min_lr: 0.0
+2026-07-19 20:06:18,879 [trainer.py] => model_name: seqlora
+2026-07-19 20:06:18,879 [trainer.py] => lora_merge: False
+2026-07-19 20:06:18,879 [trainer.py] => device: [device(type='cuda', index=1)]
+2026-07-19 20:06:18,879 [trainer.py] => prefix: three_task_check_bs48lr3e5_imagenetr_seqlora
+2026-07-19 20:06:18,964 [data_manager.py] => [168, 136, 51, 9, 183, 101, 171, 99, 42, 159, 191, 70, 16, 188, 27, 10, 175, 26, 68, 187, 98, 6, 85, 35, 112, 43, 100, 0, 103, 181, 88, 59, 4, 2, 116, 174, 94, 80, 106, 1, 147, 17, 141, 131, 72, 23, 173, 54, 197, 118, 87, 32, 79, 104, 91, 19, 135, 107, 178, 36, 11, 199, 142, 8, 122, 3, 28, 57, 153, 172, 190, 56, 49, 44, 97, 62, 151, 169, 194, 55, 192, 12, 189, 78, 66, 180, 15, 137, 109, 134, 92, 119, 126, 52, 170, 40, 148, 65, 144, 64, 138, 45, 77, 89, 154, 90, 71, 193, 74, 30, 113, 143, 96, 84, 67, 50, 186, 156, 69, 21, 18, 111, 108, 58, 125, 157, 150, 110, 182, 129, 166, 83, 81, 60, 13, 165, 14, 176, 63, 117, 5, 22, 145, 121, 38, 41, 82, 127, 114, 20, 31, 53, 37, 163, 196, 130, 152, 162, 86, 76, 24, 34, 184, 149, 33, 128, 198, 155, 146, 167, 139, 120, 140, 102, 47, 25, 158, 123, 46, 164, 61, 7, 115, 75, 133, 160, 105, 132, 179, 124, 48, 73, 93, 39, 95, 195, 29, 177, 185, 161]
+2026-07-19 20:06:23,122 [trainer.py] => stop_after_tasks=3 (of 20 total)
+2026-07-19 20:06:24,679 [trainer.py] => All params: 91696896
+2026-07-19 20:06:24,685 [trainer.py] => Trainable params: 5898240
+2026-07-19 20:06:25,827 [lora.py] => Learning on 0-10
+2026-07-19 20:06:25,845 [lora.py] => Trainable params this task: 302,602 / 91,704,586
+2026-07-19 20:07:48,197 [lora.py] => Task 0 finished. Train_accy 45.35
+2026-07-19 20:07:49,788 [trainer.py] => No NME accuracy.
+2026-07-19 20:07:49,788 [trainer.py] => CNN: {'total': 46.84, '00-09': 46.84, 'old': 0, 'new': 46.84}
+2026-07-19 20:07:49,788 [trainer.py] => CNN top1 curve: [46.84]
+2026-07-19 20:07:49,788 [trainer.py] => CNN top5 curve: [87.03]
+
+2026-07-19 20:07:49,788 [trainer.py] => Average Accuracy (CNN): 46.84 
+
+2026-07-19 20:07:49,790 [trainer.py] => All params: 91704586
+2026-07-19 20:07:49,793 [trainer.py] => Trainable params: 302602
+2026-07-19 20:07:49,793 [lora.py] => Learning on 10-20
+2026-07-19 20:07:49,801 [lora.py] => Trainable params this task: 310,292 / 91,712,276
+2026-07-19 20:09:26,144 [lora.py] => Task 1 finished. Train_accy 65.10
+2026-07-19 20:09:28,912 [trainer.py] => No NME accuracy.
+2026-07-19 20:09:28,912 [trainer.py] => CNN: {'total': 41.3, '00-09': 27.85, '10-19': 52.67, 'old': 27.85, 'new': 52.67}
+2026-07-19 20:09:28,912 [trainer.py] => CNN top1 curve: [46.84, 41.3]
+2026-07-19 20:09:28,912 [trainer.py] => CNN top5 curve: [87.03, 75.36]
+
+2026-07-19 20:09:28,912 [trainer.py] => Average Accuracy (CNN): 44.07 
+
+2026-07-19 20:09:28,917 [trainer.py] => All params: 91712276
+2026-07-19 20:09:28,922 [trainer.py] => Trainable params: 310292
+2026-07-19 20:09:28,924 [lora.py] => Learning on 20-30
+2026-07-19 20:09:28,937 [lora.py] => Trainable params this task: 317,982 / 91,719,966
+2026-07-19 20:10:48,777 [lora.py] => Task 2 finished. Train_accy 72.48
+2026-07-19 20:10:52,460 [trainer.py] => No NME accuracy.
+2026-07-19 20:10:52,460 [trainer.py] => CNN: {'total': 38.75, '00-09': 24.37, '10-19': 43.05, '20-29': 48.5, 'old': 34.49, 'new': 48.5}
+2026-07-19 20:10:52,460 [trainer.py] => CNN top1 curve: [46.84, 41.3, 38.75]
+2026-07-19 20:10:52,460 [trainer.py] => CNN top5 curve: [87.03, 75.36, 67.41]
+
+2026-07-19 20:10:52,460 [trainer.py] => Average Accuracy (CNN): 42.29666666666667 
+
+2026-07-19 20:10:54,763 [metrics_logger.py] => [metrics] wrote run_logs/final/seqlora/metrics_seqlora_imagenetr_three_task_check_bs48lr3e5_imagenetr_seqlora_s1993.json
+2026-07-19 20:10:54,763 [trainer.py] => Forgetting (CNN): 16.045
+2026-07-19 20:10:54,763 [trainer.py] => Forgetting (NME): 16.045

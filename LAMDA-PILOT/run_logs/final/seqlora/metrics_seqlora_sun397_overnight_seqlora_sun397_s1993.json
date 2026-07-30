@@ -1,0 +1,94 @@
+{
+  "args_subset": {
+    "model_name": "seqlora",
+    "dataset": "sun397",
+    "init_cls": 37,
+    "increment": 40,
+    "seed": 1993,
+    "scenario": "both",
+    "boundary_mode": null,
+    "budget_mb": null,
+    "n_lora_blocks": null,
+    "lora_rank": 10,
+    "lora_alpha": null,
+    "svd_energy_target": null,
+    "svd_rank": null,
+    "svd_period": null,
+    "merge_op": null,
+    "cs_rank": null,
+    "lamda_1": null,
+    "lamda_2": null,
+    "lamb": null,
+    "lame": null
+  },
+  "status": "done",
+  "per_task": [
+    {
+      "task": 0,
+      "train_seconds": 116.966,
+      "eval_seconds": 13.714,
+      "boundary_seconds": 0.0,
+      "cil_top1": 92.27,
+      "til_top1": 92.27,
+      "trainable_params": 397093,
+      "persistent_params": 3714853,
+      "persistent_mb": 14.171,
+      "persistent_state_breakdown": {
+        "lora_slots": 3686400,
+        "head": 28453
+      },
+      "peak_vram_mb": 5029.9
+    },
+    {
+      "task": 1,
+      "train_seconds": 127.268,
+      "eval_seconds": 27.449,
+      "boundary_seconds": 0.0,
+      "cil_top1": 82.34,
+      "til_top1": 92.21,
+      "trainable_params": 427853,
+      "persistent_params": 3745613,
+      "persistent_mb": 14.2884,
+      "persistent_state_breakdown": {
+        "lora_slots": 3686400,
+        "head": 59213
+      },
+      "peak_vram_mb": 5030.3
+    },
+    {
+      "task": 2,
+      "train_seconds": 128.126,
+      "eval_seconds": 41.708,
+      "boundary_seconds": 0.0,
+      "cil_top1": 75.32,
+      "til_top1": 90.97,
+      "trainable_params": 458613,
+      "persistent_params": 3776373,
+      "persistent_mb": 14.4057,
+      "persistent_state_breakdown": {
+        "lora_slots": 3686400,
+        "head": 89973
+      },
+      "peak_vram_mb": 5030.8
+    }
+  ],
+  "train_seconds_total": 372.3605263233185,
+  "eval_seconds_total": 82.8705198764801,
+  "boundary_seconds_total": 0.0,
+  "inference_ms_per_image": 2.629,
+  "inference_flops_per_image": 35288177424.0,
+  "cil_summary": {
+    "final_average_accuracy": 74.9033,
+    "average_incremental_accuracy": 83.0594,
+    "forgetting": 21.205,
+    "backward_transfer": -21.205,
+    "last_task_accuracy": 84.25
+  },
+  "til_summary": {
+    "final_average_accuracy": 90.9233,
+    "average_incremental_accuracy": 91.7811,
+    "forgetting": 2.35,
+    "backward_transfer": -2.35,
+    "last_task_accuracy": 91.6
+  }
+}

@@ -1,0 +1,49 @@
+2026-07-19 02:43:48,173 [trainer.py] => config: exps/review/stream_smoke/imagenetr_250mb_seqlora.json
+2026-07-19 02:43:48,173 [trainer.py] => dataset: imagenetr
+2026-07-19 02:43:48,173 [trainer.py] => memory_size: 0
+2026-07-19 02:43:48,173 [trainer.py] => memory_per_class: 0
+2026-07-19 02:43:48,173 [trainer.py] => fixed_memory: False
+2026-07-19 02:43:48,174 [trainer.py] => shuffle: True
+2026-07-19 02:43:48,174 [trainer.py] => init_cls: 10
+2026-07-19 02:43:48,174 [trainer.py] => increment: 10
+2026-07-19 02:43:48,174 [trainer.py] => seed: 1993
+2026-07-19 02:43:48,174 [trainer.py] => scenario: cil
+2026-07-19 02:43:48,174 [trainer.py] => pretrained: True
+2026-07-19 02:43:48,174 [trainer.py] => print_forget: True
+2026-07-19 02:43:48,174 [trainer.py] => final_metrics: True
+2026-07-19 02:43:48,174 [trainer.py] => backbone_type: vit_base_patch16_224_lora
+2026-07-19 02:43:48,174 [trainer.py] => lora_rank: 8
+2026-07-19 02:43:48,174 [trainer.py] => lora_alpha: 32
+2026-07-19 02:43:48,174 [trainer.py] => tuned_epoch: 10
+2026-07-19 02:43:48,174 [trainer.py] => init_lr: 0.0005
+2026-07-19 02:43:48,174 [trainer.py] => batch_size: 48
+2026-07-19 02:43:48,174 [trainer.py] => weight_decay: 0.0005
+2026-07-19 02:43:48,174 [trainer.py] => min_lr: 0.0
+2026-07-19 02:43:48,174 [trainer.py] => model_name: seqlora
+2026-07-19 02:43:48,174 [trainer.py] => lora_merge: False
+2026-07-19 02:43:48,174 [trainer.py] => device: [device(type='cuda', index=0)]
+2026-07-19 02:43:48,174 [trainer.py] => prefix: stream_smoke_imagenetr_250mb_seqlora
+2026-07-19 02:43:48,174 [trainer.py] => boundary_mode: sample
+2026-07-19 02:43:48,174 [trainer.py] => stream_budget_mb: 250
+2026-07-19 02:43:48,174 [trainer.py] => stop_after_tasks: 5
+2026-07-19 02:43:48,259 [data_manager.py] => [168, 136, 51, 9, 183, 101, 171, 99, 42, 159, 191, 70, 16, 188, 27, 10, 175, 26, 68, 187, 98, 6, 85, 35, 112, 43, 100, 0, 103, 181, 88, 59, 4, 2, 116, 174, 94, 80, 106, 1, 147, 17, 141, 131, 72, 23, 173, 54, 197, 118, 87, 32, 79, 104, 91, 19, 135, 107, 178, 36, 11, 199, 142, 8, 122, 3, 28, 57, 153, 172, 190, 56, 49, 44, 97, 62, 151, 169, 194, 55, 192, 12, 189, 78, 66, 180, 15, 137, 109, 134, 92, 119, 126, 52, 170, 40, 148, 65, 144, 64, 138, 45, 77, 89, 154, 90, 71, 193, 74, 30, 113, 143, 96, 84, 67, 50, 186, 156, 69, 21, 18, 111, 108, 58, 125, 157, 150, 110, 182, 129, 166, 83, 81, 60, 13, 165, 14, 176, 63, 117, 5, 22, 145, 121, 38, 41, 82, 127, 114, 20, 31, 53, 37, 163, 196, 130, 152, 162, 86, 76, 24, 34, 184, 149, 33, 128, 198, 155, 146, 167, 139, 120, 140, 102, 47, 25, 158, 123, 46, 164, 61, 7, 115, 75, 133, 160, 105, 132, 179, 124, 48, 73, 93, 39, 95, 195, 29, 177, 185, 161]
+This is for the BaseNet initialization.
+I'm using ViT with per-task LoRA (q,v).
+_IncompatibleKeys(missing_keys=['blocks.0.attn.cur_matrix', 'blocks.0.attn.frozen_delta_q', 'blocks.0.attn.frozen_delta_v', 'blocks.0.attn.lora_A_q.0.weight', 'blocks.0.attn.lora_B_q.0.weight', 'blocks.0.attn.lora_A_v.0.weight', 'blocks.0.attn.lora_B_v.0.weight', 'blocks.1.attn.cur_matrix', 'blocks.1.attn.frozen_delta_q', 'blocks.1.attn.frozen_delta_v', 'blocks.1.attn.lora_A_q.0.weight', 'blocks.1.attn.lora_B_q.0.weight', 'blocks.1.attn.lora_A_v.0.weight', 'blocks.1.attn.lora_B_v.0.weight', 'blocks.2.attn.cur_matrix', 'blocks.2.attn.frozen_delta_q', 'blocks.2.attn.frozen_delta_v', 'blocks.2.attn.lora_A_q.0.weight', 'blocks.2.attn.lora_B_q.0.weight', 'blocks.2.attn.lora_A_v.0.weight', 'blocks.2.attn.lora_B_v.0.weight', 'blocks.3.attn.cur_matrix', 'blocks.3.attn.frozen_delta_q', 'blocks.3.attn.frozen_delta_v', 'blocks.3.attn.lora_A_q.0.weight', 'blocks.3.attn.lora_B_q.0.weight', 'blocks.3.attn.lora_A_v.0.weight', 'blocks.3.attn.lora_B_v.0.weight', 'blocks.4.attn.cur_matrix', 'blocks.4.attn.frozen_delta_q', 'blocks.4.attn.frozen_delta_v', 'blocks.4.attn.lora_A_q.0.weight', 'blocks.4.attn.lora_B_q.0.weight', 'blocks.4.attn.lora_A_v.0.weight', 'blocks.4.attn.lora_B_v.0.weight', 'blocks.5.attn.cur_matrix', 'blocks.5.attn.frozen_delta_q', 'blocks.5.attn.frozen_delta_v', 'blocks.5.attn.lora_A_q.0.weight', 'blocks.5.attn.lora_B_q.0.weight', 'blocks.5.attn.lora_A_v.0.weight', 'blocks.5.attn.lora_B_v.0.weight', 'blocks.6.attn.cur_matrix', 'blocks.6.attn.frozen_delta_q', 'blocks.6.attn.frozen_delta_v', 'blocks.6.attn.lora_A_q.0.weight', 'blocks.6.attn.lora_B_q.0.weight', 'blocks.6.attn.lora_A_v.0.weight', 'blocks.6.attn.lora_B_v.0.weight', 'blocks.7.attn.cur_matrix', 'blocks.7.attn.frozen_delta_q', 'blocks.7.attn.frozen_delta_v', 'blocks.7.attn.lora_A_q.0.weight', 'blocks.7.attn.lora_B_q.0.weight', 'blocks.7.attn.lora_A_v.0.weight', 'blocks.7.attn.lora_B_v.0.weight', 'blocks.8.attn.cur_matrix', 'blocks.8.attn.frozen_delta_q', 'blocks.8.attn.frozen_delta_v', 'blocks.8.attn.lora_A_q.0.weight', 'blocks.8.attn.lora_B_q.0.weight', 'blocks.8.attn.lora_A_v.0.weight', 'blocks.8.attn.lora_B_v.0.weight', 'blocks.9.attn.cur_matrix', 'blocks.9.attn.frozen_delta_q', 'blocks.9.attn.frozen_delta_v', 'blocks.9.attn.lora_A_q.0.weight', 'blocks.9.attn.lora_B_q.0.weight', 'blocks.9.attn.lora_A_v.0.weight', 'blocks.9.attn.lora_B_v.0.weight', 'blocks.10.attn.cur_matrix', 'blocks.10.attn.frozen_delta_q', 'blocks.10.attn.frozen_delta_v', 'blocks.10.attn.lora_A_q.0.weight', 'blocks.10.attn.lora_B_q.0.weight', 'blocks.10.attn.lora_A_v.0.weight', 'blocks.10.attn.lora_B_v.0.weight', 'blocks.11.attn.cur_matrix', 'blocks.11.attn.frozen_delta_q', 'blocks.11.attn.frozen_delta_v', 'blocks.11.attn.lora_A_q.0.weight', 'blocks.11.attn.lora_B_q.0.weight', 'blocks.11.attn.lora_A_v.0.weight', 'blocks.11.attn.lora_B_v.0.weight'], unexpected_keys=[])
+After BaseNet initialization.
+2026-07-19 02:43:53,039 [stream_mixin.py] => [stream] stop_after_tasks=5 (of 20 total)
+2026-07-19 02:43:53,039 [stream_mixin.py] => [stream] adapter event every 1741 samples (memory constraint 250.0MB); eval after each fold on completed tasks
+2026-07-19 02:45:13,871 [stream_mixin.py] => [stream eval] completed  1 | CIL 94.30 | TIL 94.30 | TIL/task [94.3]
+2026-07-19 02:46:49,937 [stream_mixin.py] => [stream eval] completed  2 | CIL 84.20 | TIL 92.61 | TIL/task [89.24, 95.45]
+2026-07-19 02:48:12,608 [stream_mixin.py] => [stream eval] completed  3 | CIL 81.13 | TIL 91.83 | TIL/task [87.03, 93.05, 95.35]
+2026-07-19 02:49:50,893 [stream_mixin.py] => [stream eval] completed  4 | CIL 63.21 | TIL 84.10 | TIL/task [75.95, 86.9, 80.07, 92.42]
+2026-07-19 02:51:06,091 [stream_mixin.py] => [stream eval] completed  5 | CIL 61.76 | TIL 84.17 | TIL/task [74.37, 84.76, 83.39, 90.0, 88.45]
+2026-07-19 02:51:06,095 [trainer.py] => [stream] completed-task checkpoints: [1, 2, 3, 4, 5]
+2026-07-19 02:51:06,095 [trainer.py] => [stream] CIL curve: [94.3, 84.2, 81.13, 63.21, 61.76]
+2026-07-19 02:51:06,095 [trainer.py] => [stream] TIL curve: [94.3, 92.61, 91.83, 84.1, 84.17]
+2026-07-19 02:51:06,095 [trainer.py] => [stream] FINAL  CIL 61.76 | TIL 84.17  (over 5 tasks)
+[stream] checkpoints (completed tasks): [1, 2, 3, 4, 5]
+[stream] CIL: [94.3, 84.2, 81.13, 63.21, 61.76]
+[stream] TIL: [94.3, 92.61, 91.83, 84.1, 84.17]
+[stream] FINAL CIL 61.76 | TIL 84.17
+[stream] wrote run_logs/stream_seqlora_stream_smoke_imagenetr_250mb_seqlora_s1993.json

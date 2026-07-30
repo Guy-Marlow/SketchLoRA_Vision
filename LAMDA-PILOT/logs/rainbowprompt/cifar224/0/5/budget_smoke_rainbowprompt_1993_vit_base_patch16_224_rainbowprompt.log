@@ -1,0 +1,73 @@
+2026-07-17 17:10:17,490 [trainer.py] => config: exps/smoke/budget_smoke_rainbowprompt.json
+2026-07-17 17:10:17,491 [trainer.py] => dataset: cifar224
+2026-07-17 17:10:17,491 [trainer.py] => memory_size: 0
+2026-07-17 17:10:17,491 [trainer.py] => memory_per_class: 0
+2026-07-17 17:10:17,491 [trainer.py] => fixed_memory: False
+2026-07-17 17:10:17,491 [trainer.py] => shuffle: True
+2026-07-17 17:10:17,491 [trainer.py] => init_cls: 5
+2026-07-17 17:10:17,491 [trainer.py] => increment: 5
+2026-07-17 17:10:17,491 [trainer.py] => backbone_type: vit_base_patch16_224_rainbowprompt
+2026-07-17 17:10:17,491 [trainer.py] => device: [device(type='cuda', index=2)]
+2026-07-17 17:10:17,491 [trainer.py] => seed: 1993
+2026-07-17 17:10:17,491 [trainer.py] => tuned_epoch: 20
+2026-07-17 17:10:17,491 [trainer.py] => init_lr: 0.03
+2026-07-17 17:10:17,491 [trainer.py] => batch_size: 48
+2026-07-17 17:10:17,491 [trainer.py] => weight_decay: 0.0
+2026-07-17 17:10:17,491 [trainer.py] => min_lr: 0.0
+2026-07-17 17:10:17,491 [trainer.py] => pretrained: True
+2026-07-17 17:10:17,491 [trainer.py] => print_forget: True
+2026-07-17 17:10:17,491 [trainer.py] => model_name: rainbowprompt
+2026-07-17 17:10:17,491 [trainer.py] => prefix: budget_smoke_rainbowprompt
+2026-07-17 17:10:17,491 [trainer.py] => rp_length: 20
+2026-07-17 17:10:17,491 [trainer.py] => self_attn_idx: [0, 1, 2, 3, 4, 5]
+2026-07-17 17:10:17,492 [trainer.py] => KI_iter: 10
+2026-07-17 17:10:17,492 [trainer.py] => pull_constraint_coeff: 0.1
+2026-07-17 17:10:17,492 [trainer.py] => use_linear: True
+2026-07-17 17:10:17,492 [trainer.py] => rp_D1: 28
+2026-07-17 17:10:17,492 [trainer.py] => rp_D2: 56
+2026-07-17 17:10:17,492 [trainer.py] => stop_after_tasks: 3
+2026-07-17 17:10:17,492 [trainer.py] => final_metrics: True
+2026-07-17 17:10:17,492 [trainer.py] => boundary_mode: budget
+2026-07-17 17:10:17,492 [trainer.py] => budget_mb: 300
+2026-07-17 17:10:17,492 [trainer.py] => scenario: cil
+2026-07-17 17:10:19,107 [data_manager.py] => [68, 56, 78, 8, 23, 84, 90, 65, 74, 76, 40, 89, 3, 92, 55, 9, 26, 80, 43, 38, 58, 70, 77, 1, 85, 19, 17, 50, 28, 53, 13, 81, 45, 82, 6, 59, 83, 16, 15, 44, 91, 41, 72, 60, 79, 52, 20, 10, 31, 54, 37, 95, 14, 71, 96, 98, 97, 2, 64, 66, 42, 22, 35, 86, 24, 34, 87, 21, 99, 0, 88, 27, 18, 94, 11, 12, 47, 25, 30, 46, 62, 69, 36, 61, 7, 63, 75, 5, 32, 4, 51, 48, 73, 93, 39, 67, 29, 49, 57, 33]
+2026-07-17 17:10:19,427 [budget_stream.py] => [budget-stream] 300MB budget -> 24 chunks, 2090 images/chunk (last=1930), new-classes/chunk min=3 max=5 mean=4.17
+2026-07-17 17:10:19,427 [trainer.py] => [budget] dataset=cifar224 budget=300MB -> 24 memory-chunks (seed 1993)
+2026-07-17 17:10:22,546 [trainer.py] => stop_after_tasks=3 (of 24 total)
+2026-07-17 17:10:22,548 [trainer.py] => All params: 92842032
+2026-07-17 17:10:22,549 [trainer.py] => Trainable params: 7043376
+2026-07-17 17:10:22,549 [rainbowprompt.py] => [RainbowPrompt] Learning on 0-5
+2026-07-17 17:16:49,361 [rainbowprompt.py] => [RainbowPrompt] Task 0 done. Acc 94.64
+2026-07-17 17:16:52,804 [trainer.py] => No NME accuracy.
+2026-07-17 17:16:52,804 [trainer.py] => CNN: {'total': 99.2, '00-04': 99.2, 'old': 0, 'new': 99.2}
+2026-07-17 17:16:52,804 [trainer.py] => CNN top1 curve: [99.2]
+2026-07-17 17:16:52,804 [trainer.py] => CNN top5 curve: [100.0]
+
+2026-07-17 17:16:52,804 [trainer.py] => Average Accuracy (CNN): 99.2 
+
+2026-07-17 17:16:52,805 [trainer.py] => All params: 92845877
+2026-07-17 17:16:52,806 [trainer.py] => Trainable params: 7047221
+2026-07-17 17:16:52,807 [rainbowprompt.py] => [RainbowPrompt] Learning on 5-9
+2026-07-17 17:23:19,910 [rainbowprompt.py] => [RainbowPrompt] Task 1 done. Acc 93.88
+2026-07-17 17:23:25,525 [trainer.py] => No NME accuracy.
+2026-07-17 17:23:25,526 [trainer.py] => CNN: {'total': 97.22, '00-04': 97.0, '05-09': 97.5, 'old': 97.0, 'new': 97.5}
+2026-07-17 17:23:25,526 [trainer.py] => CNN top1 curve: [99.2, 97.22]
+2026-07-17 17:23:25,526 [trainer.py] => CNN top5 curve: [100.0, 100.0]
+
+2026-07-17 17:23:25,526 [trainer.py] => Average Accuracy (CNN): 98.21000000000001 
+
+2026-07-17 17:23:25,528 [trainer.py] => All params: 92848953
+2026-07-17 17:23:25,530 [trainer.py] => Trainable params: 7050297
+2026-07-17 17:23:25,531 [rainbowprompt.py] => [RainbowPrompt] Learning on 9-13
+2026-07-17 17:29:56,444 [rainbowprompt.py] => [RainbowPrompt] Task 2 done. Acc 93.83
+2026-07-17 17:30:04,283 [trainer.py] => No NME accuracy.
+2026-07-17 17:30:04,283 [trainer.py] => CNN: {'total': 95.85, '00-04': 96.8, '05-09': 95.0, '10-14': 95.67, 'old': 96.78, 'new': 93.75}
+2026-07-17 17:30:04,283 [trainer.py] => CNN top1 curve: [99.2, 97.22, 95.85]
+2026-07-17 17:30:04,284 [trainer.py] => CNN top5 curve: [100.0, 100.0, 99.85]
+
+2026-07-17 17:30:04,284 [trainer.py] => Average Accuracy (CNN): 97.42333333333333 
+
+2026-07-17 17:30:04,284 [metrics_logger.py] => [metrics] Learner has no _deployed_forward; skipping inference-cost measurement
+2026-07-17 17:30:04,284 [metrics_logger.py] => [metrics] wrote run_logs/final/rainbowprompt/metrics_rainbowprompt_cifar224_budget_smoke_rainbowprompt_s1993.json
+2026-07-17 17:30:04,284 [trainer.py] => Forgetting (CNN): 2.450000000000003
+2026-07-17 17:30:04,284 [trainer.py] => Forgetting (NME): 2.450000000000003

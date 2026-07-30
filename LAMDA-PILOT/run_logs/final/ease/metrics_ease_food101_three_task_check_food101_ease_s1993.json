@@ -1,0 +1,82 @@
+{
+  "args_subset": {
+    "model_name": "ease",
+    "dataset": "food101",
+    "init_cls": 6,
+    "increment": 5,
+    "seed": 1993,
+    "scenario": "cil",
+    "boundary_mode": null,
+    "budget_mb": null,
+    "n_lora_blocks": null,
+    "lora_rank": null,
+    "lora_alpha": null,
+    "svd_energy_target": null,
+    "svd_rank": null,
+    "svd_period": null,
+    "merge_op": null,
+    "cs_rank": null,
+    "lamda_1": null,
+    "lamda_2": null,
+    "lamb": null,
+    "lame": null
+  },
+  "status": "done",
+  "per_task": [
+    {
+      "task": 0,
+      "train_seconds": 513.744,
+      "eval_seconds": 5.427,
+      "boundary_seconds": 0.0,
+      "cil_top1": 97.73,
+      "til_top1": null,
+      "persistent_params": 318145,
+      "persistent_mb": 1.2136,
+      "persistent_state_breakdown": {
+        "adapters": 1254144,
+        "fc": 18436
+      },
+      "peak_vram_mb": 0.0
+    },
+    {
+      "task": 1,
+      "train_seconds": 443.662,
+      "eval_seconds": 15.874,
+      "boundary_seconds": 0.0,
+      "cil_top1": 91.89,
+      "til_top1": null,
+      "persistent_params": 487201,
+      "persistent_mb": 1.8585,
+      "persistent_state_breakdown": {
+        "adapters": 1881216,
+        "fc": 67588
+      },
+      "peak_vram_mb": 0.0
+    },
+    {
+      "task": 2,
+      "train_seconds": 455.324,
+      "eval_seconds": 32.541,
+      "boundary_seconds": 0.0,
+      "cil_top1": 82.8,
+      "til_top1": null,
+      "persistent_params": 663937,
+      "persistent_mb": 2.5327,
+      "persistent_state_breakdown": {
+        "adapters": 2508288,
+        "fc": 147460
+      },
+      "peak_vram_mb": 0.0
+    }
+  ],
+  "train_seconds_total": 1412.7308535575867,
+  "eval_seconds_total": 53.84175086021423,
+  "boundary_seconds_total": 0.0,
+  "cil_summary": {
+    "final_average_accuracy": 83.8133,
+    "average_incremental_accuracy": 91.3011,
+    "forgetting": 16.105,
+    "backward_transfer": -16.105,
+    "last_task_accuracy": 88.4
+  }
+}

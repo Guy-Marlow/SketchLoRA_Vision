@@ -1,0 +1,63 @@
+2026-07-19 17:47:05,657 [trainer.py] => config: exps/review/three_task_check/imagenetr_progprompt.json
+2026-07-19 17:47:05,657 [trainer.py] => dataset: imagenetr
+2026-07-19 17:47:05,657 [trainer.py] => memory_size: 0
+2026-07-19 17:47:05,658 [trainer.py] => memory_per_class: 0
+2026-07-19 17:47:05,658 [trainer.py] => fixed_memory: False
+2026-07-19 17:47:05,658 [trainer.py] => shuffle: True
+2026-07-19 17:47:05,658 [trainer.py] => init_cls: 10
+2026-07-19 17:47:05,658 [trainer.py] => increment: 10
+2026-07-19 17:47:05,658 [trainer.py] => seed: 1993
+2026-07-19 17:47:05,658 [trainer.py] => scenario: cil
+2026-07-19 17:47:05,658 [trainer.py] => stop_after_tasks: 3
+2026-07-19 17:47:05,658 [trainer.py] => pretrained: True
+2026-07-19 17:47:05,658 [trainer.py] => print_forget: True
+2026-07-19 17:47:05,658 [trainer.py] => final_metrics: True
+2026-07-19 17:47:05,658 [trainer.py] => backbone_type: vit_base_patch16_224_progprompt
+2026-07-19 17:47:05,658 [trainer.py] => tuned_epoch: 5
+2026-07-19 17:47:05,658 [trainer.py] => init_lr: 0.0015
+2026-07-19 17:47:05,658 [trainer.py] => batch_size: 48
+2026-07-19 17:47:05,658 [trainer.py] => weight_decay: 0.0
+2026-07-19 17:47:05,658 [trainer.py] => min_lr: 0.0
+2026-07-19 17:47:05,658 [trainer.py] => model_name: progprompt
+2026-07-19 17:47:05,658 [trainer.py] => prompt_len: 10
+2026-07-19 17:47:05,658 [trainer.py] => device: [device(type='cuda', index=2)]
+2026-07-19 17:47:05,658 [trainer.py] => prefix: three_task_check_imagenetr_progprompt
+2026-07-19 17:47:05,746 [data_manager.py] => [168, 136, 51, 9, 183, 101, 171, 99, 42, 159, 191, 70, 16, 188, 27, 10, 175, 26, 68, 187, 98, 6, 85, 35, 112, 43, 100, 0, 103, 181, 88, 59, 4, 2, 116, 174, 94, 80, 106, 1, 147, 17, 141, 131, 72, 23, 173, 54, 197, 118, 87, 32, 79, 104, 91, 19, 135, 107, 178, 36, 11, 199, 142, 8, 122, 3, 28, 57, 153, 172, 190, 56, 49, 44, 97, 62, 151, 169, 194, 55, 192, 12, 189, 78, 66, 180, 15, 137, 109, 134, 92, 119, 126, 52, 170, 40, 148, 65, 144, 64, 138, 45, 77, 89, 154, 90, 71, 193, 74, 30, 113, 143, 96, 84, 67, 50, 186, 156, 69, 21, 18, 111, 108, 58, 125, 157, 150, 110, 182, 129, 166, 83, 81, 60, 13, 165, 14, 176, 63, 117, 5, 22, 145, 121, 38, 41, 82, 127, 114, 20, 31, 53, 37, 163, 196, 130, 152, 162, 86, 76, 24, 34, 184, 149, 33, 128, 198, 155, 146, 167, 139, 120, 140, 102, 47, 25, 158, 123, 46, 164, 61, 7, 115, 75, 133, 160, 105, 132, 179, 124, 48, 73, 93, 39, 95, 195, 29, 177, 185, 161]
+2026-07-19 17:47:08,359 [trainer.py] => stop_after_tasks=3 (of 20 total)
+2026-07-19 17:47:08,633 [trainer.py] => All params: 85952256
+2026-07-19 17:47:08,634 [trainer.py] => Trainable params: 153600
+2026-07-19 17:47:08,946 [progprompt.py] => [ProgPrompt] Learning on 0-10
+2026-07-19 17:47:51,308 [progprompt.py] => [ProgPrompt] Task 0 done. Acc 85.04
+2026-07-19 17:47:52,902 [trainer.py] => No NME accuracy.
+2026-07-19 17:47:52,902 [trainer.py] => CNN: {'total': 88.61, '00-09': 88.61, 'old': 0, 'new': 88.61}
+2026-07-19 17:47:52,902 [trainer.py] => CNN top1 curve: [88.61]
+2026-07-19 17:47:52,902 [trainer.py] => CNN top5 curve: [98.42]
+
+2026-07-19 17:47:52,902 [trainer.py] => Average Accuracy (CNN): 88.61 
+
+2026-07-19 17:47:52,903 [trainer.py] => All params: 85959946
+2026-07-19 17:47:52,903 [trainer.py] => Trainable params: 15370
+2026-07-19 17:47:52,905 [progprompt.py] => [ProgPrompt] Learning on 10-20
+2026-07-19 17:48:44,858 [progprompt.py] => [ProgPrompt] Task 1 done. Acc 86.52
+2026-07-19 17:48:47,700 [trainer.py] => No NME accuracy.
+2026-07-19 17:48:47,700 [trainer.py] => CNN: {'total': 75.51, '00-09': 85.76, '10-19': 66.84, 'old': 85.76, 'new': 66.84}
+2026-07-19 17:48:47,700 [trainer.py] => CNN top1 curve: [88.61, 75.51]
+2026-07-19 17:48:47,700 [trainer.py] => CNN top5 curve: [98.42, 92.75]
+
+2026-07-19 17:48:47,700 [trainer.py] => Average Accuracy (CNN): 82.06 
+
+2026-07-19 17:48:47,701 [trainer.py] => All params: 85967636
+2026-07-19 17:48:47,702 [trainer.py] => Trainable params: 23060
+2026-07-19 17:48:47,703 [progprompt.py] => [ProgPrompt] Learning on 20-30
+2026-07-19 17:49:31,099 [progprompt.py] => [ProgPrompt] Task 2 done. Acc 84.93
+2026-07-19 17:49:34,952 [trainer.py] => No NME accuracy.
+2026-07-19 17:49:34,952 [trainer.py] => CNN: {'total': 71.95, '00-09': 77.85, '10-19': 62.03, '20-29': 78.07, 'old': 69.28, 'new': 78.07}
+2026-07-19 17:49:34,952 [trainer.py] => CNN top1 curve: [88.61, 75.51, 71.95]
+2026-07-19 17:49:34,952 [trainer.py] => CNN top5 curve: [98.42, 92.75, 89.61]
+
+2026-07-19 17:49:34,952 [trainer.py] => Average Accuracy (CNN): 78.69 
+
+2026-07-19 17:49:34,952 [metrics_logger.py] => [metrics] Learner has no _deployed_forward; skipping inference-cost measurement
+2026-07-19 17:49:34,953 [metrics_logger.py] => [metrics] wrote run_logs/final/progprompt/metrics_progprompt_imagenetr_three_task_check_imagenetr_progprompt_s1993.json
+2026-07-19 17:49:34,953 [trainer.py] => Forgetting (CNN): 7.785000000000004
+2026-07-19 17:49:34,953 [trainer.py] => Forgetting (NME): 7.785000000000004

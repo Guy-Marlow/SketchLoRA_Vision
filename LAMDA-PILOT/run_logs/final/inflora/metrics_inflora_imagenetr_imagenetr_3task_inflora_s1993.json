@@ -1,0 +1,100 @@
+{
+  "args_subset": {
+    "model_name": "inflora",
+    "dataset": "imagenetr",
+    "init_cls": 10,
+    "increment": 10,
+    "seed": 1993,
+    "scenario": "both",
+    "boundary_mode": null,
+    "budget_mb": null,
+    "n_lora_blocks": null,
+    "lora_rank": 10,
+    "lora_alpha": null,
+    "svd_energy_target": null,
+    "svd_rank": null,
+    "svd_period": null,
+    "merge_op": null,
+    "cs_rank": null,
+    "lamda_1": null,
+    "lamda_2": null,
+    "lamb": 0.95,
+    "lame": 1.0
+  },
+  "status": "done",
+  "per_task": [
+    {
+      "task": 0,
+      "train_seconds": 104.887,
+      "eval_seconds": 3.787,
+      "boundary_seconds": 0.0,
+      "cil_top1": 94.94,
+      "til_top1": 94.94,
+      "trainable_params": 192010,
+      "persistent_params": 21698314,
+      "persistent_mb": 82.7725,
+      "persistent_state_breakdown": {
+        "frozen_delta": 56623104,
+        "current_slot": 1474560,
+        "dualgpm_bases": 28664832,
+        "fc": 30760
+      },
+      "peak_vram_mb": 4707.9
+    },
+    {
+      "task": 1,
+      "train_seconds": 122.362,
+      "eval_seconds": 7.098,
+      "boundary_seconds": 0.0,
+      "cil_top1": 88.7,
+      "til_top1": 93.62,
+      "trainable_params": 199700,
+      "persistent_params": 21732884,
+      "persistent_mb": 82.9044,
+      "persistent_state_breakdown": {
+        "frozen_delta": 56623104,
+        "current_slot": 1474560,
+        "dualgpm_bases": 28772352,
+        "fc": 61520
+      },
+      "peak_vram_mb": 4761.8
+    },
+    {
+      "task": 2,
+      "train_seconds": 100.796,
+      "eval_seconds": 10.014,
+      "boundary_seconds": 0.0,
+      "cil_top1": 81.63,
+      "til_top1": 92.33,
+      "trainable_params": 207390,
+      "persistent_params": 21749790,
+      "persistent_mb": 82.9689,
+      "persistent_state_breakdown": {
+        "frozen_delta": 56623104,
+        "current_slot": 1474560,
+        "dualgpm_bases": 28809216,
+        "fc": 92280
+      },
+      "peak_vram_mb": 4761.8
+    }
+  ],
+  "train_seconds_total": 328.0453462600708,
+  "eval_seconds_total": 20.899547576904297,
+  "boundary_seconds_total": 0.0,
+  "inference_ms_per_image": 3.0792,
+  "inference_flops_per_image": 40869050640.0,
+  "cil_summary": {
+    "final_average_accuracy": 81.6967,
+    "average_incremental_accuracy": 88.3922,
+    "forgetting": 14.795,
+    "backward_transfer": -14.795,
+    "last_task_accuracy": 89.37
+  },
+  "til_summary": {
+    "final_average_accuracy": 92.3467,
+    "average_incremental_accuracy": 93.6056,
+    "forgetting": 3.285,
+    "backward_transfer": -3.285,
+    "last_task_accuracy": 94.02
+  }
+}

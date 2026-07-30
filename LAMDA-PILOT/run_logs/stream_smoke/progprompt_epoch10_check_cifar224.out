@@ -1,0 +1,46 @@
+2026-07-19 21:26:42,106 [trainer.py] => config: exps/review/progprompt_epoch10_check/cifar224.json
+2026-07-19 21:26:42,106 [trainer.py] => dataset: cifar224
+2026-07-19 21:26:42,106 [trainer.py] => memory_size: 0
+2026-07-19 21:26:42,106 [trainer.py] => memory_per_class: 0
+2026-07-19 21:26:42,106 [trainer.py] => fixed_memory: False
+2026-07-19 21:26:42,106 [trainer.py] => shuffle: True
+2026-07-19 21:26:42,106 [trainer.py] => init_cls: 5
+2026-07-19 21:26:42,106 [trainer.py] => increment: 5
+2026-07-19 21:26:42,106 [trainer.py] => seed: 1993
+2026-07-19 21:26:42,106 [trainer.py] => scenario: cil
+2026-07-19 21:26:42,106 [trainer.py] => stop_after_tasks: 3
+2026-07-19 21:26:42,106 [trainer.py] => pretrained: True
+2026-07-19 21:26:42,106 [trainer.py] => print_forget: True
+2026-07-19 21:26:42,106 [trainer.py] => final_metrics: True
+2026-07-19 21:26:42,106 [trainer.py] => backbone_type: vit_base_patch16_224_progprompt
+2026-07-19 21:26:42,106 [trainer.py] => tuned_epoch: 10
+2026-07-19 21:26:42,106 [trainer.py] => init_lr: 0.0003
+2026-07-19 21:26:42,106 [trainer.py] => batch_size: 48
+2026-07-19 21:26:42,106 [trainer.py] => weight_decay: 0.0
+2026-07-19 21:26:42,107 [trainer.py] => min_lr: 0.0
+2026-07-19 21:26:42,107 [trainer.py] => model_name: progprompt
+2026-07-19 21:26:42,107 [trainer.py] => prompt_len: 10
+2026-07-19 21:26:42,107 [trainer.py] => device: [device(type='cuda', index=1)]
+2026-07-19 21:26:42,107 [trainer.py] => prefix: progprompt_epoch10_check_cifar224
+Files already downloaded and verified
+Files already downloaded and verified
+2026-07-19 21:26:43,780 [data_manager.py] => [68, 56, 78, 8, 23, 84, 90, 65, 74, 76, 40, 89, 3, 92, 55, 9, 26, 80, 43, 38, 58, 70, 77, 1, 85, 19, 17, 50, 28, 53, 13, 81, 45, 82, 6, 59, 83, 16, 15, 44, 91, 41, 72, 60, 79, 52, 20, 10, 31, 54, 37, 95, 14, 71, 96, 98, 97, 2, 64, 66, 42, 22, 35, 86, 24, 34, 87, 21, 99, 0, 88, 27, 18, 94, 11, 12, 47, 25, 30, 46, 62, 69, 36, 61, 7, 63, 75, 5, 32, 4, 51, 48, 73, 93, 39, 67, 29, 49, 57, 33]
+This is for the BaseNet initialization.
+I'm using ViT with per-task progressive soft prompts.
+_IncompatibleKeys(missing_keys=['prompts.0', 'prompts.1', 'prompts.2', 'prompts.3', 'prompts.4', 'prompts.5', 'prompts.6', 'prompts.7', 'prompts.8', 'prompts.9', 'prompts.10', 'prompts.11', 'prompts.12', 'prompts.13', 'prompts.14', 'prompts.15', 'prompts.16', 'prompts.17', 'prompts.18', 'prompts.19'], unexpected_keys=[])
+After BaseNet initialization.
+2026-07-19 21:26:46,317 [trainer.py] => stop_after_tasks=3 (of 20 total)
+Traceback (most recent call last):
+  File "/home/gmar762/research/continuous_learning/svd_sketching_vision/LAMDA-PILOT/main.py", line 25, in <module>
+    main()
+  File "/home/gmar762/research/continuous_learning/svd_sketching_vision/LAMDA-PILOT/main.py", line 11, in main
+    train(args)
+  File "/home/gmar762/research/continuous_learning/svd_sketching_vision/LAMDA-PILOT/trainer.py", line 20, in train
+    _train(args)
+  File "/home/gmar762/research/continuous_learning/svd_sketching_vision/LAMDA-PILOT/trainer.py", line 120, in _train
+    mlog = MetricsLogger(os.path.join("run_logs", "final", args["model_name"]), _tag, args)
+  File "/home/gmar762/research/continuous_learning/svd_sketching_vision/LAMDA-PILOT/utils/metrics_logger.py", line 128, in __init__
+    torch.cuda.reset_peak_memory_stats(self._device)
+  File "/home/gmar762/.local/lib/python3.10/site-packages/torch/cuda/memory.py", line 344, in reset_peak_memory_stats
+    return torch._C._cuda_resetPeakMemoryStats(device)
+RuntimeError: Invalid device argument : did you call init?

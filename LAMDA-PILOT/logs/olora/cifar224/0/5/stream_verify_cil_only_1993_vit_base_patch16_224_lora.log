@@ -1,0 +1,37 @@
+2026-07-19 16:05:02,435 [trainer.py] => config: exps/review/stream_smoke/_verify_cil_only.json
+2026-07-19 16:05:02,435 [trainer.py] => dataset: cifar224
+2026-07-19 16:05:02,435 [trainer.py] => memory_size: 0
+2026-07-19 16:05:02,435 [trainer.py] => memory_per_class: 0
+2026-07-19 16:05:02,435 [trainer.py] => fixed_memory: False
+2026-07-19 16:05:02,435 [trainer.py] => shuffle: True
+2026-07-19 16:05:02,435 [trainer.py] => init_cls: 5
+2026-07-19 16:05:02,435 [trainer.py] => increment: 5
+2026-07-19 16:05:02,435 [trainer.py] => seed: 1993
+2026-07-19 16:05:02,435 [trainer.py] => scenario: cil
+2026-07-19 16:05:02,435 [trainer.py] => pretrained: True
+2026-07-19 16:05:02,435 [trainer.py] => print_forget: True
+2026-07-19 16:05:02,435 [trainer.py] => final_metrics: True
+2026-07-19 16:05:02,435 [trainer.py] => backbone_type: vit_base_patch16_224_lora
+2026-07-19 16:05:02,435 [trainer.py] => lora_rank: 8
+2026-07-19 16:05:02,435 [trainer.py] => lora_alpha: 32
+2026-07-19 16:05:02,436 [trainer.py] => tuned_epoch: 10
+2026-07-19 16:05:02,436 [trainer.py] => init_lr: 0.0005
+2026-07-19 16:05:02,436 [trainer.py] => batch_size: 48
+2026-07-19 16:05:02,436 [trainer.py] => weight_decay: 0.0005
+2026-07-19 16:05:02,436 [trainer.py] => min_lr: 0.0
+2026-07-19 16:05:02,436 [trainer.py] => model_name: olora
+2026-07-19 16:05:02,436 [trainer.py] => lora_merge: True
+2026-07-19 16:05:02,436 [trainer.py] => lamda_1: 0.5
+2026-07-19 16:05:02,436 [trainer.py] => lamda_2: 0.0
+2026-07-19 16:05:02,436 [trainer.py] => device: [device(type='cuda', index=2)]
+2026-07-19 16:05:02,436 [trainer.py] => prefix: stream_verify_cil_only
+2026-07-19 16:05:02,436 [trainer.py] => boundary_mode: sample
+2026-07-19 16:05:02,436 [trainer.py] => stream_budget_mb: 250
+2026-07-19 16:05:02,436 [trainer.py] => stop_after_tasks: 1
+2026-07-19 16:05:04,077 [data_manager.py] => [68, 56, 78, 8, 23, 84, 90, 65, 74, 76, 40, 89, 3, 92, 55, 9, 26, 80, 43, 38, 58, 70, 77, 1, 85, 19, 17, 50, 28, 53, 13, 81, 45, 82, 6, 59, 83, 16, 15, 44, 91, 41, 72, 60, 79, 52, 20, 10, 31, 54, 37, 95, 14, 71, 96, 98, 97, 2, 64, 66, 42, 22, 35, 86, 24, 34, 87, 21, 99, 0, 88, 27, 18, 94, 11, 12, 47, 25, 30, 46, 62, 69, 36, 61, 7, 63, 75, 5, 32, 4, 51, 48, 73, 93, 39, 67, 29, 49, 57, 33]
+2026-07-19 16:05:06,678 [stream_mixin.py] => [stream] stop_after_tasks=1 (of 20 total)
+2026-07-19 16:05:06,678 [stream_mixin.py] => [stream] adapter event every 1741 samples (memory constraint 250.0MB); eval after each fold on completed tasks
+2026-07-19 16:08:03,836 [stream_mixin.py] => [stream eval] completed  1 | chunk   9 | CIL 100.00
+2026-07-19 16:08:03,850 [trainer.py] => [stream] completed-task checkpoints: [1]
+2026-07-19 16:08:03,850 [trainer.py] => [stream] CIL curve: [100.0]
+2026-07-19 16:08:03,850 [trainer.py] => [stream] FINAL  CIL 100.00  (over 1 tasks) -- TIL not computed (meaningless in the memory-increment setup)

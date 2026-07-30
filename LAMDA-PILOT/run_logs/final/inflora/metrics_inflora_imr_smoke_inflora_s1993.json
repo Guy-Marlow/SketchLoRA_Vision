@@ -1,0 +1,85 @@
+{
+  "args_subset": {
+    "model_name": "inflora",
+    "dataset": "imagenetr",
+    "init_cls": 10,
+    "increment": 10,
+    "seed": 1993,
+    "scenario": "cil",
+    "boundary_mode": "bounded_memory",
+    "budget_mb": null,
+    "bm_budget_mb": 50,
+    "n_lora_blocks": null,
+    "lora_rank": 8,
+    "lora_alpha": 32,
+    "svd_energy_target": null,
+    "svd_rank": null,
+    "svd_period": null,
+    "merge_op": null,
+    "cs_rank": null,
+    "lamda_1": null,
+    "lamda_2": null,
+    "lamb": 0.975,
+    "lame": 0.975
+  },
+  "status": "running",
+  "per_task": [
+    {
+      "task": 0,
+      "train_seconds": 13.959,
+      "eval_seconds": 2.34,
+      "boundary_seconds": 0.0,
+      "cil_top1": 54.11,
+      "til_top1": null,
+      "trainable_params": 301256,
+      "persistent_params": 21937352,
+      "persistent_mb": 83.6844,
+      "persistent_state_breakdown": {
+        "frozen_delta": 56623104,
+        "current_slot": 1179648,
+        "dualgpm_bases": 29331456,
+        "fc": 615200
+      },
+      "peak_vram_mb": 4709.6
+    },
+    {
+      "task": 1,
+      "train_seconds": 12.159,
+      "eval_seconds": 2.347,
+      "boundary_seconds": 0.0,
+      "cil_top1": 67.09,
+      "til_top1": null,
+      "trainable_params": 301256,
+      "persistent_params": 21958088,
+      "persistent_mb": 83.7635,
+      "persistent_state_breakdown": {
+        "frozen_delta": 56623104,
+        "current_slot": 1179648,
+        "dualgpm_bases": 29414400,
+        "fc": 615200
+      },
+      "peak_vram_mb": 4764.7
+    },
+    {
+      "task": 2,
+      "train_seconds": 12.126,
+      "eval_seconds": 2.373,
+      "boundary_seconds": 0.0,
+      "cil_top1": 74.68,
+      "til_top1": null,
+      "trainable_params": 301256,
+      "persistent_params": 22001096,
+      "persistent_mb": 83.9275,
+      "persistent_state_breakdown": {
+        "frozen_delta": 56623104,
+        "current_slot": 1179648,
+        "dualgpm_bases": 29586432,
+        "fc": 615200
+      },
+      "peak_vram_mb": 4764.7
+    }
+  ],
+  "train_seconds_total": 38.24372482299805,
+  "eval_seconds_total": 7.059888601303101,
+  "boundary_seconds_total": 0.0
+}

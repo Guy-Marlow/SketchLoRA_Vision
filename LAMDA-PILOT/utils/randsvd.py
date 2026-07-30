@@ -32,7 +32,20 @@ def rand_svd(M: np.ndarray | torch.Tensor, target_rank: int, oversampling: int):
         Y = M @ omega
         Q, _ = torch.linalg.qr(Y)
         M_bar = Q.t() @ M
-        U_bar, S, Vh = torch.linalg.svd(M_bar)
+        try:
+            U_bar, S, Vh = torch.linalg.svd(M_bar)
+        except torch._C._LinAlgError:
+            # 2026-07-28: the default cusolver driver's heuristic algorithm can
+            # fail to converge on M_bar (small, but occasionally ill-conditioned
+            # or near-repeated-singular-value) -- reproduced deterministically
+            # (same seed, same crash point) during the CA v2 sweep's shared_full
+            # covariance run, unrelated to CA itself (CA never touches this
+            # code path; the failure is in the ordinary sketch-fold SVD).
+            # driver="gesvd" is the classical Golub-Kahan QR algorithm --
+            # slower but far more numerically robust, and M_bar is tiny
+            # (target_rank+oversampling square-ish), so the slowdown is
+            # negligible here. Retried once; if THIS also fails, let it raise.
+            U_bar, S, Vh = torch.linalg.svd(M_bar, driver="gesvd")
 
         S = torch.diag(S)
         U = (Q @ U_bar)[:, 0:target_rank]

@@ -1,0 +1,54 @@
+2026-07-19 02:26:09,212 [trainer.py] => config: exps/review/stream_smoke/_verify_hidelora.json
+2026-07-19 02:26:09,212 [trainer.py] => dataset: cifar224
+2026-07-19 02:26:09,212 [trainer.py] => memory_size: 0
+2026-07-19 02:26:09,212 [trainer.py] => memory_per_class: 0
+2026-07-19 02:26:09,212 [trainer.py] => fixed_memory: False
+2026-07-19 02:26:09,212 [trainer.py] => shuffle: True
+2026-07-19 02:26:09,212 [trainer.py] => init_cls: 5
+2026-07-19 02:26:09,212 [trainer.py] => increment: 5
+2026-07-19 02:26:09,212 [trainer.py] => seed: 1993
+2026-07-19 02:26:09,212 [trainer.py] => scenario: cil
+2026-07-19 02:26:09,213 [trainer.py] => pretrained: True
+2026-07-19 02:26:09,213 [trainer.py] => print_forget: True
+2026-07-19 02:26:09,213 [trainer.py] => final_metrics: True
+2026-07-19 02:26:09,213 [trainer.py] => backbone_type: vit_base_patch16_224_lora
+2026-07-19 02:26:09,213 [trainer.py] => lora_rank: 8
+2026-07-19 02:26:09,213 [trainer.py] => lora_alpha: 32
+2026-07-19 02:26:09,213 [trainer.py] => tuned_epoch: 50
+2026-07-19 02:26:09,213 [trainer.py] => init_lr: 0.03
+2026-07-19 02:26:09,213 [trainer.py] => batch_size: 48
+2026-07-19 02:26:09,213 [trainer.py] => weight_decay: 0.0005
+2026-07-19 02:26:09,213 [trainer.py] => min_lr: 0.0
+2026-07-19 02:26:09,213 [trainer.py] => model_name: hidelora
+2026-07-19 02:26:09,213 [trainer.py] => lora_momentum: 0.1
+2026-07-19 02:26:09,213 [trainer.py] => reg: 0.001
+2026-07-19 02:26:09,213 [trainer.py] => crct_epochs: 30
+2026-07-19 02:26:09,213 [trainer.py] => ca_lr: 0.005
+2026-07-19 02:26:09,213 [trainer.py] => n_centroids: 10
+2026-07-19 02:26:09,213 [trainer.py] => device: [device(type='cuda', index=0)]
+2026-07-19 02:26:09,213 [trainer.py] => prefix: stream_verify_hidelora
+2026-07-19 02:26:09,213 [trainer.py] => boundary_mode: sample
+2026-07-19 02:26:09,213 [trainer.py] => stream_budget_mb: 250
+2026-07-19 02:26:09,214 [trainer.py] => stop_after_tasks: 1
+Files already downloaded and verified
+Files already downloaded and verified
+2026-07-19 02:26:10,829 [data_manager.py] => [68, 56, 78, 8, 23, 84, 90, 65, 74, 76, 40, 89, 3, 92, 55, 9, 26, 80, 43, 38, 58, 70, 77, 1, 85, 19, 17, 50, 28, 53, 13, 81, 45, 82, 6, 59, 83, 16, 15, 44, 91, 41, 72, 60, 79, 52, 20, 10, 31, 54, 37, 95, 14, 71, 96, 98, 97, 2, 64, 66, 42, 22, 35, 86, 24, 34, 87, 21, 99, 0, 88, 27, 18, 94, 11, 12, 47, 25, 30, 46, 62, 69, 36, 61, 7, 63, 75, 5, 32, 4, 51, 48, 73, 93, 39, 67, 29, 49, 57, 33]
+This is for the BaseNet initialization.
+I'm using ViT with per-task LoRA (q,v).
+_IncompatibleKeys(missing_keys=['blocks.0.attn.cur_matrix', 'blocks.0.attn.frozen_delta_q', 'blocks.0.attn.frozen_delta_v', 'blocks.0.attn.lora_A_q.0.weight', 'blocks.0.attn.lora_B_q.0.weight', 'blocks.0.attn.lora_A_v.0.weight', 'blocks.0.attn.lora_B_v.0.weight', 'blocks.1.attn.cur_matrix', 'blocks.1.attn.frozen_delta_q', 'blocks.1.attn.frozen_delta_v', 'blocks.1.attn.lora_A_q.0.weight', 'blocks.1.attn.lora_B_q.0.weight', 'blocks.1.attn.lora_A_v.0.weight', 'blocks.1.attn.lora_B_v.0.weight', 'blocks.2.attn.cur_matrix', 'blocks.2.attn.frozen_delta_q', 'blocks.2.attn.frozen_delta_v', 'blocks.2.attn.lora_A_q.0.weight', 'blocks.2.attn.lora_B_q.0.weight', 'blocks.2.attn.lora_A_v.0.weight', 'blocks.2.attn.lora_B_v.0.weight', 'blocks.3.attn.cur_matrix', 'blocks.3.attn.frozen_delta_q', 'blocks.3.attn.frozen_delta_v', 'blocks.3.attn.lora_A_q.0.weight', 'blocks.3.attn.lora_B_q.0.weight', 'blocks.3.attn.lora_A_v.0.weight', 'blocks.3.attn.lora_B_v.0.weight', 'blocks.4.attn.cur_matrix', 'blocks.4.attn.frozen_delta_q', 'blocks.4.attn.frozen_delta_v', 'blocks.4.attn.lora_A_q.0.weight', 'blocks.4.attn.lora_B_q.0.weight', 'blocks.4.attn.lora_A_v.0.weight', 'blocks.4.attn.lora_B_v.0.weight', 'blocks.5.attn.cur_matrix', 'blocks.5.attn.frozen_delta_q', 'blocks.5.attn.frozen_delta_v', 'blocks.5.attn.lora_A_q.0.weight', 'blocks.5.attn.lora_B_q.0.weight', 'blocks.5.attn.lora_A_v.0.weight', 'blocks.5.attn.lora_B_v.0.weight', 'blocks.6.attn.cur_matrix', 'blocks.6.attn.frozen_delta_q', 'blocks.6.attn.frozen_delta_v', 'blocks.6.attn.lora_A_q.0.weight', 'blocks.6.attn.lora_B_q.0.weight', 'blocks.6.attn.lora_A_v.0.weight', 'blocks.6.attn.lora_B_v.0.weight', 'blocks.7.attn.cur_matrix', 'blocks.7.attn.frozen_delta_q', 'blocks.7.attn.frozen_delta_v', 'blocks.7.attn.lora_A_q.0.weight', 'blocks.7.attn.lora_B_q.0.weight', 'blocks.7.attn.lora_A_v.0.weight', 'blocks.7.attn.lora_B_v.0.weight', 'blocks.8.attn.cur_matrix', 'blocks.8.attn.frozen_delta_q', 'blocks.8.attn.frozen_delta_v', 'blocks.8.attn.lora_A_q.0.weight', 'blocks.8.attn.lora_B_q.0.weight', 'blocks.8.attn.lora_A_v.0.weight', 'blocks.8.attn.lora_B_v.0.weight', 'blocks.9.attn.cur_matrix', 'blocks.9.attn.frozen_delta_q', 'blocks.9.attn.frozen_delta_v', 'blocks.9.attn.lora_A_q.0.weight', 'blocks.9.attn.lora_B_q.0.weight', 'blocks.9.attn.lora_A_v.0.weight', 'blocks.9.attn.lora_B_v.0.weight', 'blocks.10.attn.cur_matrix', 'blocks.10.attn.frozen_delta_q', 'blocks.10.attn.frozen_delta_v', 'blocks.10.attn.lora_A_q.0.weight', 'blocks.10.attn.lora_B_q.0.weight', 'blocks.10.attn.lora_A_v.0.weight', 'blocks.10.attn.lora_B_v.0.weight', 'blocks.11.attn.cur_matrix', 'blocks.11.attn.frozen_delta_q', 'blocks.11.attn.frozen_delta_v', 'blocks.11.attn.lora_A_q.0.weight', 'blocks.11.attn.lora_B_q.0.weight', 'blocks.11.attn.lora_A_v.0.weight', 'blocks.11.attn.lora_B_v.0.weight'], unexpected_keys=[])
+After BaseNet initialization.
+2026-07-19 02:26:13,406 [stream_mixin.py] => [stream] stop_after_tasks=1 (of 20 total)
+2026-07-19 02:26:13,407 [stream_mixin.py] => [stream] adapter event every 1741 samples (memory constraint 250.0MB); eval after each fold on completed tasks
+2026-07-19 02:38:31,080 [utils.py] => Note: detected 128 virtual cores but NumExpr set to maximum of 64, check "NUMEXPR_MAX_THREADS" environment variable.
+2026-07-19 02:38:31,080 [utils.py] => Note: NumExpr detected 128 cores but "NUMEXPR_MAX_THREADS" not set, so enforcing safe limit of 16.
+2026-07-19 02:38:31,080 [utils.py] => NumExpr defaulting to 16 threads.
+2026-07-19 02:38:47,988 [stream_mixin.py] => [stream eval] completed  1 | CIL 20.20 | TIL 20.20 | TIL/task [20.2]
+2026-07-19 02:38:48,014 [trainer.py] => [stream] completed-task checkpoints: [1]
+2026-07-19 02:38:48,014 [trainer.py] => [stream] CIL curve: [20.2]
+2026-07-19 02:38:48,014 [trainer.py] => [stream] TIL curve: [20.2]
+2026-07-19 02:38:48,014 [trainer.py] => [stream] FINAL  CIL 20.20 | TIL 20.20  (over 1 tasks)
+[stream] checkpoints (completed tasks): [1]
+[stream] CIL: [20.2]
+[stream] TIL: [20.2]
+[stream] FINAL CIL 20.20 | TIL 20.20
+[stream] wrote run_logs/stream_hidelora_stream_verify_hidelora_s1993.json

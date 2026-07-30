@@ -74,6 +74,17 @@ class Learner(LoRALearner):
         orth, l2 = self._orth_and_l2()
         return self.lamda_1 * orth + self.lamda_2 * l2
 
+    def _ce_aux_macs_per_step(self):
+        # impl_plan_7.27.2026 sec 2.3: current-A x each frozen prev-A^T, r^2*d
+        # MACs per slot-pair, TIMES slot count at this cycle, plus backward (~2x).
+        # self._stream_chunk is the 0-indexed current slot count minus 1 (new
+        # slot allocated at _stream_begin_chunk before this cycle's steps run).
+        from utils.ce_formulas import olora_aux_macs_per_step
+        slot_count = self._stream_chunk + 1
+        net = self._network.module if hasattr(self._network, "module") else self._network
+        rank = net.attn_modules()[0].rank
+        return olora_aux_macs_per_step(slot_count, rank=rank)
+
     def _orth_and_l2(self):
         """Orthogonality penalty (current vs all previous tasks) + L2 on the
         current task's LoRA, summed over all attention blocks.

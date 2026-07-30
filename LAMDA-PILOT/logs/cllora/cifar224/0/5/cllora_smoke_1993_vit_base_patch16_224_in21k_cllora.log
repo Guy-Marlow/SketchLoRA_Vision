@@ -1,0 +1,153 @@
+2026-07-16 17:25:12,589 [trainer.py] => config: ./exps/smoke/cllora_smoke.json
+2026-07-16 17:25:12,589 [trainer.py] => prefix: cllora_smoke
+2026-07-16 17:25:12,589 [trainer.py] => dataset: cifar224
+2026-07-16 17:25:12,589 [trainer.py] => memory_size: 0
+2026-07-16 17:25:12,589 [trainer.py] => memory_per_class: 0
+2026-07-16 17:25:12,589 [trainer.py] => fixed_memory: False
+2026-07-16 17:25:12,589 [trainer.py] => shuffle: True
+2026-07-16 17:25:12,589 [trainer.py] => init_cls: 5
+2026-07-16 17:25:12,589 [trainer.py] => increment: 5
+2026-07-16 17:25:12,589 [trainer.py] => model_name: cllora
+2026-07-16 17:25:12,589 [trainer.py] => backbone_type: vit_base_patch16_224_in21k_cllora
+2026-07-16 17:25:12,589 [trainer.py] => device: [device(type='cuda', index=0)]
+2026-07-16 17:25:12,589 [trainer.py] => seed: 1993
+2026-07-16 17:25:12,589 [trainer.py] => scenario: cil
+2026-07-16 17:25:12,589 [trainer.py] => init_epochs: 2
+2026-07-16 17:25:12,589 [trainer.py] => init_lr: 0.03
+2026-07-16 17:25:12,589 [trainer.py] => later_epochs: 2
+2026-07-16 17:25:12,589 [trainer.py] => later_lr: 0.03
+2026-07-16 17:25:12,590 [trainer.py] => batch_size: 48
+2026-07-16 17:25:12,590 [trainer.py] => weight_decay: 0.0001
+2026-07-16 17:25:12,590 [trainer.py] => min_lr: 0
+2026-07-16 17:25:12,590 [trainer.py] => optimizer: sgd
+2026-07-16 17:25:12,590 [trainer.py] => scheduler: cosine
+2026-07-16 17:25:12,590 [trainer.py] => pretrained: True
+2026-07-16 17:25:12,590 [trainer.py] => vpt_type: Deep
+2026-07-16 17:25:12,590 [trainer.py] => prompt_token_num: 5
+2026-07-16 17:25:12,590 [trainer.py] => ffn_num: 8
+2026-07-16 17:25:12,590 [trainer.py] => use_diagonal: False
+2026-07-16 17:25:12,590 [trainer.py] => recalc_sim: True
+2026-07-16 17:25:12,590 [trainer.py] => alpha: 0.0
+2026-07-16 17:25:12,590 [trainer.py] => use_init_ptm: False
+2026-07-16 17:25:12,590 [trainer.py] => beta: 0
+2026-07-16 17:25:12,590 [trainer.py] => use_old_data: False
+2026-07-16 17:25:12,590 [trainer.py] => use_reweight: True
+2026-07-16 17:25:12,590 [trainer.py] => moni_adam: False
+2026-07-16 17:25:12,590 [trainer.py] => adapter_num: -1
+2026-07-16 17:25:12,590 [trainer.py] => msa_adapt: True
+2026-07-16 17:25:12,590 [trainer.py] => use_distillation: True
+2026-07-16 17:25:12,590 [trainer.py] => use_block_weight: True
+2026-07-16 17:25:12,590 [trainer.py] => msa: [1, 0, 1]
+2026-07-16 17:25:12,590 [trainer.py] => general_pos: [0, 1, 2, 3, 4, 5]
+2026-07-16 17:25:12,590 [trainer.py] => specfic_pos: [6, 7, 8, 9, 10, 11]
+2026-07-16 17:25:12,590 [trainer.py] => print_forget: True
+2026-07-16 17:25:12,590 [trainer.py] => stop_after_tasks: 3
+2026-07-16 17:25:12,590 [trainer.py] => final_metrics: True
+2026-07-16 17:25:14,229 [data_manager.py] => [68, 56, 78, 8, 23, 84, 90, 65, 74, 76, 40, 89, 3, 92, 55, 9, 26, 80, 43, 38, 58, 70, 77, 1, 85, 19, 17, 50, 28, 53, 13, 81, 45, 82, 6, 59, 83, 16, 15, 44, 91, 41, 72, 60, 79, 52, 20, 10, 31, 54, 37, 95, 14, 71, 96, 98, 97, 2, 64, 66, 42, 22, 35, 86, 24, 34, 87, 21, 99, 0, 88, 27, 18, 94, 11, 12, 47, 25, 30, 46, 62, 69, 36, 61, 7, 63, 75, 5, 32, 4, 51, 48, 73, 93, 39, 67, 29, 49, 57, 33]
+2026-07-16 17:25:17,921 [trainer.py] => stop_after_tasks=3 (of 20 total)
+2026-07-16 17:25:17,922 [trainer.py] => All params: 86093586
+2026-07-16 17:25:17,923 [trainer.py] => Trainable params: 221202
+2026-07-16 17:25:17,928 [cllora.py] => Learning on 0-5
+2026-07-16 17:25:48,825 [cllora.py] => Task 0, Epoch 2/2 => Loss 0.369, Train_accy 93.76
+2026-07-16 17:25:58,792 [cllora.py] => Task correct: 100.0
+2026-07-16 17:25:58,792 [cllora.py] => Task acc: 99.6
+2026-07-16 17:25:58,824 [trainer.py] => No NME accuracy.
+2026-07-16 17:25:58,824 [trainer.py] => CNN: {'total': np.float64(99.6), '00-04': np.float64(99.6), 'old': 0, 'new': np.float64(99.6)}
+2026-07-16 17:25:58,824 [trainer.py] => CNN top1 curve: [np.float64(99.6)]
+2026-07-16 17:25:58,824 [trainer.py] => CNN top5 curve: [np.float64(100.0)]
+
+2026-07-16 17:25:58,824 [trainer.py] => Average Accuracy (CNN): 99.6 
+
+2026-07-16 17:25:58,826 [trainer.py] => All params: 86400039
+2026-07-16 17:25:58,827 [trainer.py] => Trainable params: 221202
+2026-07-16 17:25:58,828 [cllora.py] => Learning on 5-10
+2026-07-16 17:27:46,966 [trainer.py] => config: ./exps/smoke/cllora_smoke.json
+2026-07-16 17:27:46,966 [trainer.py] => prefix: cllora_smoke
+2026-07-16 17:27:46,966 [trainer.py] => dataset: cifar224
+2026-07-16 17:27:46,966 [trainer.py] => memory_size: 0
+2026-07-16 17:27:46,966 [trainer.py] => memory_per_class: 0
+2026-07-16 17:27:46,966 [trainer.py] => fixed_memory: False
+2026-07-16 17:27:46,967 [trainer.py] => shuffle: True
+2026-07-16 17:27:46,967 [trainer.py] => init_cls: 5
+2026-07-16 17:27:46,967 [trainer.py] => increment: 5
+2026-07-16 17:27:46,967 [trainer.py] => model_name: cllora
+2026-07-16 17:27:46,967 [trainer.py] => backbone_type: vit_base_patch16_224_in21k_cllora
+2026-07-16 17:27:46,967 [trainer.py] => device: [device(type='cuda', index=0)]
+2026-07-16 17:27:46,967 [trainer.py] => seed: 1993
+2026-07-16 17:27:46,967 [trainer.py] => scenario: cil
+2026-07-16 17:27:46,967 [trainer.py] => init_epochs: 2
+2026-07-16 17:27:46,967 [trainer.py] => init_lr: 0.03
+2026-07-16 17:27:46,967 [trainer.py] => later_epochs: 2
+2026-07-16 17:27:46,967 [trainer.py] => later_lr: 0.03
+2026-07-16 17:27:46,967 [trainer.py] => batch_size: 48
+2026-07-16 17:27:46,967 [trainer.py] => weight_decay: 0.0001
+2026-07-16 17:27:46,967 [trainer.py] => min_lr: 0
+2026-07-16 17:27:46,967 [trainer.py] => optimizer: sgd
+2026-07-16 17:27:46,967 [trainer.py] => scheduler: cosine
+2026-07-16 17:27:46,967 [trainer.py] => pretrained: True
+2026-07-16 17:27:46,967 [trainer.py] => vpt_type: Deep
+2026-07-16 17:27:46,967 [trainer.py] => prompt_token_num: 5
+2026-07-16 17:27:46,967 [trainer.py] => ffn_num: 8
+2026-07-16 17:27:46,967 [trainer.py] => use_diagonal: False
+2026-07-16 17:27:46,967 [trainer.py] => recalc_sim: True
+2026-07-16 17:27:46,967 [trainer.py] => alpha: 0.0
+2026-07-16 17:27:46,967 [trainer.py] => use_init_ptm: False
+2026-07-16 17:27:46,968 [trainer.py] => beta: 0
+2026-07-16 17:27:46,968 [trainer.py] => use_old_data: False
+2026-07-16 17:27:46,968 [trainer.py] => use_reweight: True
+2026-07-16 17:27:46,968 [trainer.py] => moni_adam: False
+2026-07-16 17:27:46,968 [trainer.py] => adapter_num: -1
+2026-07-16 17:27:46,968 [trainer.py] => msa_adapt: True
+2026-07-16 17:27:46,968 [trainer.py] => use_distillation: True
+2026-07-16 17:27:46,968 [trainer.py] => use_block_weight: True
+2026-07-16 17:27:46,968 [trainer.py] => msa: [1, 0, 1]
+2026-07-16 17:27:46,968 [trainer.py] => general_pos: [0, 1, 2, 3, 4, 5]
+2026-07-16 17:27:46,968 [trainer.py] => specfic_pos: [6, 7, 8, 9, 10, 11]
+2026-07-16 17:27:46,968 [trainer.py] => print_forget: True
+2026-07-16 17:27:46,968 [trainer.py] => stop_after_tasks: 3
+2026-07-16 17:27:46,968 [trainer.py] => final_metrics: True
+2026-07-16 17:27:48,602 [data_manager.py] => [68, 56, 78, 8, 23, 84, 90, 65, 74, 76, 40, 89, 3, 92, 55, 9, 26, 80, 43, 38, 58, 70, 77, 1, 85, 19, 17, 50, 28, 53, 13, 81, 45, 82, 6, 59, 83, 16, 15, 44, 91, 41, 72, 60, 79, 52, 20, 10, 31, 54, 37, 95, 14, 71, 96, 98, 97, 2, 64, 66, 42, 22, 35, 86, 24, 34, 87, 21, 99, 0, 88, 27, 18, 94, 11, 12, 47, 25, 30, 46, 62, 69, 36, 61, 7, 63, 75, 5, 32, 4, 51, 48, 73, 93, 39, 67, 29, 49, 57, 33]
+2026-07-16 17:27:51,736 [trainer.py] => stop_after_tasks=3 (of 20 total)
+2026-07-16 17:27:51,737 [trainer.py] => All params: 86093586
+2026-07-16 17:27:51,738 [trainer.py] => Trainable params: 221202
+2026-07-16 17:27:51,743 [cllora.py] => Learning on 0-5
+2026-07-16 17:28:22,690 [cllora.py] => Task 0, Epoch 2/2 => Loss 0.369, Train_accy 93.76
+2026-07-16 17:28:32,654 [cllora.py] => Task correct: 100.0
+2026-07-16 17:28:32,654 [cllora.py] => Task acc: 99.6
+2026-07-16 17:28:32,696 [trainer.py] => No NME accuracy.
+2026-07-16 17:28:32,696 [trainer.py] => CNN: {'total': np.float64(99.6), '00-04': np.float64(99.6), 'old': 0, 'new': np.float64(99.6)}
+2026-07-16 17:28:32,696 [trainer.py] => CNN top1 curve: [np.float64(99.6)]
+2026-07-16 17:28:32,696 [trainer.py] => CNN top5 curve: [np.float64(100.0)]
+
+2026-07-16 17:28:32,696 [trainer.py] => Average Accuracy (CNN): 99.6 
+
+2026-07-16 17:28:32,697 [trainer.py] => All params: 86400039
+2026-07-16 17:28:32,698 [trainer.py] => Trainable params: 221202
+2026-07-16 17:28:32,700 [cllora.py] => Learning on 5-10
+2026-07-16 17:29:23,738 [cllora.py] => Task 1, Epoch 2/2 => Loss 0.319, Train_accy 90.92
+2026-07-16 17:29:45,657 [cllora.py] => Task correct: 98.9
+2026-07-16 17:29:45,657 [cllora.py] => Task acc: 99.1
+2026-07-16 17:29:45,677 [trainer.py] => No NME accuracy.
+2026-07-16 17:29:45,677 [trainer.py] => CNN: {'total': np.float64(98.2), '00-04': np.float64(98.6), '05-09': np.float64(97.8), 'old': np.float64(98.6), 'new': np.float64(97.8)}
+2026-07-16 17:29:45,677 [trainer.py] => CNN top1 curve: [np.float64(99.6), np.float64(98.2)]
+2026-07-16 17:29:45,677 [trainer.py] => CNN top5 curve: [np.float64(100.0), np.float64(99.8)]
+
+2026-07-16 17:29:45,677 [trainer.py] => Average Accuracy (CNN): 98.9 
+
+2026-07-16 17:29:45,678 [trainer.py] => All params: 86714152
+2026-07-16 17:29:45,679 [trainer.py] => Trainable params: 221202
+2026-07-16 17:29:45,680 [cllora.py] => Learning on 10-15
+2026-07-16 17:30:36,828 [cllora.py] => Task 2, Epoch 2/2 => Loss 0.288, Train_accy 91.36
+2026-07-16 17:31:13,586 [cllora.py] => Task correct: 96.6
+2026-07-16 17:31:13,587 [cllora.py] => Task acc: 99.06666666666666
+2026-07-16 17:31:13,609 [trainer.py] => No NME accuracy.
+2026-07-16 17:31:13,609 [trainer.py] => CNN: {'total': np.float64(96.2), '00-04': np.float64(98.4), '05-09': np.float64(94.0), '10-14': np.float64(96.2), 'old': np.float64(96.2), 'new': np.float64(96.2)}
+2026-07-16 17:31:13,609 [trainer.py] => CNN top1 curve: [np.float64(99.6), np.float64(98.2), np.float64(96.2)]
+2026-07-16 17:31:13,609 [trainer.py] => CNN top5 curve: [np.float64(100.0), np.float64(99.8), np.float64(99.73)]
+
+2026-07-16 17:31:13,609 [trainer.py] => Average Accuracy (CNN): 98.0 
+
+2026-07-16 17:31:13,609 [metrics_logger.py] => [metrics] Learner has no _deployed_forward; skipping inference-cost measurement
+2026-07-16 17:31:13,610 [metrics_logger.py] => [metrics] wrote run_logs/final/cllora/metrics_cllora_cifar224_cllora_smoke_s1993.json
+2026-07-16 17:31:13,610 [trainer.py] => Forgetting (CNN): 2.499999999999993
+2026-07-16 17:31:13,610 [trainer.py] => Forgetting (NME): 2.499999999999993

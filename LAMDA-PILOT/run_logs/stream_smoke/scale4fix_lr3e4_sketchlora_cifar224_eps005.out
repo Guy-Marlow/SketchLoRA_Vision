@@ -1,0 +1,236 @@
+2026-07-20 22:48:20,211 [trainer.py] => config: exps/review/sketchlora_lr3e4_check/sketchlora_cifar224_eps005.json
+2026-07-20 22:48:20,211 [trainer.py] => prefix: sketchlora_lr3e4_check_cifar224_eps005
+2026-07-20 22:48:20,211 [trainer.py] => dataset: cifar224
+2026-07-20 22:48:20,211 [trainer.py] => memory_size: 0
+2026-07-20 22:48:20,211 [trainer.py] => memory_per_class: 0
+2026-07-20 22:48:20,211 [trainer.py] => fixed_memory: False
+2026-07-20 22:48:20,211 [trainer.py] => shuffle: True
+2026-07-20 22:48:20,211 [trainer.py] => init_cls: 10
+2026-07-20 22:48:20,211 [trainer.py] => increment: 10
+2026-07-20 22:48:20,211 [trainer.py] => model_name: sketchlora
+2026-07-20 22:48:20,211 [trainer.py] => backbone_type: vit_base_patch16_224_lora
+2026-07-20 22:48:20,211 [trainer.py] => device: [device(type='cuda', index=0)]
+2026-07-20 22:48:20,211 [trainer.py] => seed: 1993
+2026-07-20 22:48:20,211 [trainer.py] => scenario: both
+2026-07-20 22:48:20,211 [trainer.py] => lora_rank: 10
+2026-07-20 22:48:20,211 [trainer.py] => lora_alpha: 40
+2026-07-20 22:48:20,211 [trainer.py] => lora_merge: True
+2026-07-20 22:48:20,211 [trainer.py] => lora_train_merge: True
+2026-07-20 22:48:20,211 [trainer.py] => svd_rank: 10
+2026-07-20 22:48:20,211 [trainer.py] => svd_oversampling: 10
+2026-07-20 22:48:20,212 [trainer.py] => svd_energy_target: 0.05
+2026-07-20 22:48:20,212 [trainer.py] => lora_n_slots: 2
+2026-07-20 22:48:20,212 [trainer.py] => tuned_epoch: 10
+2026-07-20 22:48:20,212 [trainer.py] => init_lr: 0.0003
+2026-07-20 22:48:20,212 [trainer.py] => batch_size: 48
+2026-07-20 22:48:20,212 [trainer.py] => weight_decay: 0.0005
+2026-07-20 22:48:20,212 [trainer.py] => min_lr: 0.0
+2026-07-20 22:48:20,212 [trainer.py] => pretrained: True
+2026-07-20 22:48:20,212 [trainer.py] => print_forget: True
+2026-07-20 22:48:20,212 [trainer.py] => stop_after_tasks: 5
+2026-07-20 22:48:20,212 [trainer.py] => final_metrics: True
+Files already downloaded and verified
+Files already downloaded and verified
+2026-07-20 22:48:21,898 [data_manager.py] => [68, 56, 78, 8, 23, 84, 90, 65, 74, 76, 40, 89, 3, 92, 55, 9, 26, 80, 43, 38, 58, 70, 77, 1, 85, 19, 17, 50, 28, 53, 13, 81, 45, 82, 6, 59, 83, 16, 15, 44, 91, 41, 72, 60, 79, 52, 20, 10, 31, 54, 37, 95, 14, 71, 96, 98, 97, 2, 64, 66, 42, 22, 35, 86, 24, 34, 87, 21, 99, 0, 88, 27, 18, 94, 11, 12, 47, 25, 30, 46, 62, 69, 36, 61, 7, 63, 75, 5, 32, 4, 51, 48, 73, 93, 39, 67, 29, 49, 57, 33]
+This is for the BaseNet initialization.
+I'm using ViT with per-task LoRA (q,v).
+_IncompatibleKeys(missing_keys=['blocks.0.attn.cur_matrix', 'blocks.0.attn.frozen_delta_q', 'blocks.0.attn.frozen_delta_v', 'blocks.0.attn.lora_A_q.0.weight', 'blocks.0.attn.lora_A_q.1.weight', 'blocks.0.attn.lora_B_q.0.weight', 'blocks.0.attn.lora_B_q.1.weight', 'blocks.0.attn.lora_A_v.0.weight', 'blocks.0.attn.lora_A_v.1.weight', 'blocks.0.attn.lora_B_v.0.weight', 'blocks.0.attn.lora_B_v.1.weight', 'blocks.1.attn.cur_matrix', 'blocks.1.attn.frozen_delta_q', 'blocks.1.attn.frozen_delta_v', 'blocks.1.attn.lora_A_q.0.weight', 'blocks.1.attn.lora_A_q.1.weight', 'blocks.1.attn.lora_B_q.0.weight', 'blocks.1.attn.lora_B_q.1.weight', 'blocks.1.attn.lora_A_v.0.weight', 'blocks.1.attn.lora_A_v.1.weight', 'blocks.1.attn.lora_B_v.0.weight', 'blocks.1.attn.lora_B_v.1.weight', 'blocks.2.attn.cur_matrix', 'blocks.2.attn.frozen_delta_q', 'blocks.2.attn.frozen_delta_v', 'blocks.2.attn.lora_A_q.0.weight', 'blocks.2.attn.lora_A_q.1.weight', 'blocks.2.attn.lora_B_q.0.weight', 'blocks.2.attn.lora_B_q.1.weight', 'blocks.2.attn.lora_A_v.0.weight', 'blocks.2.attn.lora_A_v.1.weight', 'blocks.2.attn.lora_B_v.0.weight', 'blocks.2.attn.lora_B_v.1.weight', 'blocks.3.attn.cur_matrix', 'blocks.3.attn.frozen_delta_q', 'blocks.3.attn.frozen_delta_v', 'blocks.3.attn.lora_A_q.0.weight', 'blocks.3.attn.lora_A_q.1.weight', 'blocks.3.attn.lora_B_q.0.weight', 'blocks.3.attn.lora_B_q.1.weight', 'blocks.3.attn.lora_A_v.0.weight', 'blocks.3.attn.lora_A_v.1.weight', 'blocks.3.attn.lora_B_v.0.weight', 'blocks.3.attn.lora_B_v.1.weight', 'blocks.4.attn.cur_matrix', 'blocks.4.attn.frozen_delta_q', 'blocks.4.attn.frozen_delta_v', 'blocks.4.attn.lora_A_q.0.weight', 'blocks.4.attn.lora_A_q.1.weight', 'blocks.4.attn.lora_B_q.0.weight', 'blocks.4.attn.lora_B_q.1.weight', 'blocks.4.attn.lora_A_v.0.weight', 'blocks.4.attn.lora_A_v.1.weight', 'blocks.4.attn.lora_B_v.0.weight', 'blocks.4.attn.lora_B_v.1.weight', 'blocks.5.attn.cur_matrix', 'blocks.5.attn.frozen_delta_q', 'blocks.5.attn.frozen_delta_v', 'blocks.5.attn.lora_A_q.0.weight', 'blocks.5.attn.lora_A_q.1.weight', 'blocks.5.attn.lora_B_q.0.weight', 'blocks.5.attn.lora_B_q.1.weight', 'blocks.5.attn.lora_A_v.0.weight', 'blocks.5.attn.lora_A_v.1.weight', 'blocks.5.attn.lora_B_v.0.weight', 'blocks.5.attn.lora_B_v.1.weight', 'blocks.6.attn.cur_matrix', 'blocks.6.attn.frozen_delta_q', 'blocks.6.attn.frozen_delta_v', 'blocks.6.attn.lora_A_q.0.weight', 'blocks.6.attn.lora_A_q.1.weight', 'blocks.6.attn.lora_B_q.0.weight', 'blocks.6.attn.lora_B_q.1.weight', 'blocks.6.attn.lora_A_v.0.weight', 'blocks.6.attn.lora_A_v.1.weight', 'blocks.6.attn.lora_B_v.0.weight', 'blocks.6.attn.lora_B_v.1.weight', 'blocks.7.attn.cur_matrix', 'blocks.7.attn.frozen_delta_q', 'blocks.7.attn.frozen_delta_v', 'blocks.7.attn.lora_A_q.0.weight', 'blocks.7.attn.lora_A_q.1.weight', 'blocks.7.attn.lora_B_q.0.weight', 'blocks.7.attn.lora_B_q.1.weight', 'blocks.7.attn.lora_A_v.0.weight', 'blocks.7.attn.lora_A_v.1.weight', 'blocks.7.attn.lora_B_v.0.weight', 'blocks.7.attn.lora_B_v.1.weight', 'blocks.8.attn.cur_matrix', 'blocks.8.attn.frozen_delta_q', 'blocks.8.attn.frozen_delta_v', 'blocks.8.attn.lora_A_q.0.weight', 'blocks.8.attn.lora_A_q.1.weight', 'blocks.8.attn.lora_B_q.0.weight', 'blocks.8.attn.lora_B_q.1.weight', 'blocks.8.attn.lora_A_v.0.weight', 'blocks.8.attn.lora_A_v.1.weight', 'blocks.8.attn.lora_B_v.0.weight', 'blocks.8.attn.lora_B_v.1.weight', 'blocks.9.attn.cur_matrix', 'blocks.9.attn.frozen_delta_q', 'blocks.9.attn.frozen_delta_v', 'blocks.9.attn.lora_A_q.0.weight', 'blocks.9.attn.lora_A_q.1.weight', 'blocks.9.attn.lora_B_q.0.weight', 'blocks.9.attn.lora_B_q.1.weight', 'blocks.9.attn.lora_A_v.0.weight', 'blocks.9.attn.lora_A_v.1.weight', 'blocks.9.attn.lora_B_v.0.weight', 'blocks.9.attn.lora_B_v.1.weight', 'blocks.10.attn.cur_matrix', 'blocks.10.attn.frozen_delta_q', 'blocks.10.attn.frozen_delta_v', 'blocks.10.attn.lora_A_q.0.weight', 'blocks.10.attn.lora_A_q.1.weight', 'blocks.10.attn.lora_B_q.0.weight', 'blocks.10.attn.lora_B_q.1.weight', 'blocks.10.attn.lora_A_v.0.weight', 'blocks.10.attn.lora_A_v.1.weight', 'blocks.10.attn.lora_B_v.0.weight', 'blocks.10.attn.lora_B_v.1.weight', 'blocks.11.attn.cur_matrix', 'blocks.11.attn.frozen_delta_q', 'blocks.11.attn.frozen_delta_v', 'blocks.11.attn.lora_A_q.0.weight', 'blocks.11.attn.lora_A_q.1.weight', 'blocks.11.attn.lora_B_q.0.weight', 'blocks.11.attn.lora_B_q.1.weight', 'blocks.11.attn.lora_A_v.0.weight', 'blocks.11.attn.lora_A_v.1.weight', 'blocks.11.attn.lora_B_v.0.weight', 'blocks.11.attn.lora_B_v.1.weight'], unexpected_keys=[])
+After BaseNet initialization.
+2026-07-20 22:48:24,539 [trainer.py] => stop_after_tasks=5 (of 10 total)
+2026-07-20 22:48:25,118 [trainer.py] => All params: 86535936
+2026-07-20 22:48:25,119 [trainer.py] => Trainable params: 737280
+2026-07-20 22:48:25,120 [lora.py] => Learning on 0-10
+2026-07-20 22:48:25,122 [lora.py] => Trainable params this task: 376,330 / 86,543,626
+  0%|          | 0/10 [00:00<?, ?it/s]Task 0, Epoch 1/10 => Loss 0.927, Train_accy 74.58:   0%|          | 0/10 [00:31<?, ?it/s]Task 0, Epoch 1/10 => Loss 0.927, Train_accy 74.58:  10%|█         | 1/10 [00:31<04:44, 31.58s/it]Task 0, Epoch 2/10 => Loss 0.323, Train_accy 90.42:  10%|█         | 1/10 [01:02<04:44, 31.58s/it]Task 0, Epoch 2/10 => Loss 0.323, Train_accy 90.42:  20%|██        | 2/10 [01:02<04:11, 31.46s/it]Task 0, Epoch 3/10 => Loss 0.261, Train_accy 92.12:  20%|██        | 2/10 [01:34<04:11, 31.46s/it]Task 0, Epoch 3/10 => Loss 0.261, Train_accy 92.12:  30%|███       | 3/10 [01:34<03:39, 31.39s/it]Task 0, Epoch 4/10 => Loss 0.240, Train_accy 92.34:  30%|███       | 3/10 [02:05<03:39, 31.39s/it]Task 0, Epoch 4/10 => Loss 0.240, Train_accy 92.34:  40%|████      | 4/10 [02:05<03:08, 31.37s/it]Task 0, Epoch 5/10 => Loss 0.237, Train_accy 92.22:  40%|████      | 4/10 [02:36<03:08, 31.37s/it]Task 0, Epoch 5/10 => Loss 0.237, Train_accy 92.22:  50%|█████     | 5/10 [02:36<02:36, 31.35s/it]Task 0, Epoch 6/10 => Loss 0.187, Train_accy 93.90:  50%|█████     | 5/10 [03:08<02:36, 31.35s/it]Task 0, Epoch 6/10 => Loss 0.187, Train_accy 93.90:  60%|██████    | 6/10 [03:08<02:05, 31.36s/it]Task 0, Epoch 7/10 => Loss 0.192, Train_accy 93.86:  60%|██████    | 6/10 [03:39<02:05, 31.36s/it]Task 0, Epoch 7/10 => Loss 0.192, Train_accy 93.86:  70%|███████   | 7/10 [03:39<01:34, 31.36s/it]Task 0, Epoch 8/10 => Loss 0.179, Train_accy 94.14:  70%|███████   | 7/10 [04:11<01:34, 31.36s/it]Task 0, Epoch 8/10 => Loss 0.179, Train_accy 94.14:  80%|████████  | 8/10 [04:11<01:02, 31.36s/it]Task 0, Epoch 9/10 => Loss 0.178, Train_accy 94.18:  80%|████████  | 8/10 [04:42<01:02, 31.36s/it]Task 0, Epoch 9/10 => Loss 0.178, Train_accy 94.18:  90%|█████████ | 9/10 [04:42<00:31, 31.35s/it]Task 0, Epoch 10/10 => Loss 0.192, Train_accy 94.24:  90%|█████████ | 9/10 [05:13<00:31, 31.35s/it]Task 0, Epoch 10/10 => Loss 0.192, Train_accy 94.24: 100%|██████████| 10/10 [05:13<00:00, 31.35s/it]Task 0, Epoch 10/10 => Loss 0.192, Train_accy 94.24: 100%|██████████| 10/10 [05:13<00:00, 31.37s/it]
+2026-07-20 22:53:38,900 [lora.py] => Task 0 finished. Train_accy 94.24
+2026-07-20 22:53:38,932 [sketchlora.py] => [SketchDiag] task 0: retained-energy mean=1.000 min=1.000 | ||ΔW||_F mean=0.368 | r_hat mean=10.0 total=240
+2026-07-20 22:53:46,208 [til_base.py] => TIL top1: 98.6
+2026-07-20 22:53:46,208 [til_base.py] => CIL top1: 98.6 | TIL top1: 98.6
+2026-07-20 22:53:46,211 [trainer.py] => No NME accuracy.
+2026-07-20 22:53:46,211 [trainer.py] => CNN: {'total': 98.6, '00-09': 98.6, 'old': 0, 'new': 98.6}
+2026-07-20 22:53:46,211 [trainer.py] => CNN top1 curve: [98.6]
+2026-07-20 22:53:46,211 [trainer.py] => CNN top5 curve: [99.9]
+
+Average Accuracy (CNN): 98.6
+2026-07-20 22:53:46,211 [trainer.py] => Average Accuracy (CNN): 98.6 
+
+2026-07-20 22:53:46,212 [trainer.py] => All params: 86543626
+2026-07-20 22:53:46,213 [trainer.py] => Trainable params: 376330
+2026-07-20 22:53:46,215 [lora.py] => Learning on 10-20
+2026-07-20 22:53:46,218 [lora.py] => Trainable params this task: 384,020 / 86,551,316
+  0%|          | 0/10 [00:00<?, ?it/s]Task 1, Epoch 1/10 => Loss 0.916, Train_accy 72.26:   0%|          | 0/10 [00:31<?, ?it/s]Task 1, Epoch 1/10 => Loss 0.916, Train_accy 72.26:  10%|█         | 1/10 [00:31<04:41, 31.32s/it]Task 1, Epoch 2/10 => Loss 0.331, Train_accy 88.82:  10%|█         | 1/10 [01:02<04:41, 31.32s/it]Task 1, Epoch 2/10 => Loss 0.331, Train_accy 88.82:  20%|██        | 2/10 [01:02<04:10, 31.30s/it]Task 1, Epoch 3/10 => Loss 0.290, Train_accy 90.66:  20%|██        | 2/10 [01:33<04:10, 31.30s/it]Task 1, Epoch 3/10 => Loss 0.290, Train_accy 90.66:  30%|███       | 3/10 [01:33<03:39, 31.30s/it]Task 1, Epoch 4/10 => Loss 0.280, Train_accy 91.00:  30%|███       | 3/10 [02:05<03:39, 31.30s/it]Task 1, Epoch 4/10 => Loss 0.280, Train_accy 91.00:  40%|████      | 4/10 [02:05<03:07, 31.27s/it]Task 1, Epoch 5/10 => Loss 0.253, Train_accy 91.56:  40%|████      | 4/10 [02:36<03:07, 31.27s/it]Task 1, Epoch 5/10 => Loss 0.253, Train_accy 91.56:  50%|█████     | 5/10 [02:36<02:36, 31.26s/it]Task 1, Epoch 6/10 => Loss 0.233, Train_accy 92.08:  50%|█████     | 5/10 [03:07<02:36, 31.26s/it]Task 1, Epoch 6/10 => Loss 0.233, Train_accy 92.08:  60%|██████    | 6/10 [03:07<02:04, 31.23s/it]Task 1, Epoch 7/10 => Loss 0.234, Train_accy 92.12:  60%|██████    | 6/10 [03:38<02:04, 31.23s/it]Task 1, Epoch 7/10 => Loss 0.234, Train_accy 92.12:  70%|███████   | 7/10 [03:38<01:33, 31.21s/it]Task 1, Epoch 8/10 => Loss 0.196, Train_accy 93.74:  70%|███████   | 7/10 [04:09<01:33, 31.21s/it]Task 1, Epoch 8/10 => Loss 0.196, Train_accy 93.74:  80%|████████  | 8/10 [04:09<01:02, 31.22s/it]Task 1, Epoch 9/10 => Loss 0.217, Train_accy 93.06:  80%|████████  | 8/10 [04:41<01:02, 31.22s/it]Task 1, Epoch 9/10 => Loss 0.217, Train_accy 93.06:  90%|█████████ | 9/10 [04:41<00:31, 31.22s/it]Task 1, Epoch 10/10 => Loss 0.213, Train_accy 92.64:  90%|█████████ | 9/10 [05:12<00:31, 31.22s/it]Task 1, Epoch 10/10 => Loss 0.213, Train_accy 92.64: 100%|██████████| 10/10 [05:12<00:00, 31.22s/it]Task 1, Epoch 10/10 => Loss 0.213, Train_accy 92.64: 100%|██████████| 10/10 [05:12<00:00, 31.24s/it]
+2026-07-20 22:58:58,641 [lora.py] => Task 1 finished. Train_accy 92.64
+Target rank: 13
+Target rank: 13
+Target rank: 13
+Target rank: 13
+Target rank: 13
+Target rank: 15
+Target rank: 14
+Target rank: 13
+Target rank: 14
+Target rank: 15
+Target rank: 14
+Target rank: 14
+Target rank: 15
+Target rank: 14
+Target rank: 14
+Target rank: 14
+Target rank: 9
+Target rank: 13
+Target rank: 10
+Target rank: 13
+Target rank: 6
+Target rank: 13
+Target rank: 2
+Target rank: 13
+2026-07-20 22:59:01,575 [sketchlora.py] => [SketchDiag] task 1: retained-energy mean=0.956 min=0.950 | ||ΔW||_F mean=0.530 | r_hat mean=12.5 total=300
+2026-07-20 22:59:15,503 [til_base.py] => TIL top1: 98.3
+2026-07-20 22:59:15,504 [til_base.py] => CIL top1: 92.0 | TIL top1: 98.3
+2026-07-20 22:59:15,505 [trainer.py] => No NME accuracy.
+2026-07-20 22:59:15,506 [trainer.py] => CNN: {'total': 92.0, '00-09': 85.4, '10-19': 98.6, 'old': 85.4, 'new': 98.6}
+2026-07-20 22:59:15,506 [trainer.py] => CNN top1 curve: [98.6, 92.0]
+2026-07-20 22:59:15,506 [trainer.py] => CNN top5 curve: [99.9, 99.65]
+
+Average Accuracy (CNN): 95.3
+2026-07-20 22:59:15,506 [trainer.py] => Average Accuracy (CNN): 95.3 
+
+2026-07-20 22:59:15,506 [trainer.py] => All params: 86643476
+2026-07-20 22:59:15,507 [trainer.py] => Trainable params: 384020
+2026-07-20 22:59:15,508 [lora.py] => Learning on 20-30
+2026-07-20 22:59:15,510 [lora.py] => Trainable params this task: 391,710 / 86,651,166
+  0%|          | 0/10 [00:00<?, ?it/s]Task 2, Epoch 1/10 => Loss 0.501, Train_accy 84.34:   0%|          | 0/10 [00:31<?, ?it/s]Task 2, Epoch 1/10 => Loss 0.501, Train_accy 84.34:  10%|█         | 1/10 [00:31<04:40, 31.19s/it]Task 2, Epoch 2/10 => Loss 0.206, Train_accy 93.20:  10%|█         | 1/10 [01:02<04:40, 31.19s/it]Task 2, Epoch 2/10 => Loss 0.206, Train_accy 93.20:  20%|██        | 2/10 [01:02<04:09, 31.19s/it]Task 2, Epoch 3/10 => Loss 0.180, Train_accy 94.26:  20%|██        | 2/10 [01:33<04:09, 31.19s/it]Task 2, Epoch 3/10 => Loss 0.180, Train_accy 94.26:  30%|███       | 3/10 [01:33<03:38, 31.21s/it]Task 2, Epoch 4/10 => Loss 0.157, Train_accy 94.82:  30%|███       | 3/10 [02:04<03:38, 31.21s/it]Task 2, Epoch 4/10 => Loss 0.157, Train_accy 94.82:  40%|████      | 4/10 [02:04<03:07, 31.22s/it]Task 2, Epoch 5/10 => Loss 0.138, Train_accy 95.50:  40%|████      | 4/10 [02:36<03:07, 31.22s/it]Task 2, Epoch 5/10 => Loss 0.138, Train_accy 95.50:  50%|█████     | 5/10 [02:36<02:36, 31.21s/it]Task 2, Epoch 6/10 => Loss 0.151, Train_accy 95.48:  50%|█████     | 5/10 [03:07<02:36, 31.21s/it]Task 2, Epoch 6/10 => Loss 0.151, Train_accy 95.48:  60%|██████    | 6/10 [03:07<02:04, 31.21s/it]Task 2, Epoch 7/10 => Loss 0.136, Train_accy 95.72:  60%|██████    | 6/10 [03:38<02:04, 31.21s/it]Task 2, Epoch 7/10 => Loss 0.136, Train_accy 95.72:  70%|███████   | 7/10 [03:38<01:33, 31.22s/it]Task 2, Epoch 8/10 => Loss 0.127, Train_accy 95.92:  70%|███████   | 7/10 [04:09<01:33, 31.22s/it]Task 2, Epoch 8/10 => Loss 0.127, Train_accy 95.92:  80%|████████  | 8/10 [04:09<01:02, 31.23s/it]Task 2, Epoch 9/10 => Loss 0.127, Train_accy 96.28:  80%|████████  | 8/10 [04:41<01:02, 31.23s/it]Task 2, Epoch 9/10 => Loss 0.127, Train_accy 96.28:  90%|█████████ | 9/10 [04:41<00:31, 31.24s/it]Task 2, Epoch 10/10 => Loss 0.126, Train_accy 96.02:  90%|█████████ | 9/10 [05:12<00:31, 31.24s/it]Task 2, Epoch 10/10 => Loss 0.126, Train_accy 96.02: 100%|██████████| 10/10 [05:12<00:00, 31.27s/it]Task 2, Epoch 10/10 => Loss 0.126, Train_accy 96.02: 100%|██████████| 10/10 [05:12<00:00, 31.24s/it]
+2026-07-20 23:04:27,892 [lora.py] => Task 2 finished. Train_accy 96.02
+Target rank: 16
+Target rank: 17
+Target rank: 16
+Target rank: 17
+Target rank: 16
+Target rank: 19
+Target rank: 19
+Target rank: 18
+Target rank: 19
+Target rank: 20
+Target rank: 18
+Target rank: 18
+Target rank: 20
+Target rank: 18
+Target rank: 19
+Target rank: 18
+Target rank: 9
+Target rank: 17
+Target rank: 11
+Target rank: 17
+Target rank: 6
+Target rank: 16
+Target rank: 3
+Target rank: 17
+2026-07-20 23:04:30,782 [sketchlora.py] => [SketchDiag] task 2: retained-energy mean=0.958 min=0.950 | ||ΔW||_F mean=0.631 | r_hat mean=16.0 total=384
+2026-07-20 23:04:51,462 [til_base.py] => TIL top1: 98.0
+2026-07-20 23:04:51,462 [til_base.py] => CIL top1: 88.67 | TIL top1: 98.0
+2026-07-20 23:04:51,465 [trainer.py] => No NME accuracy.
+2026-07-20 23:04:51,465 [trainer.py] => CNN: {'total': 88.67, '00-09': 76.4, '10-19': 91.0, '20-29': 98.6, 'old': 83.7, 'new': 98.6}
+2026-07-20 23:04:51,465 [trainer.py] => CNN top1 curve: [98.6, 92.0, 88.67]
+2026-07-20 23:04:51,465 [trainer.py] => CNN top5 curve: [99.9, 99.65, 99.1]
+
+Average Accuracy (CNN): 93.08999999999999
+2026-07-20 23:04:51,465 [trainer.py] => Average Accuracy (CNN): 93.08999999999999 
+
+2026-07-20 23:04:51,466 [trainer.py] => All params: 86780190
+2026-07-20 23:04:51,467 [trainer.py] => Trainable params: 391710
+2026-07-20 23:04:51,469 [lora.py] => Learning on 30-40
+2026-07-20 23:04:51,472 [lora.py] => Trainable params this task: 399,400 / 86,787,880
+  0%|          | 0/10 [00:00<?, ?it/s]Task 3, Epoch 1/10 => Loss 0.727, Train_accy 76.00:   0%|          | 0/10 [00:31<?, ?it/s]Task 3, Epoch 1/10 => Loss 0.727, Train_accy 76.00:  10%|█         | 1/10 [00:31<04:42, 31.33s/it]Task 3, Epoch 2/10 => Loss 0.268, Train_accy 91.14:  10%|█         | 1/10 [01:02<04:42, 31.33s/it]Task 3, Epoch 2/10 => Loss 0.268, Train_accy 91.14:  20%|██        | 2/10 [01:02<04:10, 31.34s/it]Task 3, Epoch 3/10 => Loss 0.248, Train_accy 92.08:  20%|██        | 2/10 [01:34<04:10, 31.34s/it]Task 3, Epoch 3/10 => Loss 0.248, Train_accy 92.08:  30%|███       | 3/10 [01:34<03:39, 31.34s/it]Task 3, Epoch 4/10 => Loss 0.219, Train_accy 92.92:  30%|███       | 3/10 [02:05<03:39, 31.34s/it]Task 3, Epoch 4/10 => Loss 0.219, Train_accy 92.92:  40%|████      | 4/10 [02:05<03:08, 31.35s/it]Task 3, Epoch 5/10 => Loss 0.199, Train_accy 93.32:  40%|████      | 4/10 [02:36<03:08, 31.35s/it]Task 3, Epoch 5/10 => Loss 0.199, Train_accy 93.32:  50%|█████     | 5/10 [02:36<02:36, 31.38s/it]Task 3, Epoch 6/10 => Loss 0.191, Train_accy 93.60:  50%|█████     | 5/10 [03:08<02:36, 31.38s/it]Task 3, Epoch 6/10 => Loss 0.191, Train_accy 93.60:  60%|██████    | 6/10 [03:08<02:05, 31.37s/it]Task 3, Epoch 7/10 => Loss 0.180, Train_accy 94.10:  60%|██████    | 6/10 [03:39<02:05, 31.37s/it]Task 3, Epoch 7/10 => Loss 0.180, Train_accy 94.10:  70%|███████   | 7/10 [03:39<01:34, 31.39s/it]Task 3, Epoch 8/10 => Loss 0.180, Train_accy 94.04:  70%|███████   | 7/10 [04:10<01:34, 31.39s/it]Task 3, Epoch 8/10 => Loss 0.180, Train_accy 94.04:  80%|████████  | 8/10 [04:10<01:02, 31.39s/it]Task 3, Epoch 9/10 => Loss 0.173, Train_accy 94.02:  80%|████████  | 8/10 [04:42<01:02, 31.39s/it]Task 3, Epoch 9/10 => Loss 0.173, Train_accy 94.02:  90%|█████████ | 9/10 [04:42<00:31, 31.40s/it]Task 3, Epoch 10/10 => Loss 0.152, Train_accy 94.70:  90%|█████████ | 9/10 [05:13<00:31, 31.40s/it]Task 3, Epoch 10/10 => Loss 0.152, Train_accy 94.70: 100%|██████████| 10/10 [05:13<00:00, 31.41s/it]Task 3, Epoch 10/10 => Loss 0.152, Train_accy 94.70: 100%|██████████| 10/10 [05:13<00:00, 31.38s/it]
+2026-07-20 23:10:05,329 [lora.py] => Task 3 finished. Train_accy 94.70
+Target rank: 18
+Target rank: 21
+Target rank: 19
+Target rank: 21
+Target rank: 19
+Target rank: 23
+Target rank: 23
+Target rank: 22
+Target rank: 23
+Target rank: 25
+Target rank: 23
+Target rank: 22
+Target rank: 24
+Target rank: 22
+Target rank: 23
+Target rank: 20
+Target rank: 10
+Target rank: 21
+Target rank: 13
+Target rank: 20
+Target rank: 7
+Target rank: 19
+Target rank: 4
+Target rank: 21
+2026-07-20 23:10:08,237 [sketchlora.py] => [SketchDiag] task 3: retained-energy mean=0.958 min=0.950 | ||ΔW||_F mean=0.741 | r_hat mean=19.3 total=463
+2026-07-20 23:10:35,562 [til_base.py] => TIL top1: 96.42
+2026-07-20 23:10:35,562 [til_base.py] => CIL top1: 80.72 | TIL top1: 96.42
+2026-07-20 23:10:35,565 [trainer.py] => No NME accuracy.
+2026-07-20 23:10:35,565 [trainer.py] => CNN: {'total': 80.72, '00-09': 54.6, '10-19': 85.1, '20-29': 89.8, '30-39': 93.4, 'old': 76.5, 'new': 93.4}
+2026-07-20 23:10:35,565 [trainer.py] => CNN top1 curve: [98.6, 92.0, 88.67, 80.72]
+2026-07-20 23:10:35,565 [trainer.py] => CNN top5 curve: [99.9, 99.65, 99.1, 98.05]
+
+Average Accuracy (CNN): 89.9975
+2026-07-20 23:10:35,565 [trainer.py] => Average Accuracy (CNN): 89.9975 
+
+2026-07-20 23:10:35,567 [trainer.py] => All params: 86909224
+2026-07-20 23:10:35,568 [trainer.py] => Trainable params: 399400
+2026-07-20 23:10:35,570 [lora.py] => Learning on 40-50
+2026-07-20 23:10:35,575 [lora.py] => Trainable params this task: 407,090 / 86,916,914
+  0%|          | 0/10 [00:00<?, ?it/s]Task 4, Epoch 1/10 => Loss 0.554, Train_accy 82.90:   0%|          | 0/10 [00:31<?, ?it/s]Task 4, Epoch 1/10 => Loss 0.554, Train_accy 82.90:  10%|█         | 1/10 [00:31<04:42, 31.36s/it]Task 4, Epoch 2/10 => Loss 0.202, Train_accy 93.66:  10%|█         | 1/10 [01:02<04:42, 31.36s/it]Task 4, Epoch 2/10 => Loss 0.202, Train_accy 93.66:  20%|██        | 2/10 [01:02<04:11, 31.39s/it]Task 4, Epoch 3/10 => Loss 0.186, Train_accy 94.56:  20%|██        | 2/10 [01:34<04:11, 31.39s/it]Task 4, Epoch 3/10 => Loss 0.186, Train_accy 94.56:  30%|███       | 3/10 [01:34<03:39, 31.43s/it]Task 4, Epoch 4/10 => Loss 0.172, Train_accy 94.64:  30%|███       | 3/10 [02:05<03:39, 31.43s/it]Task 4, Epoch 4/10 => Loss 0.172, Train_accy 94.64:  40%|████      | 4/10 [02:05<03:08, 31.43s/it]Task 4, Epoch 5/10 => Loss 0.154, Train_accy 95.20:  40%|████      | 4/10 [02:37<03:08, 31.43s/it]Task 4, Epoch 5/10 => Loss 0.154, Train_accy 95.20:  50%|█████     | 5/10 [02:37<02:37, 31.44s/it]Task 4, Epoch 6/10 => Loss 0.142, Train_accy 95.54:  50%|█████     | 5/10 [03:08<02:37, 31.44s/it]Task 4, Epoch 6/10 => Loss 0.142, Train_accy 95.54:  60%|██████    | 6/10 [03:08<02:05, 31.45s/it]Task 4, Epoch 7/10 => Loss 0.151, Train_accy 95.08:  60%|██████    | 6/10 [03:40<02:05, 31.45s/it]Task 4, Epoch 7/10 => Loss 0.151, Train_accy 95.08:  70%|███████   | 7/10 [03:40<01:34, 31.46s/it]Task 4, Epoch 8/10 => Loss 0.148, Train_accy 95.44:  70%|███████   | 7/10 [04:11<01:34, 31.46s/it]Task 4, Epoch 8/10 => Loss 0.148, Train_accy 95.44:  80%|████████  | 8/10 [04:11<01:02, 31.45s/it]Task 4, Epoch 9/10 => Loss 0.134, Train_accy 95.64:  80%|████████  | 8/10 [04:42<01:02, 31.45s/it]Task 4, Epoch 9/10 => Loss 0.134, Train_accy 95.64:  90%|█████████ | 9/10 [04:42<00:31, 31.42s/it]Task 4, Epoch 10/10 => Loss 0.142, Train_accy 95.50:  90%|█████████ | 9/10 [05:14<00:31, 31.42s/it]Task 4, Epoch 10/10 => Loss 0.142, Train_accy 95.50: 100%|██████████| 10/10 [05:14<00:00, 31.41s/it]Task 4, Epoch 10/10 => Loss 0.142, Train_accy 95.50: 100%|██████████| 10/10 [05:14<00:00, 31.43s/it]
+2026-07-20 23:15:49,875 [lora.py] => Task 4 finished. Train_accy 95.50
+Target rank: 19
+Target rank: 24
+Target rank: 21
+Target rank: 24
+Target rank: 21
+Target rank: 27
+Target rank: 26
+Target rank: 25
+Target rank: 26
+Target rank: 29
+Target rank: 27
+Target rank: 26
+Target rank: 27
+Target rank: 24
+Target rank: 27
+Target rank: 23
+Target rank: 12
+Target rank: 24
+Target rank: 15
+Target rank: 22
+Target rank: 9
+Target rank: 22
+Target rank: 5
+Target rank: 24
+2026-07-20 23:15:52,898 [sketchlora.py] => [SketchDiag] task 4: retained-energy mean=0.959 min=0.952 | ||ΔW||_F mean=0.819 | r_hat mean=22.0 total=529
+2026-07-20 23:16:26,876 [til_base.py] => TIL top1: 96.68
+2026-07-20 23:16:26,876 [til_base.py] => CIL top1: 76.3 | TIL top1: 96.68
+2026-07-20 23:16:26,878 [trainer.py] => No NME accuracy.
+2026-07-20 23:16:26,878 [trainer.py] => CNN: {'total': 76.3, '00-09': 44.7, '10-19': 69.0, '20-29': 87.4, '30-39': 84.1, '40-49': 96.3, 'old': 71.3, 'new': 96.3}
+2026-07-20 23:16:26,879 [trainer.py] => CNN top1 curve: [98.6, 92.0, 88.67, 80.72, 76.3]
+2026-07-20 23:16:26,879 [trainer.py] => CNN top5 curve: [99.9, 99.65, 99.1, 98.05, 97.34]
+
+Average Accuracy (CNN): 87.25800000000001
+2026-07-20 23:16:26,879 [trainer.py] => Average Accuracy (CNN): 87.25800000000001 
+
+2026-07-20 23:16:29,672 [metrics_logger.py] => [metrics] wrote run_logs/final/sketchlora/metrics_sketchlora_cifar224_sketchlora_lr3e4_check_cifar224_eps005_s1993.json
+Accuracy Matrix (CNN):
+[[98.6 85.4 76.4 54.6 44.7]
+ [ 0.  98.6 91.  85.1 69. ]
+ [ 0.   0.  98.6 89.8 87.4]
+ [ 0.   0.   0.  93.4 84.1]
+ [ 0.   0.   0.   0.  96.3]]
+2026-07-20 23:16:29,672 [trainer.py] => Forgetting (CNN): 25.999999999999996
+2026-07-20 23:16:29,672 [trainer.py] => Forgetting (NME): 25.999999999999996
+Accuracy Matrix (TIL):
+[[98.6 97.9 96.7 92.5 94.1]
+ [ 0.  98.7 97.7 95.5 94.4]
+ [ 0.   0.  99.6 99.6 99. ]
+ [ 0.   0.   0.  98.1 97. ]
+ [ 0.   0.   0.   0.  98.9]]
+2026-07-20 23:16:29,673 [trainer.py] => Forgetting (TIL): 2.6249999999999964

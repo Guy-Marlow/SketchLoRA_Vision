@@ -1,0 +1,91 @@
+{
+  "args_subset": {
+    "model_name": "rainbowprompt",
+    "dataset": "food101",
+    "init_cls": 6,
+    "increment": 5,
+    "seed": 1993,
+    "scenario": "cil",
+    "boundary_mode": null,
+    "budget_mb": null,
+    "n_lora_blocks": null,
+    "lora_rank": null,
+    "lora_alpha": null,
+    "svd_energy_target": null,
+    "svd_rank": null,
+    "svd_period": null,
+    "merge_op": null,
+    "cs_rank": null,
+    "lamda_1": null,
+    "lamda_2": null,
+    "lamb": null,
+    "lame": null
+  },
+  "status": "done",
+  "per_task": [
+    {
+      "task": 0,
+      "train_seconds": 835.894,
+      "eval_seconds": 9.174,
+      "boundary_seconds": 0.0,
+      "cil_top1": 98.4,
+      "til_top1": null,
+      "persistent_params": 9994038,
+      "persistent_mb": 38.1242,
+      "persistent_state_breakdown": {
+        "base_knowledge": 14745600,
+        "base_key": 61440,
+        "stored_prompts": 14745600,
+        "head": 18456,
+        "evolve_sublayers": 10405056
+      },
+      "peak_vram_mb": 0.0
+    },
+    {
+      "task": 1,
+      "train_seconds": 692.499,
+      "eval_seconds": 16.068,
+      "boundary_seconds": 0.0,
+      "cil_top1": 91.85,
+      "til_top1": null,
+      "persistent_params": 9997883,
+      "persistent_mb": 38.1389,
+      "persistent_state_breakdown": {
+        "base_knowledge": 14745600,
+        "base_key": 61440,
+        "stored_prompts": 14745600,
+        "head": 33836,
+        "evolve_sublayers": 10405056
+      },
+      "peak_vram_mb": 0.0
+    },
+    {
+      "task": 2,
+      "train_seconds": 696.789,
+      "eval_seconds": 22.972,
+      "boundary_seconds": 0.0,
+      "cil_top1": 90.05,
+      "til_top1": null,
+      "persistent_params": 10001728,
+      "persistent_mb": 38.1536,
+      "persistent_state_breakdown": {
+        "base_knowledge": 14745600,
+        "base_key": 61440,
+        "stored_prompts": 14745600,
+        "head": 49216,
+        "evolve_sublayers": 10405056
+      },
+      "peak_vram_mb": 0.0
+    }
+  ],
+  "train_seconds_total": 2225.182725429535,
+  "eval_seconds_total": 48.21407341957092,
+  "boundary_seconds_total": 0.0,
+  "cil_summary": {
+    "final_average_accuracy": 90.6167,
+    "average_incremental_accuracy": 93.7772,
+    "forgetting": 9.555,
+    "backward_transfer": -9.555,
+    "last_task_accuracy": 95.2
+  }
+}

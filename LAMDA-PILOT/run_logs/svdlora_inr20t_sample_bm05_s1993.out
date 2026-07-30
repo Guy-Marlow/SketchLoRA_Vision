@@ -1,0 +1,1087 @@
+2026-07-07 14:08:50,507 [trainer.py] => config: ./exps/svdlora_inr20t_sample_bm05_s1993.json
+2026-07-07 14:08:50,507 [trainer.py] => dataset: imagenetr
+2026-07-07 14:08:50,507 [trainer.py] => memory_size: 0
+2026-07-07 14:08:50,507 [trainer.py] => memory_per_class: 0
+2026-07-07 14:08:50,507 [trainer.py] => fixed_memory: False
+2026-07-07 14:08:50,507 [trainer.py] => shuffle: True
+2026-07-07 14:08:50,507 [trainer.py] => init_cls: 10
+2026-07-07 14:08:50,507 [trainer.py] => increment: 10
+2026-07-07 14:08:50,507 [trainer.py] => backbone_type: vit_base_patch16_224_lora
+2026-07-07 14:08:50,507 [trainer.py] => device: [device(type='cuda', index=0)]
+2026-07-07 14:08:50,507 [trainer.py] => seed: 1993
+2026-07-07 14:08:50,507 [trainer.py] => scenario: both
+2026-07-07 14:08:50,507 [trainer.py] => lora_rank: 8
+2026-07-07 14:08:50,507 [trainer.py] => tuned_epoch: 10
+2026-07-07 14:08:50,507 [trainer.py] => init_lr: 0.0003
+2026-07-07 14:08:50,507 [trainer.py] => batch_size: 48
+2026-07-07 14:08:50,507 [trainer.py] => weight_decay: 0.0005
+2026-07-07 14:08:50,507 [trainer.py] => min_lr: 0.0
+2026-07-07 14:08:50,507 [trainer.py] => pretrained: True
+2026-07-07 14:08:50,507 [trainer.py] => print_forget: True
+2026-07-07 14:08:50,507 [trainer.py] => model_name: sketchlora
+2026-07-07 14:08:50,508 [trainer.py] => lora_alpha: 32
+2026-07-07 14:08:50,508 [trainer.py] => lora_merge: True
+2026-07-07 14:08:50,508 [trainer.py] => lora_train_merge: True
+2026-07-07 14:08:50,508 [trainer.py] => svd_rank: 8
+2026-07-07 14:08:50,508 [trainer.py] => svd_oversampling: 10
+2026-07-07 14:08:50,508 [trainer.py] => svd_energy_target: 0.01
+2026-07-07 14:08:50,508 [trainer.py] => lora_n_slots: 2
+2026-07-07 14:08:50,508 [trainer.py] => prefix: inr20t_sample_bm05
+2026-07-07 14:08:50,508 [trainer.py] => boundary_mode: sample
+2026-07-07 14:08:50,508 [trainer.py] => boundary_mult: 0.5
+2026-07-07 14:08:50,589 [data_manager.py] => [168, 136, 51, 9, 183, 101, 171, 99, 42, 159, 191, 70, 16, 188, 27, 10, 175, 26, 68, 187, 98, 6, 85, 35, 112, 43, 100, 0, 103, 181, 88, 59, 4, 2, 116, 174, 94, 80, 106, 1, 147, 17, 141, 131, 72, 23, 173, 54, 197, 118, 87, 32, 79, 104, 91, 19, 135, 107, 178, 36, 11, 199, 142, 8, 122, 3, 28, 57, 153, 172, 190, 56, 49, 44, 97, 62, 151, 169, 194, 55, 192, 12, 189, 78, 66, 180, 15, 137, 109, 134, 92, 119, 126, 52, 170, 40, 148, 65, 144, 64, 138, 45, 77, 89, 154, 90, 71, 193, 74, 30, 113, 143, 96, 84, 67, 50, 186, 156, 69, 21, 18, 111, 108, 58, 125, 157, 150, 110, 182, 129, 166, 83, 81, 60, 13, 165, 14, 176, 63, 117, 5, 22, 145, 121, 38, 41, 82, 127, 114, 20, 31, 53, 37, 163, 196, 130, 152, 162, 86, 76, 24, 34, 184, 149, 33, 128, 198, 155, 146, 167, 139, 120, 140, 102, 47, 25, 158, 123, 46, 164, 61, 7, 115, 75, 133, 160, 105, 132, 179, 124, 48, 73, 93, 39, 95, 195, 29, 177, 185, 161]
+/home/gmar762/research/continuous_learning/svd_sketching_vision/LAMDA-PILOT/models/base.py:8: UserWarning: A NumPy version >=1.23.5 and <2.3.0 is required for this version of SciPy (detected version 2.4.6)
+  from scipy.spatial.distance import cdist
+This is for the BaseNet initialization.
+I'm using ViT with per-task LoRA (q,v).
+_IncompatibleKeys(missing_keys=['blocks.0.attn.lora_A_q.0.weight', 'blocks.0.attn.lora_A_q.1.weight', 'blocks.0.attn.lora_B_q.0.weight', 'blocks.0.attn.lora_B_q.1.weight', 'blocks.0.attn.lora_A_v.0.weight', 'blocks.0.attn.lora_A_v.1.weight', 'blocks.0.attn.lora_B_v.0.weight', 'blocks.0.attn.lora_B_v.1.weight', 'blocks.1.attn.lora_A_q.0.weight', 'blocks.1.attn.lora_A_q.1.weight', 'blocks.1.attn.lora_B_q.0.weight', 'blocks.1.attn.lora_B_q.1.weight', 'blocks.1.attn.lora_A_v.0.weight', 'blocks.1.attn.lora_A_v.1.weight', 'blocks.1.attn.lora_B_v.0.weight', 'blocks.1.attn.lora_B_v.1.weight', 'blocks.2.attn.lora_A_q.0.weight', 'blocks.2.attn.lora_A_q.1.weight', 'blocks.2.attn.lora_B_q.0.weight', 'blocks.2.attn.lora_B_q.1.weight', 'blocks.2.attn.lora_A_v.0.weight', 'blocks.2.attn.lora_A_v.1.weight', 'blocks.2.attn.lora_B_v.0.weight', 'blocks.2.attn.lora_B_v.1.weight', 'blocks.3.attn.lora_A_q.0.weight', 'blocks.3.attn.lora_A_q.1.weight', 'blocks.3.attn.lora_B_q.0.weight', 'blocks.3.attn.lora_B_q.1.weight', 'blocks.3.attn.lora_A_v.0.weight', 'blocks.3.attn.lora_A_v.1.weight', 'blocks.3.attn.lora_B_v.0.weight', 'blocks.3.attn.lora_B_v.1.weight', 'blocks.4.attn.lora_A_q.0.weight', 'blocks.4.attn.lora_A_q.1.weight', 'blocks.4.attn.lora_B_q.0.weight', 'blocks.4.attn.lora_B_q.1.weight', 'blocks.4.attn.lora_A_v.0.weight', 'blocks.4.attn.lora_A_v.1.weight', 'blocks.4.attn.lora_B_v.0.weight', 'blocks.4.attn.lora_B_v.1.weight', 'blocks.5.attn.lora_A_q.0.weight', 'blocks.5.attn.lora_A_q.1.weight', 'blocks.5.attn.lora_B_q.0.weight', 'blocks.5.attn.lora_B_q.1.weight', 'blocks.5.attn.lora_A_v.0.weight', 'blocks.5.attn.lora_A_v.1.weight', 'blocks.5.attn.lora_B_v.0.weight', 'blocks.5.attn.lora_B_v.1.weight', 'blocks.6.attn.lora_A_q.0.weight', 'blocks.6.attn.lora_A_q.1.weight', 'blocks.6.attn.lora_B_q.0.weight', 'blocks.6.attn.lora_B_q.1.weight', 'blocks.6.attn.lora_A_v.0.weight', 'blocks.6.attn.lora_A_v.1.weight', 'blocks.6.attn.lora_B_v.0.weight', 'blocks.6.attn.lora_B_v.1.weight', 'blocks.7.attn.lora_A_q.0.weight', 'blocks.7.attn.lora_A_q.1.weight', 'blocks.7.attn.lora_B_q.0.weight', 'blocks.7.attn.lora_B_q.1.weight', 'blocks.7.attn.lora_A_v.0.weight', 'blocks.7.attn.lora_A_v.1.weight', 'blocks.7.attn.lora_B_v.0.weight', 'blocks.7.attn.lora_B_v.1.weight', 'blocks.8.attn.lora_A_q.0.weight', 'blocks.8.attn.lora_A_q.1.weight', 'blocks.8.attn.lora_B_q.0.weight', 'blocks.8.attn.lora_B_q.1.weight', 'blocks.8.attn.lora_A_v.0.weight', 'blocks.8.attn.lora_A_v.1.weight', 'blocks.8.attn.lora_B_v.0.weight', 'blocks.8.attn.lora_B_v.1.weight', 'blocks.9.attn.lora_A_q.0.weight', 'blocks.9.attn.lora_A_q.1.weight', 'blocks.9.attn.lora_B_q.0.weight', 'blocks.9.attn.lora_B_q.1.weight', 'blocks.9.attn.lora_A_v.0.weight', 'blocks.9.attn.lora_A_v.1.weight', 'blocks.9.attn.lora_B_v.0.weight', 'blocks.9.attn.lora_B_v.1.weight', 'blocks.10.attn.lora_A_q.0.weight', 'blocks.10.attn.lora_A_q.1.weight', 'blocks.10.attn.lora_B_q.0.weight', 'blocks.10.attn.lora_B_q.1.weight', 'blocks.10.attn.lora_A_v.0.weight', 'blocks.10.attn.lora_A_v.1.weight', 'blocks.10.attn.lora_B_v.0.weight', 'blocks.10.attn.lora_B_v.1.weight', 'blocks.11.attn.lora_A_q.0.weight', 'blocks.11.attn.lora_A_q.1.weight', 'blocks.11.attn.lora_B_q.0.weight', 'blocks.11.attn.lora_B_q.1.weight', 'blocks.11.attn.lora_A_v.0.weight', 'blocks.11.attn.lora_A_v.1.weight', 'blocks.11.attn.lora_B_v.0.weight', 'blocks.11.attn.lora_B_v.1.weight'], unexpected_keys=[])
+After BaseNet initialization.
+2026-07-07 14:08:54,526 [stream_mixin.py] => [stream] adapter event every 5 global epochs (C=0.5 x 10 epochs); eval after each fold on completed tasks
+Target rank: 8
+Target rank: 7
+Target rank: 8
+Target rank: 7
+Target rank: 8
+Target rank: 8
+Target rank: 8
+Target rank: 8
+Target rank: 8
+Target rank: 8
+Target rank: 8
+Target rank: 8
+Target rank: 8
+Target rank: 8
+Target rank: 8
+Target rank: 8
+Target rank: 8
+Target rank: 8
+Target rank: 8
+Target rank: 8
+Target rank: 6
+Target rank: 8
+Target rank: 3
+Target rank: 8
+2026-07-07 14:09:38,409 [sketchlora.py] => [SketchDiag] task 0: retained-energy mean=0.999 min=0.991 | ||ΔW||_F mean=0.174 | r_hat mean=7.6 total=183
+Target rank: 15
+Target rank: 14
+Target rank: 15
+Target rank: 14
+Target rank: 16
+Target rank: 15
+Target rank: 16
+Target rank: 16
+Target rank: 16
+Target rank: 15
+Target rank: 16
+Target rank: 15
+Target rank: 16
+Target rank: 16
+Target rank: 16
+Target rank: 15
+Target rank: 16
+Target rank: 16
+Target rank: 16
+Target rank: 15
+Target rank: 13
+Target rank: 15
+Target rank: 8
+Target rank: 14
+2026-07-07 14:10:20,640 [sketchlora.py] => [SketchDiag] task 1: retained-energy mean=0.996 min=0.990 | ||ΔW||_F mean=0.216 | r_hat mean=15.0 total=359
+2026-07-07 14:10:22,964 [stream_mixin.py] => [stream eval] completed  1 | CIL 93.99 | TIL 93.99 | TIL/task [93.99]
+Target rank: 21
+Target rank: 19
+Target rank: 22
+Target rank: 20
+Target rank: 23
+Target rank: 21
+Target rank: 23
+Target rank: 22
+Target rank: 23
+Target rank: 21
+Target rank: 23
+Target rank: 21
+Target rank: 23
+Target rank: 22
+Target rank: 23
+Target rank: 22
+Target rank: 23
+Target rank: 23
+Target rank: 22
+Target rank: 22
+Target rank: 19
+Target rank: 21
+Target rank: 5
+Target rank: 18
+2026-07-07 14:11:12,418 [sketchlora.py] => [SketchDiag] task 2: retained-energy mean=0.992 min=0.990 | ||ΔW||_F mean=0.309 | r_hat mean=20.9 total=502
+2026-07-07 14:11:14,757 [stream_mixin.py] => [stream eval] completed  1 | CIL 80.06 | TIL 80.06 | TIL/task [80.06]
+Target rank: 27
+Target rank: 25
+Target rank: 28
+Target rank: 26
+Target rank: 30
+Target rank: 27
+Target rank: 30
+Target rank: 29
+Target rank: 30
+Target rank: 27
+Target rank: 30
+Target rank: 27
+Target rank: 30
+Target rank: 28
+Target rank: 30
+Target rank: 28
+Target rank: 29
+Target rank: 29
+Target rank: 28
+Target rank: 28
+Target rank: 25
+Target rank: 27
+Target rank: 6
+Target rank: 22
+2026-07-07 14:12:04,258 [sketchlora.py] => [SketchDiag] task 3: retained-energy mean=0.992 min=0.990 | ||ΔW||_F mean=0.338 | r_hat mean=26.9 total=646
+2026-07-07 14:12:09,490 [stream_mixin.py] => [stream eval] completed  2 | CIL 81.16 | TIL 89.42 | TIL/task [81.96, 95.72]
+Target rank: 32
+Target rank: 30
+Target rank: 34
+Target rank: 31
+Target rank: 36
+Target rank: 33
+Target rank: 37
+Target rank: 35
+Target rank: 37
+Target rank: 33
+Target rank: 36
+Target rank: 32
+Target rank: 37
+Target rank: 32
+Target rank: 36
+Target rank: 33
+Target rank: 34
+Target rank: 34
+Target rank: 34
+Target rank: 34
+Target rank: 29
+Target rank: 31
+Target rank: 6
+Target rank: 26
+2026-07-07 14:12:50,747 [sketchlora.py] => [SketchDiag] task 4: retained-energy mean=0.992 min=0.990 | ||ΔW||_F mean=0.385 | r_hat mean=32.2 total=772
+2026-07-07 14:12:55,959 [stream_mixin.py] => [stream eval] completed  2 | CIL 70.14 | TIL 78.99 | TIL/task [68.99, 87.43]
+Target rank: 36
+Target rank: 35
+Target rank: 39
+Target rank: 36
+Target rank: 42
+Target rank: 39
+Target rank: 43
+Target rank: 41
+Target rank: 43
+Target rank: 39
+Target rank: 42
+Target rank: 38
+Target rank: 43
+Target rank: 38
+Target rank: 42
+Target rank: 39
+Target rank: 40
+Target rank: 40
+Target rank: 39
+Target rank: 39
+Target rank: 34
+Target rank: 35
+Target rank: 7
+Target rank: 28
+2026-07-07 14:13:37,553 [sketchlora.py] => [SketchDiag] task 5: retained-energy mean=0.992 min=0.990 | ||ΔW||_F mean=0.405 | r_hat mean=37.4 total=897
+2026-07-07 14:13:45,102 [stream_mixin.py] => [stream eval] completed  3 | CIL 72.05 | TIL 85.97 | TIL/task [73.42, 89.04, 95.35]
+Target rank: 40
+Target rank: 39
+Target rank: 44
+Target rank: 41
+Target rank: 48
+Target rank: 44
+Target rank: 49
+Target rank: 46
+Target rank: 49
+Target rank: 44
+Target rank: 48
+Target rank: 43
+Target rank: 49
+Target rank: 43
+Target rank: 47
+Target rank: 43
+Target rank: 45
+Target rank: 44
+Target rank: 43
+Target rank: 43
+Target rank: 36
+Target rank: 39
+Target rank: 7
+Target rank: 32
+2026-07-07 14:14:29,735 [sketchlora.py] => [SketchDiag] task 6: retained-energy mean=0.992 min=0.990 | ||ΔW||_F mean=0.450 | r_hat mean=41.9 total=1006
+2026-07-07 14:14:37,269 [stream_mixin.py] => [stream eval] completed  3 | CIL 58.32 | TIL 74.27 | TIL/task [66.14, 74.06, 83.06]
+Target rank: 43
+Target rank: 43
+Target rank: 48
+Target rank: 46
+Target rank: 53
+Target rank: 49
+Target rank: 55
+Target rank: 51
+Target rank: 55
+Target rank: 49
+Target rank: 53
+Target rank: 48
+Target rank: 55
+Target rank: 48
+Target rank: 52
+Target rank: 48
+Target rank: 50
+Target rank: 49
+Target rank: 48
+Target rank: 48
+Target rank: 39
+Target rank: 43
+Target rank: 8
+Target rank: 35
+2026-07-07 14:15:21,973 [sketchlora.py] => [SketchDiag] task 7: retained-energy mean=0.992 min=0.990 | ||ΔW||_F mean=0.469 | r_hat mean=46.5 total=1116
+2026-07-07 14:15:32,342 [stream_mixin.py] => [stream eval] completed  4 | CIL 64.04 | TIL 80.85 | TIL/task [67.09, 76.74, 85.05, 94.85]
+Target rank: 45
+Target rank: 47
+Target rank: 51
+Target rank: 50
+Target rank: 58
+Target rank: 54
+Target rank: 60
+Target rank: 56
+Target rank: 60
+Target rank: 54
+Target rank: 58
+Target rank: 52
+Target rank: 59
+Target rank: 51
+Target rank: 57
+Target rank: 51
+Target rank: 54
+Target rank: 52
+Target rank: 52
+Target rank: 51
+Target rank: 41
+Target rank: 45
+Target rank: 8
+Target rank: 38
+2026-07-07 14:16:11,433 [sketchlora.py] => [SketchDiag] task 8: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=0.501 | r_hat mean=50.2 total=1204
+2026-07-07 14:16:21,736 [stream_mixin.py] => [stream eval] completed  4 | CIL 51.55 | TIL 72.45 | TIL/task [66.14, 77.01, 72.76, 73.03]
+Target rank: 47
+Target rank: 51
+Target rank: 54
+Target rank: 54
+Target rank: 62
+Target rank: 58
+Target rank: 65
+Target rank: 61
+Target rank: 65
+Target rank: 58
+Target rank: 63
+Target rank: 56
+Target rank: 64
+Target rank: 56
+Target rank: 62
+Target rank: 56
+Target rank: 58
+Target rank: 56
+Target rank: 56
+Target rank: 55
+Target rank: 44
+Target rank: 48
+Target rank: 9
+Target rank: 39
+2026-07-07 14:17:00,786 [sketchlora.py] => [SketchDiag] task 9: retained-energy mean=0.992 min=0.990 | ||ΔW||_F mean=0.514 | r_hat mean=54.0 total=1297
+2026-07-07 14:17:13,435 [stream_mixin.py] => [stream eval] completed  5 | CIL 53.57 | TIL 77.10 | TIL/task [68.04, 77.54, 75.75, 74.85, 90.97]
+Target rank: 49
+Target rank: 53
+Target rank: 57
+Target rank: 57
+Target rank: 66
+Target rank: 62
+Target rank: 69
+Target rank: 64
+Target rank: 69
+Target rank: 61
+Target rank: 67
+Target rank: 59
+Target rank: 68
+Target rank: 59
+Target rank: 66
+Target rank: 58
+Target rank: 61
+Target rank: 59
+Target rank: 59
+Target rank: 58
+Target rank: 45
+Target rank: 51
+Target rank: 9
+Target rank: 43
+2026-07-07 14:17:56,009 [sketchlora.py] => [SketchDiag] task 10: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=0.545 | r_hat mean=57.0 total=1369
+2026-07-07 14:18:08,681 [stream_mixin.py] => [stream eval] completed  5 | CIL 43.74 | TIL 69.46 | TIL/task [63.29, 75.13, 59.8, 70.61, 77.98]
+Target rank: 51
+Target rank: 57
+Target rank: 59
+Target rank: 60
+Target rank: 69
+Target rank: 66
+Target rank: 73
+Target rank: 68
+Target rank: 73
+Target rank: 65
+Target rank: 71
+Target rank: 63
+Target rank: 72
+Target rank: 63
+Target rank: 70
+Target rank: 61
+Target rank: 65
+Target rank: 62
+Target rank: 62
+Target rank: 61
+Target rank: 48
+Target rank: 53
+Target rank: 9
+Target rank: 44
+2026-07-07 14:18:50,820 [sketchlora.py] => [SketchDiag] task 11: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=0.559 | r_hat mean=60.2 total=1445
+2026-07-07 14:19:05,859 [stream_mixin.py] => [stream eval] completed  6 | CIL 45.69 | TIL 71.95 | TIL/task [65.51, 71.39, 57.81, 71.82, 76.53, 89.22]
+Target rank: 52
+Target rank: 59
+Target rank: 61
+Target rank: 63
+Target rank: 72
+Target rank: 68
+Target rank: 76
+Target rank: 71
+Target rank: 77
+Target rank: 68
+Target rank: 75
+Target rank: 66
+Target rank: 76
+Target rank: 66
+Target rank: 74
+Target rank: 64
+Target rank: 67
+Target rank: 64
+Target rank: 63
+Target rank: 63
+Target rank: 49
+Target rank: 55
+Target rank: 9
+Target rank: 47
+2026-07-07 14:19:47,992 [sketchlora.py] => [SketchDiag] task 12: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=0.588 | r_hat mean=62.7 total=1505
+2026-07-07 14:20:03,002 [stream_mixin.py] => [stream eval] completed  6 | CIL 35.29 | TIL 68.17 | TIL/task [61.39, 64.44, 64.12, 73.64, 67.51, 78.43]
+Target rank: 53
+Target rank: 61
+Target rank: 63
+Target rank: 66
+Target rank: 75
+Target rank: 71
+Target rank: 79
+Target rank: 74
+Target rank: 81
+Target rank: 72
+Target rank: 79
+Target rank: 69
+Target rank: 80
+Target rank: 70
+Target rank: 78
+Target rank: 67
+Target rank: 70
+Target rank: 67
+Target rank: 65
+Target rank: 65
+Target rank: 50
+Target rank: 56
+Target rank: 9
+Target rank: 48
+2026-07-07 14:20:45,459 [sketchlora.py] => [SketchDiag] task 13: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=0.600 | r_hat mean=65.3 total=1568
+2026-07-07 14:21:02,797 [stream_mixin.py] => [stream eval] completed  7 | CIL 39.75 | TIL 71.83 | TIL/task [62.66, 63.9, 63.46, 74.55, 70.04, 78.43, 91.92]
+Target rank: 53
+Target rank: 63
+Target rank: 64
+Target rank: 67
+Target rank: 77
+Target rank: 73
+Target rank: 82
+Target rank: 76
+Target rank: 84
+Target rank: 75
+Target rank: 82
+Target rank: 71
+Target rank: 83
+Target rank: 72
+Target rank: 81
+Target rank: 69
+Target rank: 72
+Target rank: 69
+Target rank: 66
+Target rank: 67
+Target rank: 50
+Target rank: 58
+Target rank: 9
+Target rank: 51
+2026-07-07 14:21:41,098 [sketchlora.py] => [SketchDiag] task 14: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=0.626 | r_hat mean=67.2 total=1614
+2026-07-07 14:21:58,390 [stream_mixin.py] => [stream eval] completed  7 | CIL 35.53 | TIL 63.15 | TIL/task [52.85, 53.48, 62.79, 69.39, 68.95, 56.54, 81.14]
+Target rank: 54
+Target rank: 65
+Target rank: 65
+Target rank: 70
+Target rank: 79
+Target rank: 76
+Target rank: 84
+Target rank: 79
+Target rank: 87
+Target rank: 77
+Target rank: 84
+Target rank: 73
+Target rank: 86
+Target rank: 74
+Target rank: 84
+Target rank: 72
+Target rank: 74
+Target rank: 71
+Target rank: 67
+Target rank: 69
+Target rank: 51
+Target rank: 59
+Target rank: 9
+Target rank: 52
+2026-07-07 14:22:36,696 [sketchlora.py] => [SketchDiag] task 15: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=0.636 | r_hat mean=69.2 total=1661
+2026-07-07 14:22:56,235 [stream_mixin.py] => [stream eval] completed  8 | CIL 38.88 | TIL 68.04 | TIL/task [53.8, 55.88, 63.79, 72.12, 71.12, 60.78, 80.81, 92.54]
+Target rank: 54
+Target rank: 68
+Target rank: 66
+Target rank: 72
+Target rank: 81
+Target rank: 78
+Target rank: 87
+Target rank: 82
+Target rank: 90
+Target rank: 79
+Target rank: 87
+Target rank: 75
+Target rank: 88
+Target rank: 75
+Target rank: 87
+Target rank: 74
+Target rank: 76
+Target rank: 72
+Target rank: 67
+Target rank: 71
+Target rank: 51
+Target rank: 62
+Target rank: 10
+Target rank: 55
+2026-07-07 14:23:43,120 [sketchlora.py] => [SketchDiag] task 16: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=0.662 | r_hat mean=71.1 total=1707
+2026-07-07 14:24:02,656 [stream_mixin.py] => [stream eval] completed  8 | CIL 30.21 | TIL 63.39 | TIL/task [51.9, 55.35, 53.16, 65.76, 68.23, 57.19, 77.1, 83.58]
+Target rank: 54
+Target rank: 71
+Target rank: 67
+Target rank: 74
+Target rank: 83
+Target rank: 81
+Target rank: 90
+Target rank: 85
+Target rank: 93
+Target rank: 82
+Target rank: 90
+Target rank: 78
+Target rank: 91
+Target rank: 78
+Target rank: 90
+Target rank: 77
+Target rank: 78
+Target rank: 75
+Target rank: 69
+Target rank: 73
+Target rank: 53
+Target rank: 63
+Target rank: 10
+Target rank: 55
+2026-07-07 14:24:49,503 [sketchlora.py] => [SketchDiag] task 17: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=0.673 | r_hat mean=73.3 total=1760
+2026-07-07 14:25:12,697 [stream_mixin.py] => [stream eval] completed  9 | CIL 34.10 | TIL 67.85 | TIL/task [53.8, 55.88, 54.49, 66.97, 69.68, 60.78, 77.44, 84.33, 90.09]
+Target rank: 53
+Target rank: 72
+Target rank: 67
+Target rank: 75
+Target rank: 83
+Target rank: 82
+Target rank: 91
+Target rank: 85
+Target rank: 94
+Target rank: 83
+Target rank: 92
+Target rank: 78
+Target rank: 92
+Target rank: 79
+Target rank: 91
+Target rank: 78
+Target rank: 78
+Target rank: 75
+Target rank: 69
+Target rank: 74
+Target rank: 52
+Target rank: 64
+Target rank: 11
+Target rank: 57
+2026-07-07 14:25:40,995 [sketchlora.py] => [SketchDiag] task 18: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=0.688 | r_hat mean=74.0 total=1775
+2026-07-07 14:26:03,184 [stream_mixin.py] => [stream eval] completed  9 | CIL 24.82 | TIL 59.21 | TIL/task [62.34, 37.43, 44.19, 56.67, 59.21, 66.99, 61.28, 65.67, 81.92]
+Target rank: 53
+Target rank: 73
+Target rank: 67
+Target rank: 76
+Target rank: 84
+Target rank: 83
+Target rank: 92
+Target rank: 86
+Target rank: 95
+Target rank: 85
+Target rank: 93
+Target rank: 80
+Target rank: 94
+Target rank: 81
+Target rank: 92
+Target rank: 79
+Target rank: 79
+Target rank: 76
+Target rank: 69
+Target rank: 75
+Target rank: 52
+Target rank: 64
+Target rank: 11
+Target rank: 58
+2026-07-07 14:26:31,312 [sketchlora.py] => [SketchDiag] task 19: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=0.694 | r_hat mean=74.9 total=1797
+2026-07-07 14:26:55,211 [stream_mixin.py] => [stream eval] completed 10 | CIL 27.99 | TIL 64.50 | TIL/task [64.56, 44.12, 53.82, 59.09, 61.01, 65.69, 63.97, 75.37, 83.67, 85.71]
+Target rank: 53
+Target rank: 75
+Target rank: 67
+Target rank: 77
+Target rank: 85
+Target rank: 85
+Target rank: 94
+Target rank: 88
+Target rank: 97
+Target rank: 86
+Target rank: 94
+Target rank: 80
+Target rank: 95
+Target rank: 83
+Target rank: 94
+Target rank: 81
+Target rank: 79
+Target rank: 77
+Target rank: 70
+Target rank: 77
+Target rank: 52
+Target rank: 66
+Target rank: 12
+Target rank: 61
+2026-07-07 14:27:36,303 [sketchlora.py] => [SketchDiag] task 20: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=0.717 | r_hat mean=76.2 total=1828
+2026-07-07 14:28:00,242 [stream_mixin.py] => [stream eval] completed 10 | CIL 28.42 | TIL 63.06 | TIL/task [54.75, 51.87, 60.13, 61.52, 61.73, 65.03, 64.98, 72.39, 75.22, 67.03]
+Target rank: 53
+Target rank: 76
+Target rank: 67
+Target rank: 79
+Target rank: 86
+Target rank: 87
+Target rank: 95
+Target rank: 90
+Target rank: 99
+Target rank: 88
+Target rank: 96
+Target rank: 82
+Target rank: 97
+Target rank: 85
+Target rank: 96
+Target rank: 82
+Target rank: 81
+Target rank: 78
+Target rank: 71
+Target rank: 78
+Target rank: 53
+Target rank: 66
+Target rank: 12
+Target rank: 61
+2026-07-07 14:28:41,251 [sketchlora.py] => [SketchDiag] task 21: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=0.726 | r_hat mean=77.4 total=1858
+2026-07-07 14:29:07,630 [stream_mixin.py] => [stream eval] completed 11 | CIL 31.02 | TIL 65.87 | TIL/task [55.06, 53.21, 62.46, 62.12, 62.82, 60.78, 65.66, 70.9, 75.22, 67.03, 94.39]
+Target rank: 53
+Target rank: 78
+Target rank: 68
+Target rank: 80
+Target rank: 87
+Target rank: 89
+Target rank: 97
+Target rank: 92
+Target rank: 101
+Target rank: 89
+Target rank: 97
+Target rank: 83
+Target rank: 99
+Target rank: 86
+Target rank: 98
+Target rank: 84
+Target rank: 82
+Target rank: 80
+Target rank: 71
+Target rank: 79
+Target rank: 52
+Target rank: 68
+Target rank: 12
+Target rank: 65
+2026-07-07 14:29:58,843 [sketchlora.py] => [SketchDiag] task 22: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=0.751 | r_hat mean=78.8 total=1890
+2026-07-07 14:30:25,215 [stream_mixin.py] => [stream eval] completed 11 | CIL 27.72 | TIL 65.11 | TIL/task [50.63, 53.21, 70.43, 68.18, 61.73, 60.46, 60.61, 73.51, 73.76, 62.09, 84.21]
+Target rank: 53
+Target rank: 80
+Target rank: 69
+Target rank: 82
+Target rank: 89
+Target rank: 91
+Target rank: 99
+Target rank: 94
+Target rank: 103
+Target rank: 91
+Target rank: 99
+Target rank: 85
+Target rank: 101
+Target rank: 88
+Target rank: 100
+Target rank: 85
+Target rank: 84
+Target rank: 81
+Target rank: 72
+Target rank: 80
+Target rank: 52
+Target rank: 68
+Target rank: 12
+Target rank: 64
+2026-07-07 14:31:16,338 [sketchlora.py] => [SketchDiag] task 23: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=0.760 | r_hat mean=80.1 total=1922
+2026-07-07 14:31:45,446 [stream_mixin.py] => [stream eval] completed 12 | CIL 32.11 | TIL 69.15 | TIL/task [56.65, 54.55, 72.09, 67.88, 62.45, 61.11, 60.94, 73.51, 73.47, 64.29, 85.96, 93.8]
+Target rank: 52
+Target rank: 81
+Target rank: 69
+Target rank: 83
+Target rank: 90
+Target rank: 92
+Target rank: 100
+Target rank: 95
+Target rank: 104
+Target rank: 92
+Target rank: 100
+Target rank: 86
+Target rank: 102
+Target rank: 89
+Target rank: 101
+Target rank: 86
+Target rank: 84
+Target rank: 83
+Target rank: 71
+Target rank: 82
+Target rank: 52
+Target rank: 70
+Target rank: 13
+Target rank: 67
+2026-07-07 14:32:20,897 [sketchlora.py] => [SketchDiag] task 24: retained-energy mean=0.992 min=0.990 | ||ΔW||_F mean=0.778 | r_hat mean=81.0 total=1944
+2026-07-07 14:32:49,968 [stream_mixin.py] => [stream eval] completed 12 | CIL 23.51 | TIL 55.32 | TIL/task [31.96, 42.51, 57.81, 58.18, 44.4, 39.54, 43.1, 57.46, 70.85, 55.49, 65.26, 90.84]
+Target rank: 51
+Target rank: 82
+Target rank: 69
+Target rank: 84
+Target rank: 90
+Target rank: 93
+Target rank: 100
+Target rank: 96
+Target rank: 105
+Target rank: 93
+Target rank: 101
+Target rank: 88
+Target rank: 103
+Target rank: 90
+Target rank: 102
+Target rank: 87
+Target rank: 84
+Target rank: 83
+Target rank: 71
+Target rank: 82
+Target rank: 52
+Target rank: 70
+Target rank: 13
+Target rank: 67
+2026-07-07 14:33:25,544 [sketchlora.py] => [SketchDiag] task 25: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=0.785 | r_hat mean=81.5 total=1956
+2026-07-07 14:34:15,255 [stream_mixin.py] => [stream eval] completed 13 | CIL 24.07 | TIL 57.80 | TIL/task [34.18, 41.71, 58.8, 59.39, 44.04, 44.12, 42.09, 57.84, 70.26, 58.24, 65.26, 90.57, 85.19]
+Target rank: 51
+Target rank: 82
+Target rank: 68
+Target rank: 85
+Target rank: 90
+Target rank: 93
+Target rank: 101
+Target rank: 97
+Target rank: 106
+Target rank: 93
+Target rank: 102
+Target rank: 88
+Target rank: 104
+Target rank: 90
+Target rank: 102
+Target rank: 88
+Target rank: 84
+Target rank: 83
+Target rank: 71
+Target rank: 83
+Target rank: 52
+Target rank: 72
+Target rank: 14
+Target rank: 69
+2026-07-07 14:35:00,783 [sketchlora.py] => [SketchDiag] task 26: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=0.803 | r_hat mean=82.0 total=1968
+2026-07-07 14:35:31,994 [stream_mixin.py] => [stream eval] completed 13 | CIL 21.11 | TIL 54.07 | TIL/task [36.71, 40.11, 47.18, 53.64, 41.52, 33.01, 48.15, 57.46, 62.68, 52.75, 68.77, 85.98, 74.49]
+Target rank: 51
+Target rank: 83
+Target rank: 68
+Target rank: 86
+Target rank: 91
+Target rank: 94
+Target rank: 102
+Target rank: 99
+Target rank: 107
+Target rank: 94
+Target rank: 103
+Target rank: 89
+Target rank: 106
+Target rank: 91
+Target rank: 103
+Target rank: 89
+Target rank: 85
+Target rank: 84
+Target rank: 71
+Target rank: 83
+Target rank: 52
+Target rank: 72
+Target rank: 14
+Target rank: 69
+2026-07-07 14:36:13,251 [sketchlora.py] => [SketchDiag] task 27: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=0.811 | r_hat mean=82.8 total=1986
+2026-07-07 14:36:46,790 [stream_mixin.py] => [stream eval] completed 14 | CIL 25.02 | TIL 59.21 | TIL/task [38.61, 45.19, 52.16, 55.45, 42.24, 38.89, 52.53, 59.33, 66.47, 53.3, 71.93, 87.6, 76.54, 87.8]
+Target rank: 51
+Target rank: 85
+Target rank: 69
+Target rank: 87
+Target rank: 92
+Target rank: 95
+Target rank: 103
+Target rank: 101
+Target rank: 108
+Target rank: 95
+Target rank: 105
+Target rank: 90
+Target rank: 107
+Target rank: 91
+Target rank: 104
+Target rank: 89
+Target rank: 86
+Target rank: 85
+Target rank: 71
+Target rank: 85
+Target rank: 52
+Target rank: 75
+Target rank: 15
+Target rank: 72
+2026-07-07 14:37:35,482 [sketchlora.py] => [SketchDiag] task 28: retained-energy mean=0.992 min=0.990 | ||ΔW||_F mean=0.834 | r_hat mean=83.9 total=2013
+2026-07-07 14:38:08,883 [stream_mixin.py] => [stream eval] completed 14 | CIL 21.60 | TIL 57.39 | TIL/task [40.51, 50.27, 61.79, 54.85, 40.07, 41.83, 55.22, 47.39, 60.64, 50.0, 72.98, 76.82, 70.78, 77.35]
+Target rank: 51
+Target rank: 86
+Target rank: 69
+Target rank: 88
+Target rank: 92
+Target rank: 96
+Target rank: 103
+Target rank: 103
+Target rank: 109
+Target rank: 97
+Target rank: 107
+Target rank: 91
+Target rank: 108
+Target rank: 92
+Target rank: 106
+Target rank: 90
+Target rank: 87
+Target rank: 86
+Target rank: 71
+Target rank: 85
+Target rank: 52
+Target rank: 75
+Target rank: 15
+Target rank: 72
+2026-07-07 14:39:29,173 [sketchlora.py] => [SketchDiag] task 29: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=0.842 | r_hat mean=84.6 total=2031
+2026-07-07 14:40:31,330 [stream_mixin.py] => [stream eval] completed 15 | CIL 24.95 | TIL 61.79 | TIL/task [40.82, 50.53, 64.12, 56.06, 42.24, 46.08, 56.9, 48.88, 64.43, 51.65, 71.58, 78.44, 73.25, 79.09, 94.05]
+Target rank: 51
+Target rank: 87
+Target rank: 69
+Target rank: 89
+Target rank: 92
+Target rank: 97
+Target rank: 103
+Target rank: 104
+Target rank: 110
+Target rank: 97
+Target rank: 108
+Target rank: 91
+Target rank: 109
+Target rank: 93
+Target rank: 106
+Target rank: 91
+Target rank: 87
+Target rank: 87
+Target rank: 70
+Target rank: 86
+Target rank: 52
+Target rank: 77
+Target rank: 16
+Target rank: 74
+2026-07-07 14:42:11,140 [sketchlora.py] => [SketchDiag] task 30: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=0.865 | r_hat mean=85.2 total=2046
+2026-07-07 14:43:12,703 [stream_mixin.py] => [stream eval] completed 15 | CIL 20.98 | TIL 56.10 | TIL/task [48.73, 50.53, 54.15, 60.61, 46.93, 34.64, 40.74, 51.87, 47.81, 43.41, 56.14, 82.48, 41.98, 75.96, 88.39]
+Target rank: 51
+Target rank: 88
+Target rank: 69
+Target rank: 90
+Target rank: 93
+Target rank: 99
+Target rank: 104
+Target rank: 105
+Target rank: 111
+Target rank: 99
+Target rank: 109
+Target rank: 93
+Target rank: 110
+Target rank: 94
+Target rank: 107
+Target rank: 92
+Target rank: 88
+Target rank: 88
+Target rank: 70
+Target rank: 86
+Target rank: 52
+Target rank: 77
+Target rank: 16
+Target rank: 74
+2026-07-07 14:44:52,621 [sketchlora.py] => [SketchDiag] task 31: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=0.874 | r_hat mean=86.0 total=2065
+2026-07-07 14:45:59,808 [stream_mixin.py] => [stream eval] completed 16 | CIL 23.74 | TIL 59.06 | TIL/task [50.32, 52.41, 57.48, 61.82, 45.13, 35.62, 38.38, 52.61, 47.23, 43.41, 56.84, 83.56, 42.39, 75.26, 88.1, 91.43]
+Target rank: 50
+Target rank: 88
+Target rank: 68
+Target rank: 90
+Target rank: 93
+Target rank: 99
+Target rank: 104
+Target rank: 105
+Target rank: 110
+Target rank: 99
+Target rank: 109
+Target rank: 93
+Target rank: 109
+Target rank: 94
+Target rank: 107
+Target rank: 92
+Target rank: 87
+Target rank: 88
+Target rank: 69
+Target rank: 86
+Target rank: 52
+Target rank: 79
+Target rank: 17
+Target rank: 75
+2026-07-07 14:47:12,675 [sketchlora.py] => [SketchDiag] task 32: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=0.888 | r_hat mean=86.0 total=2063
+2026-07-07 14:48:19,148 [stream_mixin.py] => [stream eval] completed 16 | CIL 13.60 | TIL 42.60 | TIL/task [19.62, 41.18, 34.88, 46.36, 29.6, 21.57, 20.88, 35.07, 32.07, 21.43, 46.67, 57.95, 37.86, 58.89, 81.87, 72.86]
+Target rank: 49
+Target rank: 89
+Target rank: 67
+Target rank: 91
+Target rank: 93
+Target rank: 100
+Target rank: 104
+Target rank: 105
+Target rank: 110
+Target rank: 101
+Target rank: 110
+Target rank: 94
+Target rank: 110
+Target rank: 95
+Target rank: 107
+Target rank: 93
+Target rank: 88
+Target rank: 89
+Target rank: 68
+Target rank: 87
+Target rank: 51
+Target rank: 80
+Target rank: 17
+Target rank: 76
+2026-07-07 14:49:32,202 [sketchlora.py] => [SketchDiag] task 33: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=0.899 | r_hat mean=86.4 total=2074
+2026-07-07 14:50:42,663 [stream_mixin.py] => [stream eval] completed 17 | CIL 17.68 | TIL 51.84 | TIL/task [33.54, 51.6, 43.85, 55.45, 36.1, 29.08, 24.92, 35.45, 39.65, 38.46, 51.23, 67.92, 45.27, 73.52, 86.4, 76.0, 78.33]
+Target rank: 49
+Target rank: 89
+Target rank: 66
+Target rank: 91
+Target rank: 92
+Target rank: 99
+Target rank: 103
+Target rank: 106
+Target rank: 110
+Target rank: 101
+Target rank: 110
+Target rank: 94
+Target rank: 110
+Target rank: 95
+Target rank: 107
+Target rank: 94
+Target rank: 87
+Target rank: 90
+Target rank: 67
+Target rank: 88
+Target rank: 50
+Target rank: 82
+Target rank: 18
+Target rank: 78
+2026-07-07 14:51:55,055 [sketchlora.py] => [SketchDiag] task 34: retained-energy mean=0.992 min=0.990 | ||ΔW||_F mean=0.914 | r_hat mean=86.5 total=2076
+2026-07-07 14:53:04,213 [stream_mixin.py] => [stream eval] completed 17 | CIL 18.93 | TIL 51.06 | TIL/task [37.03, 43.58, 38.21, 55.76, 38.27, 29.74, 31.31, 37.31, 49.27, 53.85, 50.53, 67.12, 43.62, 64.81, 79.04, 76.29, 62.08]
+Target rank: 48
+Target rank: 89
+Target rank: 65
+Target rank: 92
+Target rank: 92
+Target rank: 100
+Target rank: 103
+Target rank: 106
+Target rank: 110
+Target rank: 101
+Target rank: 110
+Target rank: 94
+Target rank: 110
+Target rank: 95
+Target rank: 107
+Target rank: 93
+Target rank: 87
+Target rank: 89
+Target rank: 66
+Target rank: 87
+Target rank: 49
+Target rank: 81
+Target rank: 18
+Target rank: 77
+2026-07-07 14:54:16,641 [sketchlora.py] => [SketchDiag] task 35: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=0.918 | r_hat mean=86.2 total=2069
+2026-07-07 14:55:30,449 [stream_mixin.py] => [stream eval] completed 18 | CIL 19.90 | TIL 53.63 | TIL/task [37.03, 43.85, 36.88, 56.97, 38.63, 29.08, 30.3, 38.43, 51.6, 54.95, 50.18, 69.27, 48.15, 65.16, 80.17, 77.43, 62.92, 92.44]
+Target rank: 47
+Target rank: 89
+Target rank: 64
+Target rank: 92
+Target rank: 91
+Target rank: 100
+Target rank: 103
+Target rank: 107
+Target rank: 110
+Target rank: 101
+Target rank: 110
+Target rank: 94
+Target rank: 110
+Target rank: 96
+Target rank: 107
+Target rank: 93
+Target rank: 86
+Target rank: 90
+Target rank: 65
+Target rank: 88
+Target rank: 49
+Target rank: 83
+Target rank: 19
+Target rank: 79
+2026-07-07 14:56:53,909 [sketchlora.py] => [SketchDiag] task 36: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=0.934 | r_hat mean=86.4 total=2073
+2026-07-07 14:58:07,774 [stream_mixin.py] => [stream eval] completed 18 | CIL 21.40 | TIL 56.95 | TIL/task [41.46, 46.26, 56.15, 63.03, 46.21, 34.64, 39.73, 48.13, 58.02, 48.35, 55.09, 67.39, 42.8, 66.9, 80.17, 78.57, 59.58, 84.03]
+Target rank: 47
+Target rank: 90
+Target rank: 64
+Target rank: 93
+Target rank: 91
+Target rank: 101
+Target rank: 103
+Target rank: 107
+Target rank: 110
+Target rank: 102
+Target rank: 110
+Target rank: 94
+Target rank: 111
+Target rank: 96
+Target rank: 107
+Target rank: 93
+Target rank: 86
+Target rank: 90
+Target rank: 65
+Target rank: 88
+Target rank: 49
+Target rank: 82
+Target rank: 19
+Target rank: 78
+2026-07-07 14:59:32,512 [sketchlora.py] => [SketchDiag] task 37: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=0.941 | r_hat mean=86.5 total=2076
+2026-07-07 15:00:49,819 [stream_mixin.py] => [stream eval] completed 19 | CIL 20.29 | TIL 59.39 | TIL/task [42.72, 48.93, 58.8, 60.91, 48.01, 36.93, 42.76, 47.01, 59.77, 50.0, 57.19, 68.19, 42.8, 65.16, 82.15, 76.29, 58.33, 85.71, 89.16]
+Target rank: 46
+Target rank: 90
+Target rank: 64
+Target rank: 93
+Target rank: 90
+Target rank: 101
+Target rank: 103
+Target rank: 107
+Target rank: 110
+Target rank: 102
+Target rank: 110
+Target rank: 94
+Target rank: 111
+Target rank: 96
+Target rank: 107
+Target rank: 93
+Target rank: 85
+Target rank: 90
+Target rank: 65
+Target rank: 89
+Target rank: 49
+Target rank: 83
+Target rank: 20
+Target rank: 80
+2026-07-07 15:02:12,014 [sketchlora.py] => [SketchDiag] task 38: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=0.956 | r_hat mean=86.6 total=2078
+2026-07-07 15:03:29,991 [stream_mixin.py] => [stream eval] completed 19 | CIL 17.97 | TIL 56.72 | TIL/task [44.62, 44.39, 63.46, 58.79, 42.24, 30.39, 36.03, 39.55, 52.77, 45.6, 51.23, 69.0, 59.26, 54.7, 82.15, 78.86, 54.17, 73.53, 87.41]
+Target rank: 46
+Target rank: 90
+Target rank: 64
+Target rank: 93
+Target rank: 90
+Target rank: 101
+Target rank: 103
+Target rank: 108
+Target rank: 110
+Target rank: 102
+Target rank: 111
+Target rank: 94
+Target rank: 111
+Target rank: 96
+Target rank: 107
+Target rank: 92
+Target rank: 85
+Target rank: 90
+Target rank: 64
+Target rank: 88
+Target rank: 48
+Target rank: 82
+Target rank: 20
+Target rank: 79
+2026-07-07 15:04:51,792 [sketchlora.py] => [SketchDiag] task 39: retained-energy mean=0.991 min=0.990 | ||ΔW||_F mean=0.961 | r_hat mean=86.4 total=2074
+2026-07-07 15:06:12,324 [stream_mixin.py] => [stream eval] completed 20 | CIL 20.34 | TIL 59.66 | TIL/task [46.52, 47.86, 65.45, 60.3, 45.49, 32.68, 36.36, 42.16, 54.52, 46.15, 51.23, 70.62, 61.73, 55.75, 81.3, 78.86, 52.08, 75.21, 86.71, 94.22]
+2026-07-07 15:06:12,327 [trainer.py] => [stream] completed-task checkpoints: [1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13, 14, 14, 15, 15, 16, 16, 17, 17, 18, 18, 19, 19, 20]
+2026-07-07 15:06:12,328 [trainer.py] => [stream] CIL curve: [93.99, 80.06, 81.16, 70.14, 72.05, 58.32, 64.04, 51.55, 53.57, 43.74, 45.69, 35.29, 39.75, 35.53, 38.88, 30.21, 34.1, 24.82, 27.99, 28.42, 31.02, 27.72, 32.11, 23.51, 24.07, 21.11, 25.02, 21.6, 24.95, 20.98, 23.74, 13.6, 17.68, 18.93, 19.9, 21.4, 20.29, 17.97, 20.34]
+2026-07-07 15:06:12,328 [trainer.py] => [stream] TIL curve: [93.99, 80.06, 89.42, 78.99, 85.97, 74.27, 80.85, 72.45, 77.1, 69.46, 71.95, 68.17, 71.83, 63.15, 68.04, 63.39, 67.85, 59.21, 64.5, 63.06, 65.87, 65.11, 69.15, 55.32, 57.8, 54.07, 59.21, 57.39, 61.79, 56.1, 59.06, 42.6, 51.84, 51.06, 53.63, 56.95, 59.39, 56.72, 59.66]
+2026-07-07 15:06:12,328 [trainer.py] => [stream] FINAL  CIL 20.34 | TIL 59.66  (over 20 tasks)
+[stream] checkpoints (completed tasks): [1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13, 14, 14, 15, 15, 16, 16, 17, 17, 18, 18, 19, 19, 20]
+[stream] CIL: [93.99, 80.06, 81.16, 70.14, 72.05, 58.32, 64.04, 51.55, 53.57, 43.74, 45.69, 35.29, 39.75, 35.53, 38.88, 30.21, 34.1, 24.82, 27.99, 28.42, 31.02, 27.72, 32.11, 23.51, 24.07, 21.11, 25.02, 21.6, 24.95, 20.98, 23.74, 13.6, 17.68, 18.93, 19.9, 21.4, 20.29, 17.97, 20.34]
+[stream] TIL: [93.99, 80.06, 89.42, 78.99, 85.97, 74.27, 80.85, 72.45, 77.1, 69.46, 71.95, 68.17, 71.83, 63.15, 68.04, 63.39, 67.85, 59.21, 64.5, 63.06, 65.87, 65.11, 69.15, 55.32, 57.8, 54.07, 59.21, 57.39, 61.79, 56.1, 59.06, 42.6, 51.84, 51.06, 53.63, 56.95, 59.39, 56.72, 59.66]
+[stream] FINAL CIL 20.34 | TIL 59.66
+[stream] wrote run_logs/stream_sketchlora_inr20t_sample_bm05_s1993.json

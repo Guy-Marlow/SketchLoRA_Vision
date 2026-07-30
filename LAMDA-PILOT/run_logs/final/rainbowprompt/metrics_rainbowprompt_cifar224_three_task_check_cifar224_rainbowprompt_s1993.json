@@ -1,0 +1,91 @@
+{
+  "args_subset": {
+    "model_name": "rainbowprompt",
+    "dataset": "cifar224",
+    "init_cls": 5,
+    "increment": 5,
+    "seed": 1993,
+    "scenario": "cil",
+    "boundary_mode": null,
+    "budget_mb": null,
+    "n_lora_blocks": null,
+    "lora_rank": null,
+    "lora_alpha": null,
+    "svd_energy_target": null,
+    "svd_rank": null,
+    "svd_period": null,
+    "merge_op": null,
+    "cs_rank": null,
+    "lamda_1": null,
+    "lamda_2": null,
+    "lamb": null,
+    "lame": null
+  },
+  "status": "done",
+  "per_task": [
+    {
+      "task": 0,
+      "train_seconds": 483.333,
+      "eval_seconds": 3.593,
+      "boundary_seconds": 0.0,
+      "cil_top1": 99.8,
+      "til_top1": null,
+      "persistent_params": 9993269,
+      "persistent_mb": 38.1213,
+      "persistent_state_breakdown": {
+        "base_knowledge": 14745600,
+        "base_key": 61440,
+        "stored_prompts": 14745600,
+        "head": 15380,
+        "evolve_sublayers": 10405056
+      },
+      "peak_vram_mb": 0.0
+    },
+    {
+      "task": 1,
+      "train_seconds": 483.533,
+      "eval_seconds": 6.443,
+      "boundary_seconds": 0.0,
+      "cil_top1": 97.9,
+      "til_top1": null,
+      "persistent_params": 9997114,
+      "persistent_mb": 38.136,
+      "persistent_state_breakdown": {
+        "base_knowledge": 14745600,
+        "base_key": 61440,
+        "stored_prompts": 14745600,
+        "head": 30760,
+        "evolve_sublayers": 10405056
+      },
+      "peak_vram_mb": 0.0
+    },
+    {
+      "task": 2,
+      "train_seconds": 487.263,
+      "eval_seconds": 9.366,
+      "boundary_seconds": 0.0,
+      "cil_top1": 96.2,
+      "til_top1": null,
+      "persistent_params": 10000959,
+      "persistent_mb": 38.1506,
+      "persistent_state_breakdown": {
+        "base_knowledge": 14745600,
+        "base_key": 61440,
+        "stored_prompts": 14745600,
+        "head": 46140,
+        "evolve_sublayers": 10405056
+      },
+      "peak_vram_mb": 0.0
+    }
+  ],
+  "train_seconds_total": 1454.1294965744019,
+  "eval_seconds_total": 19.401167631149292,
+  "boundary_seconds_total": 0.0,
+  "cil_summary": {
+    "final_average_accuracy": 96.2,
+    "average_incremental_accuracy": 97.9667,
+    "forgetting": 1.3,
+    "backward_transfer": -1.3,
+    "last_task_accuracy": 94.4
+  }
+}

@@ -1,0 +1,84 @@
+{
+  "args_subset": {
+    "model_name": "olora",
+    "dataset": "cifar224",
+    "init_cls": 5,
+    "increment": 5,
+    "seed": 1993,
+    "scenario": "cil",
+    "boundary_mode": null,
+    "budget_mb": null,
+    "n_lora_blocks": null,
+    "lora_rank": 8,
+    "lora_alpha": 32,
+    "svd_energy_target": null,
+    "svd_rank": null,
+    "svd_period": null,
+    "merge_op": null,
+    "cs_rank": null,
+    "lamda_1": 0.5,
+    "lamda_2": 0.0,
+    "lamb": null,
+    "lame": null
+  },
+  "status": "done",
+  "per_task": [
+    {
+      "task": 0,
+      "train_seconds": 167.94,
+      "eval_seconds": 2.502,
+      "boundary_seconds": 0.0,
+      "cil_top1": 100.0,
+      "til_top1": null,
+      "persistent_params": 5902085,
+      "persistent_mb": 22.5147,
+      "persistent_state_breakdown": {
+        "lora_slots": 5898240,
+        "head": 3845
+      },
+      "peak_vram_mb": 0.0
+    },
+    {
+      "task": 1,
+      "train_seconds": 168.712,
+      "eval_seconds": 4.131,
+      "boundary_seconds": 0.0,
+      "cil_top1": 96.1,
+      "til_top1": null,
+      "persistent_params": 5905930,
+      "persistent_mb": 22.5293,
+      "persistent_state_breakdown": {
+        "lora_slots": 5898240,
+        "head": 7690
+      },
+      "peak_vram_mb": 0.0
+    },
+    {
+      "task": 2,
+      "train_seconds": 168.837,
+      "eval_seconds": 5.683,
+      "boundary_seconds": 0.0,
+      "cil_top1": 92.33,
+      "til_top1": null,
+      "persistent_params": 5909775,
+      "persistent_mb": 22.544,
+      "persistent_state_breakdown": {
+        "lora_slots": 5898240,
+        "head": 11535
+      },
+      "peak_vram_mb": 0.0
+    }
+  ],
+  "train_seconds_total": 505.4879615306854,
+  "eval_seconds_total": 12.315838098526001,
+  "boundary_seconds_total": 0.0,
+  "inference_ms_per_image": 0.0805,
+  "inference_flops_per_image": null,
+  "cil_summary": {
+    "final_average_accuracy": 92.3333,
+    "average_incremental_accuracy": 96.1444,
+    "forgetting": 8.1,
+    "backward_transfer": -8.1,
+    "last_task_accuracy": 97.0
+  }
+}

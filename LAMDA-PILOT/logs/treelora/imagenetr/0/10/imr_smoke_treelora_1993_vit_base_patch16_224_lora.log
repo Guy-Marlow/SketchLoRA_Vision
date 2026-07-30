@@ -1,0 +1,43 @@
+2026-07-28 03:22:32,171 [trainer.py] => config: exps/imr_smoke/treelora.json
+2026-07-28 03:22:32,171 [trainer.py] => dataset: imagenetr
+2026-07-28 03:22:32,171 [trainer.py] => memory_size: 0
+2026-07-28 03:22:32,171 [trainer.py] => memory_per_class: 0
+2026-07-28 03:22:32,171 [trainer.py] => fixed_memory: False
+2026-07-28 03:22:32,171 [trainer.py] => shuffle: True
+2026-07-28 03:22:32,171 [trainer.py] => init_cls: 10
+2026-07-28 03:22:32,171 [trainer.py] => increment: 10
+2026-07-28 03:22:32,171 [trainer.py] => seed: 1993
+2026-07-28 03:22:32,171 [trainer.py] => scenario: cil
+2026-07-28 03:22:32,171 [trainer.py] => pretrained: True
+2026-07-28 03:22:32,171 [trainer.py] => print_forget: False
+2026-07-28 03:22:32,172 [trainer.py] => final_metrics: False
+2026-07-28 03:22:32,172 [trainer.py] => backbone_type: vit_base_patch16_224_lora
+2026-07-28 03:22:32,172 [trainer.py] => lora_rank: 8
+2026-07-28 03:22:32,172 [trainer.py] => lora_alpha: 32
+2026-07-28 03:22:32,172 [trainer.py] => batch_size: 48
+2026-07-28 03:22:32,172 [trainer.py] => weight_decay: 0.0005
+2026-07-28 03:22:32,172 [trainer.py] => min_lr: 0.0
+2026-07-28 03:22:32,172 [trainer.py] => tuned_epoch: 2
+2026-07-28 03:22:32,172 [trainer.py] => boundary_mode: bounded_memory
+2026-07-28 03:22:32,172 [trainer.py] => stop_after_tasks: 4
+2026-07-28 03:22:32,172 [trainer.py] => bm_budget_mb: 50
+2026-07-28 03:22:32,172 [trainer.py] => model_name: treelora
+2026-07-28 03:22:32,172 [trainer.py] => reg: 0.1
+2026-07-28 03:22:32,172 [trainer.py] => init_lr: 0.001
+2026-07-28 03:22:32,172 [trainer.py] => device: [device(type='cuda', index=1)]
+2026-07-28 03:22:32,172 [trainer.py] => prefix: imr_smoke_treelora
+2026-07-28 03:22:32,258 [data_manager.py] => [168, 136, 51, 9, 183, 101, 171, 99, 42, 159, 191, 70, 16, 188, 27, 10, 175, 26, 68, 187, 98, 6, 85, 35, 112, 43, 100, 0, 103, 181, 88, 59, 4, 2, 116, 174, 94, 80, 106, 1, 147, 17, 141, 131, 72, 23, 173, 54, 197, 118, 87, 32, 79, 104, 91, 19, 135, 107, 178, 36, 11, 199, 142, 8, 122, 3, 28, 57, 153, 172, 190, 56, 49, 44, 97, 62, 151, 169, 194, 55, 192, 12, 189, 78, 66, 180, 15, 137, 109, 134, 92, 119, 126, 52, 170, 40, 148, 65, 144, 64, 138, 45, 77, 89, 154, 90, 71, 193, 74, 30, 113, 143, 96, 84, 67, 50, 186, 156, 69, 21, 18, 111, 108, 58, 125, 157, 150, 110, 182, 129, 166, 83, 81, 60, 13, 165, 14, 176, 63, 117, 5, 22, 145, 121, 38, 41, 82, 127, 114, 20, 31, 53, 37, 163, 196, 130, 152, 162, 86, 76, 24, 34, 184, 149, 33, 128, 198, 155, 146, 167, 139, 120, 140, 102, 47, 25, 158, 123, 46, 164, 61, 7, 115, 75, 133, 160, 105, 132, 179, 124, 48, 73, 93, 39, 95, 195, 29, 177, 185, 161]
+2026-07-28 03:22:35,072 [bounded_memory_mixin.py] => [bounded_mem] stop_after_tasks=4 (of 20 total)
+2026-07-28 03:22:35,075 [bounded_memory_mixin.py] => [bounded_mem] budget_mb=50.0 -> cycle=348 images (mean_task=1341.5 images, so this budget is 0.26x mean task size); 5366 total images -> 16 cycles (T=16 sessions); 20 eval checkpoints
+2026-07-28 03:22:51,506 [bounded_memory_mixin.py] => [bounded_mem eval] volume 0.05 | cycle 0 | classes_seen 10 | CIL top1 66.46 | top5 92.72 | (nearest latent task ~0) | param_hash a61c587400dae78a | per-task [66.46]
+2026-07-28 03:23:05,109 [bounded_memory_mixin.py] => [bounded_mem eval] volume 0.10 | cycle 1 | classes_seen 10 | CIL top1 75.00 | top5 97.15 | (nearest latent task ~0) | param_hash c75aa16ed0c3c62a | per-task [75.0]
+2026-07-28 03:23:19,488 [bounded_memory_mixin.py] => [bounded_mem eval] volume 0.15 | cycle 2 | classes_seen 10 | CIL top1 80.70 | top5 96.84 | (nearest latent task ~0) | param_hash a6e7e139f9013f42 | per-task [80.7]
+2026-07-28 03:23:34,693 [bounded_memory_mixin.py] => [bounded_mem eval] volume 0.20 | cycle 3 | classes_seen 20 | CIL top1 53.33 | top5 83.48 | (nearest latent task ~1) | param_hash 764a8c7073eabbce | per-task [76.58, 33.69]
+2026-07-28 03:23:39,931 [bounded_memory_mixin.py] => [bounded_mem eval] volume 0.25 | cycle 3 | classes_seen 20 | CIL top1 53.33 | top5 83.48 | (nearest latent task ~1) | param_hash 764a8c7073eabbce | per-task [76.58, 33.69]
+2026-07-28 03:23:55,445 [bounded_memory_mixin.py] => [bounded_mem eval] volume 0.30 | cycle 4 | classes_seen 20 | CIL top1 66.67 | top5 90.29 | (nearest latent task ~1) | param_hash 9aaece06f664b7b3 | per-task [73.42, 60.96]
+2026-07-28 03:24:11,477 [bounded_memory_mixin.py] => [bounded_mem eval] volume 0.35 | cycle 5 | classes_seen 20 | CIL top1 73.48 | top5 92.90 | (nearest latent task ~1) | param_hash be21986eb2740a45 | per-task [77.85, 69.79]
+2026-07-28 03:24:27,308 [bounded_memory_mixin.py] => [bounded_mem eval] volume 0.40 | cycle 6 | classes_seen 20 | CIL top1 74.06 | top5 92.03 | (nearest latent task ~1) | param_hash a93df0714d24e2fb | per-task [73.42, 74.6]
+2026-07-28 03:24:33,006 [bounded_memory_mixin.py] => [bounded_mem eval] volume 0.45 | cycle 6 | classes_seen 20 | CIL top1 74.06 | top5 92.03 | (nearest latent task ~1) | param_hash a93df0714d24e2fb | per-task [73.42, 74.6]
+2026-07-28 03:24:49,878 [bounded_memory_mixin.py] => [bounded_mem eval] volume 0.50 | cycle 7 | classes_seen 20 | CIL top1 73.33 | top5 92.32 | (nearest latent task ~1) | param_hash 38b7553269635883 | per-task [72.78, 73.8]
+2026-07-28 03:25:07,446 [bounded_memory_mixin.py] => [bounded_mem eval] volume 0.55 | cycle 8 | classes_seen 30 | CIL top1 33.70 | top5 64.78 | (nearest latent task ~2) | param_hash 6477fc730c7de3d3 | per-task [54.11, 25.4, 22.59]
+2026-07-28 03:25:25,157 [bounded_memory_mixin.py] => [bounded_mem eval] volume 0.60 | cycle 9 | classes_seen 30 | CIL top1 55.30 | top5 78.30 | (nearest latent task ~2) | param_hash a0fc16027cb37d1f | per-task [64.56, 40.64, 63.79]

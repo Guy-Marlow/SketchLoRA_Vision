@@ -1,0 +1,68 @@
+2026-07-23 20:25:11,757 [trainer.py] => config: exps/final_vision/imagenetr_cllora_s1995.json
+2026-07-23 20:25:11,757 [trainer.py] => dataset: imagenetr
+2026-07-23 20:25:11,757 [trainer.py] => memory_size: 0
+2026-07-23 20:25:11,757 [trainer.py] => memory_per_class: 0
+2026-07-23 20:25:11,757 [trainer.py] => fixed_memory: False
+2026-07-23 20:25:11,757 [trainer.py] => shuffle: True
+2026-07-23 20:25:11,757 [trainer.py] => init_cls: 10
+2026-07-23 20:25:11,757 [trainer.py] => increment: 10
+2026-07-23 20:25:11,757 [trainer.py] => seed: 1995
+2026-07-23 20:25:11,757 [trainer.py] => scenario: cil
+2026-07-23 20:25:11,757 [trainer.py] => pretrained: True
+2026-07-23 20:25:11,757 [trainer.py] => print_forget: True
+2026-07-23 20:25:11,757 [trainer.py] => final_metrics: True
+2026-07-23 20:25:11,757 [trainer.py] => backbone_type: vit_base_patch16_224_in21k_cllora
+2026-07-23 20:25:11,757 [trainer.py] => init_epochs: 30
+2026-07-23 20:25:11,757 [trainer.py] => init_lr: 0.0003
+2026-07-23 20:25:11,757 [trainer.py] => later_epochs: 30
+2026-07-23 20:25:11,757 [trainer.py] => later_lr: 0.0003
+2026-07-23 20:25:11,757 [trainer.py] => batch_size: 48
+2026-07-23 20:25:11,757 [trainer.py] => weight_decay: 0.0001
+2026-07-23 20:25:11,757 [trainer.py] => min_lr: 0
+2026-07-23 20:25:11,757 [trainer.py] => optimizer: adamw
+2026-07-23 20:25:11,757 [trainer.py] => scheduler: cosine
+2026-07-23 20:25:11,757 [trainer.py] => model_name: cllora
+2026-07-23 20:25:11,757 [trainer.py] => vpt_type: Deep
+2026-07-23 20:25:11,757 [trainer.py] => prompt_token_num: 5
+2026-07-23 20:25:11,757 [trainer.py] => ffn_num: 8
+2026-07-23 20:25:11,757 [trainer.py] => use_diagonal: False
+2026-07-23 20:25:11,757 [trainer.py] => recalc_sim: True
+2026-07-23 20:25:11,757 [trainer.py] => alpha: 0.0
+2026-07-23 20:25:11,757 [trainer.py] => use_init_ptm: False
+2026-07-23 20:25:11,757 [trainer.py] => beta: 0
+2026-07-23 20:25:11,757 [trainer.py] => use_old_data: False
+2026-07-23 20:25:11,757 [trainer.py] => use_reweight: True
+2026-07-23 20:25:11,757 [trainer.py] => moni_adam: False
+2026-07-23 20:25:11,757 [trainer.py] => adapter_num: -1
+2026-07-23 20:25:11,757 [trainer.py] => msa_adapt: True
+2026-07-23 20:25:11,757 [trainer.py] => use_distillation: True
+2026-07-23 20:25:11,757 [trainer.py] => use_block_weight: True
+2026-07-23 20:25:11,757 [trainer.py] => msa: [1, 0, 1]
+2026-07-23 20:25:11,757 [trainer.py] => general_pos: [0, 1, 2, 3, 4, 5]
+2026-07-23 20:25:11,757 [trainer.py] => specfic_pos: [6, 7, 8, 9, 10, 11]
+2026-07-23 20:25:11,757 [trainer.py] => device: [device(type='cuda', index=0)]
+2026-07-23 20:25:11,757 [trainer.py] => prefix: final_vision_imagenetr_cllora_s1995
+Traceback (most recent call last):
+  File "/data/gmar762/research/continuous_learning/svd_sketching_vision/LAMDA-PILOT/main.py", line 25, in <module>
+    main()
+  File "/data/gmar762/research/continuous_learning/svd_sketching_vision/LAMDA-PILOT/main.py", line 11, in main
+    train(args)
+  File "/data/gmar762/research/continuous_learning/svd_sketching_vision/LAMDA-PILOT/trainer.py", line 20, in train
+    _train(args)
+  File "/data/gmar762/research/continuous_learning/svd_sketching_vision/LAMDA-PILOT/trainer.py", line 53, in _train
+    data_manager = DataManager(
+  File "/data/gmar762/research/continuous_learning/svd_sketching_vision/LAMDA-PILOT/utils/data_manager.py", line 13, in __init__
+    self._setup_data(dataset_name, shuffle, seed)
+  File "/data/gmar762/research/continuous_learning/svd_sketching_vision/LAMDA-PILOT/utils/data_manager.py", line 141, in _setup_data
+    idata.download_data()
+  File "/data/gmar762/research/continuous_learning/svd_sketching_vision/LAMDA-PILOT/utils/data.py", line 231, in download_data
+    train_dset = datasets.ImageFolder(train_dir)
+  File "/data/gmar762/anaconda3/envs/treelora/lib/python3.10/site-packages/torchvision/datasets/folder.py", line 328, in __init__
+    super().__init__(
+  File "/data/gmar762/anaconda3/envs/treelora/lib/python3.10/site-packages/torchvision/datasets/folder.py", line 149, in __init__
+    classes, class_to_idx = self.find_classes(self.root)
+  File "/data/gmar762/anaconda3/envs/treelora/lib/python3.10/site-packages/torchvision/datasets/folder.py", line 234, in find_classes
+    return find_classes(directory)
+  File "/data/gmar762/anaconda3/envs/treelora/lib/python3.10/site-packages/torchvision/datasets/folder.py", line 41, in find_classes
+    classes = sorted(entry.name for entry in os.scandir(directory) if entry.is_dir())
+FileNotFoundError: [Errno 2] No such file or directory: './data/imagenet-r/train/'

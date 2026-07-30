@@ -1,0 +1,102 @@
+2026-07-21 12:53:03,911 [trainer.py] => config: exps/review/overnight_hp_search/seqlora_food101.json
+2026-07-21 12:53:03,911 [trainer.py] => prefix: overnight_seqlora_food101
+2026-07-21 12:53:03,911 [trainer.py] => dataset: food101
+2026-07-21 12:53:03,911 [trainer.py] => memory_size: 0
+2026-07-21 12:53:03,911 [trainer.py] => memory_per_class: 0
+2026-07-21 12:53:03,911 [trainer.py] => fixed_memory: False
+2026-07-21 12:53:03,911 [trainer.py] => shuffle: True
+2026-07-21 12:53:03,911 [trainer.py] => init_cls: 6
+2026-07-21 12:53:03,911 [trainer.py] => increment: 5
+2026-07-21 12:53:03,911 [trainer.py] => model_name: seqlora
+2026-07-21 12:53:03,911 [trainer.py] => backbone_type: vit_base_patch16_224_lora
+2026-07-21 12:53:03,911 [trainer.py] => device: [device(type='cuda', index=0)]
+2026-07-21 12:53:03,911 [trainer.py] => seed: 1993
+2026-07-21 12:53:03,912 [trainer.py] => scenario: both
+2026-07-21 12:53:03,912 [trainer.py] => lora_rank: 10
+2026-07-21 12:53:03,912 [trainer.py] => lora_alpha: None
+2026-07-21 12:53:03,912 [trainer.py] => lora_merge: True
+2026-07-21 12:53:03,912 [trainer.py] => tuned_epoch: 10
+2026-07-21 12:53:03,912 [trainer.py] => init_lr: 0.0005
+2026-07-21 12:53:03,912 [trainer.py] => batch_size: 48
+2026-07-21 12:53:03,912 [trainer.py] => weight_decay: 0.0005
+2026-07-21 12:53:03,912 [trainer.py] => min_lr: 0.0
+2026-07-21 12:53:03,912 [trainer.py] => pretrained: True
+2026-07-21 12:53:03,912 [trainer.py] => print_forget: True
+2026-07-21 12:53:03,912 [trainer.py] => stop_after_tasks: 5
+2026-07-21 12:53:03,912 [trainer.py] => final_metrics: True
+2026-07-21 12:53:04,179 [data_manager.py] => [68, 56, 78, 8, 23, 84, 90, 65, 74, 76, 40, 89, 3, 92, 55, 9, 26, 80, 43, 38, 58, 70, 77, 1, 85, 19, 17, 50, 28, 53, 13, 81, 45, 82, 6, 59, 83, 16, 15, 44, 91, 41, 72, 60, 79, 52, 20, 10, 31, 54, 37, 95, 14, 71, 96, 99, 98, 2, 64, 66, 42, 22, 35, 86, 24, 34, 87, 21, 100, 0, 88, 27, 18, 94, 11, 12, 47, 25, 30, 46, 62, 69, 36, 61, 7, 63, 75, 5, 32, 4, 51, 48, 73, 93, 39, 67, 29, 97, 49, 57, 33]
+2026-07-21 12:53:07,178 [trainer.py] => stop_after_tasks=5 (of 20 total)
+2026-07-21 12:53:08,414 [trainer.py] => All params: 93171456
+2026-07-21 12:53:08,416 [trainer.py] => Trainable params: 7372800
+2026-07-21 12:53:08,417 [lora.py] => Learning on 0-6
+2026-07-21 12:53:08,423 [lora.py] => Trainable params this task: 373,254 / 93,176,070
+2026-07-21 12:57:38,976 [lora.py] => Task 0 finished. Train_accy 97.36
+2026-07-21 12:57:49,180 [til_base.py] => TIL top1: 99.07
+2026-07-21 12:57:49,180 [til_base.py] => CIL top1: 99.07 | TIL top1: 99.07
+2026-07-21 12:57:49,190 [trainer.py] => No NME accuracy.
+2026-07-21 12:57:49,190 [trainer.py] => CNN: {'total': 99.07, '00-05': 99.07, 'old': 0, 'new': 99.07}
+2026-07-21 12:57:49,190 [trainer.py] => CNN top1 curve: [99.07]
+2026-07-21 12:57:49,190 [trainer.py] => CNN top5 curve: [100.0]
+
+2026-07-21 12:57:49,190 [trainer.py] => Average Accuracy (CNN): 99.07 
+
+2026-07-21 12:57:49,194 [trainer.py] => All params: 93176070
+2026-07-21 12:57:49,197 [trainer.py] => Trainable params: 373254
+2026-07-21 12:57:49,199 [lora.py] => Learning on 6-11
+2026-07-21 12:57:49,212 [lora.py] => Trainable params this task: 377,099 / 93,179,915
+2026-07-21 13:01:38,017 [lora.py] => Task 1 finished. Train_accy 98.69
+2026-07-21 13:01:56,090 [til_base.py] => TIL top1: 98.11
+2026-07-21 13:01:56,090 [til_base.py] => CIL top1: 95.45 | TIL top1: 98.11
+2026-07-21 13:01:56,096 [trainer.py] => No NME accuracy.
+2026-07-21 13:01:56,096 [trainer.py] => CNN: {'total': 95.45, '00-05': 93.47, '06-10': 97.84, 'old': 93.47, 'new': 97.84}
+2026-07-21 13:01:56,096 [trainer.py] => CNN top1 curve: [99.07, 95.45]
+2026-07-21 13:01:56,096 [trainer.py] => CNN top5 curve: [100.0, 99.89]
+
+2026-07-21 13:01:56,096 [trainer.py] => Average Accuracy (CNN): 97.25999999999999 
+
+2026-07-21 13:01:56,099 [trainer.py] => All params: 93179915
+2026-07-21 13:01:56,101 [trainer.py] => Trainable params: 377099
+2026-07-21 13:01:56,101 [lora.py] => Learning on 11-16
+2026-07-21 13:01:56,109 [lora.py] => Trainable params this task: 380,944 / 93,183,760
+2026-07-21 13:05:43,842 [lora.py] => Task 2 finished. Train_accy 97.60
+2026-07-21 13:06:09,890 [til_base.py] => TIL top1: 98.42
+2026-07-21 13:06:09,891 [til_base.py] => CIL top1: 90.7 | TIL top1: 98.42
+2026-07-21 13:06:09,901 [trainer.py] => No NME accuracy.
+2026-07-21 13:06:09,901 [trainer.py] => CNN: {'total': 90.7, '00-05': 83.53, '06-10': 91.92, '11-15': 98.08, 'old': 87.35, 'new': 98.08}
+2026-07-21 13:06:09,901 [trainer.py] => CNN top1 curve: [99.07, 95.45, 90.7]
+2026-07-21 13:06:09,901 [trainer.py] => CNN top5 curve: [100.0, 99.89, 99.68]
+
+2026-07-21 13:06:09,901 [trainer.py] => Average Accuracy (CNN): 95.07333333333332 
+
+2026-07-21 13:06:09,905 [trainer.py] => All params: 93183760
+2026-07-21 13:06:09,909 [trainer.py] => Trainable params: 380944
+2026-07-21 13:06:09,910 [lora.py] => Learning on 16-21
+2026-07-21 13:06:09,923 [lora.py] => Trainable params this task: 384,789 / 93,187,605
+2026-07-21 13:09:57,593 [lora.py] => Task 3 finished. Train_accy 96.19
+2026-07-21 13:10:31,599 [til_base.py] => TIL top1: 97.47
+2026-07-21 13:10:31,599 [til_base.py] => CIL top1: 85.96 | TIL top1: 97.47
+2026-07-21 13:10:31,604 [trainer.py] => No NME accuracy.
+2026-07-21 13:10:31,604 [trainer.py] => CNN: {'total': 85.96, '00-05': 84.73, '06-10': 81.28, '11-15': 90.08, '16-20': 88.0, 'old': 85.32, 'new': 88.0}
+2026-07-21 13:10:31,605 [trainer.py] => CNN top1 curve: [99.07, 95.45, 90.7, 85.96]
+2026-07-21 13:10:31,605 [trainer.py] => CNN top5 curve: [100.0, 99.89, 99.68, 98.88]
+
+2026-07-21 13:10:31,605 [trainer.py] => Average Accuracy (CNN): 92.79499999999999 
+
+2026-07-21 13:10:31,607 [trainer.py] => All params: 93187605
+2026-07-21 13:10:31,609 [trainer.py] => Trainable params: 384789
+2026-07-21 13:10:31,610 [lora.py] => Learning on 21-26
+2026-07-21 13:10:31,617 [lora.py] => Trainable params this task: 388,634 / 93,191,450
+2026-07-21 13:14:19,638 [lora.py] => Task 4 finished. Train_accy 97.23
+2026-07-21 13:15:01,600 [til_base.py] => TIL top1: 96.75
+2026-07-21 13:15:01,600 [til_base.py] => CIL top1: 80.63 | TIL top1: 96.75
+2026-07-21 13:15:01,606 [trainer.py] => No NME accuracy.
+2026-07-21 13:15:01,606 [trainer.py] => CNN: {'total': 80.63, '00-05': 79.4, '06-10': 72.08, '11-15': 84.08, '16-20': 79.44, '21-25': 88.4, 'old': 78.78, 'new': 88.4}
+2026-07-21 13:15:01,606 [trainer.py] => CNN top1 curve: [99.07, 95.45, 90.7, 85.96, 80.63]
+2026-07-21 13:15:01,606 [trainer.py] => CNN top5 curve: [100.0, 99.89, 99.68, 98.88, 97.86]
+
+2026-07-21 13:15:01,606 [trainer.py] => Average Accuracy (CNN): 90.362 
+
+2026-07-21 13:15:04,297 [metrics_logger.py] => [metrics] wrote run_logs/final/seqlora/metrics_seqlora_food101_overnight_seqlora_food101_s1993.json
+2026-07-21 13:15:04,298 [trainer.py] => Forgetting (CNN): 16.9975
+2026-07-21 13:15:04,298 [trainer.py] => Forgetting (NME): 16.9975
+2026-07-21 13:15:04,298 [trainer.py] => Forgetting (TIL): 2.5649999999999977

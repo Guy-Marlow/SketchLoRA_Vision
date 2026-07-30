@@ -1,0 +1,108 @@
+2026-07-16 20:26:47,573 [trainer.py] => config: exps/smoke/ease_smoke.json
+2026-07-16 20:26:47,573 [trainer.py] => prefix: ease_smoke
+2026-07-16 20:26:47,573 [trainer.py] => dataset: cifar224
+2026-07-16 20:26:47,573 [trainer.py] => memory_size: 0
+2026-07-16 20:26:47,573 [trainer.py] => memory_per_class: 0
+2026-07-16 20:26:47,573 [trainer.py] => fixed_memory: False
+2026-07-16 20:26:47,573 [trainer.py] => shuffle: True
+2026-07-16 20:26:47,573 [trainer.py] => init_cls: 5
+2026-07-16 20:26:47,573 [trainer.py] => increment: 5
+2026-07-16 20:26:47,573 [trainer.py] => model_name: ease
+2026-07-16 20:26:47,573 [trainer.py] => backbone_type: vit_base_patch16_224_ease
+2026-07-16 20:26:47,573 [trainer.py] => device: [device(type='cuda', index=0)]
+2026-07-16 20:26:47,573 [trainer.py] => seed: 1993
+2026-07-16 20:26:47,573 [trainer.py] => scenario: cil
+2026-07-16 20:26:47,573 [trainer.py] => init_epochs: 2
+2026-07-16 20:26:47,573 [trainer.py] => init_lr: 0.025
+2026-07-16 20:26:47,573 [trainer.py] => later_epochs: 2
+2026-07-16 20:26:47,573 [trainer.py] => later_lr: 0.025
+2026-07-16 20:26:47,574 [trainer.py] => batch_size: 48
+2026-07-16 20:26:47,574 [trainer.py] => weight_decay: 0.0005
+2026-07-16 20:26:47,574 [trainer.py] => min_lr: 0
+2026-07-16 20:26:47,574 [trainer.py] => optimizer: sgd
+2026-07-16 20:26:47,574 [trainer.py] => scheduler: cosine
+2026-07-16 20:26:47,574 [trainer.py] => pretrained: True
+2026-07-16 20:26:47,574 [trainer.py] => vpt_type: Deep
+2026-07-16 20:26:47,574 [trainer.py] => prompt_token_num: 5
+2026-07-16 20:26:47,574 [trainer.py] => ffn_num: 64
+2026-07-16 20:26:47,574 [trainer.py] => use_diagonal: False
+2026-07-16 20:26:47,574 [trainer.py] => recalc_sim: True
+2026-07-16 20:26:47,574 [trainer.py] => alpha: 0.1
+2026-07-16 20:26:47,574 [trainer.py] => use_init_ptm: False
+2026-07-16 20:26:47,574 [trainer.py] => beta: 0
+2026-07-16 20:26:47,574 [trainer.py] => use_old_data: False
+2026-07-16 20:26:47,574 [trainer.py] => use_reweight: True
+2026-07-16 20:26:47,574 [trainer.py] => moni_adam: False
+2026-07-16 20:26:47,574 [trainer.py] => adapter_num: -1
+2026-07-16 20:26:47,574 [trainer.py] => stop_after_tasks: 4
+2026-07-16 20:26:47,574 [trainer.py] => final_metrics: True
+Files already downloaded and verified
+Files already downloaded and verified
+2026-07-16 20:26:49,225 [data_manager.py] => [68, 56, 78, 8, 23, 84, 90, 65, 74, 76, 40, 89, 3, 92, 55, 9, 26, 80, 43, 38, 58, 70, 77, 1, 85, 19, 17, 50, 28, 53, 13, 81, 45, 82, 6, 59, 83, 16, 15, 44, 91, 41, 72, 60, 79, 52, 20, 10, 31, 54, 37, 95, 14, 71, 96, 98, 97, 2, 64, 66, 42, 22, 35, 86, 24, 34, 87, 21, 99, 0, 88, 27, 18, 94, 11, 12, 47, 25, 30, 46, 62, 69, 36, 61, 7, 63, 75, 5, 32, 4, 51, 48, 73, 93, 39, 67, 29, 49, 57, 33]
+This is for the BaseNet initialization.
+I'm using ViT with adapters.
+_IncompatibleKeys(missing_keys=['cur_adapter.0.down_proj.weight', 'cur_adapter.0.down_proj.bias', 'cur_adapter.0.up_proj.weight', 'cur_adapter.0.up_proj.bias', 'cur_adapter.1.down_proj.weight', 'cur_adapter.1.down_proj.bias', 'cur_adapter.1.up_proj.weight', 'cur_adapter.1.up_proj.bias', 'cur_adapter.2.down_proj.weight', 'cur_adapter.2.down_proj.bias', 'cur_adapter.2.up_proj.weight', 'cur_adapter.2.up_proj.bias', 'cur_adapter.3.down_proj.weight', 'cur_adapter.3.down_proj.bias', 'cur_adapter.3.up_proj.weight', 'cur_adapter.3.up_proj.bias', 'cur_adapter.4.down_proj.weight', 'cur_adapter.4.down_proj.bias', 'cur_adapter.4.up_proj.weight', 'cur_adapter.4.up_proj.bias', 'cur_adapter.5.down_proj.weight', 'cur_adapter.5.down_proj.bias', 'cur_adapter.5.up_proj.weight', 'cur_adapter.5.up_proj.bias', 'cur_adapter.6.down_proj.weight', 'cur_adapter.6.down_proj.bias', 'cur_adapter.6.up_proj.weight', 'cur_adapter.6.up_proj.bias', 'cur_adapter.7.down_proj.weight', 'cur_adapter.7.down_proj.bias', 'cur_adapter.7.up_proj.weight', 'cur_adapter.7.up_proj.bias', 'cur_adapter.8.down_proj.weight', 'cur_adapter.8.down_proj.bias', 'cur_adapter.8.up_proj.weight', 'cur_adapter.8.up_proj.bias', 'cur_adapter.9.down_proj.weight', 'cur_adapter.9.down_proj.bias', 'cur_adapter.9.up_proj.weight', 'cur_adapter.9.up_proj.bias', 'cur_adapter.10.down_proj.weight', 'cur_adapter.10.down_proj.bias', 'cur_adapter.10.up_proj.weight', 'cur_adapter.10.up_proj.bias', 'cur_adapter.11.down_proj.weight', 'cur_adapter.11.down_proj.bias', 'cur_adapter.11.up_proj.weight', 'cur_adapter.11.up_proj.bias'], unexpected_keys=[])
+After BaseNet initialization.
+2026-07-16 20:26:53,293 [trainer.py] => stop_after_tasks=4 (of 20 total)
+2026-07-16 20:26:53,294 [trainer.py] => All params: 86988288
+2026-07-16 20:26:53,295 [trainer.py] => Trainable params: 1189632
+2026-07-16 20:26:53,303 [ease.py] => Learning on 0-5
+  0%|          | 0/2 [00:00<?, ?it/s]Task 0, Epoch 1/2 => Loss 1.320, Train_accy 76.24:   0%|          | 0/2 [00:25<?, ?it/s]Task 0, Epoch 1/2 => Loss 1.320, Train_accy 76.24:  50%|█████     | 1/2 [00:25<00:25, 25.83s/it]Task 0, Epoch 2/2 => Loss 0.814, Train_accy 88.32:  50%|█████     | 1/2 [00:50<00:25, 25.83s/it]Task 0, Epoch 2/2 => Loss 0.814, Train_accy 88.32: 100%|██████████| 2/2 [00:50<00:00, 25.26s/it]Task 0, Epoch 2/2 => Loss 0.814, Train_accy 88.32: 100%|██████████| 2/2 [00:50<00:00, 25.35s/it]
+2026-07-16 20:27:44,105 [ease.py] => Task 0, Epoch 2/2 => Loss 0.814, Train_accy 88.32
+2026-07-16 20:28:00,767 [ease.py] => Task correct: 100.0
+2026-07-16 20:28:00,768 [ease.py] => Task acc: 96.6
+2026-07-16 20:28:00,835 [trainer.py] => No NME accuracy.
+2026-07-16 20:28:00,835 [trainer.py] => CNN: {'total': 96.6, '00-04': 96.6, 'old': 0, 'new': 96.6}
+2026-07-16 20:28:00,835 [trainer.py] => CNN top1 curve: [96.6]
+2026-07-16 20:28:00,835 [trainer.py] => CNN top5 curve: [100.0]
+
+Average Accuracy (CNN): 96.6
+2026-07-16 20:28:00,835 [trainer.py] => Average Accuracy (CNN): 96.6 
+
+2026-07-16 20:28:00,836 [trainer.py] => All params: 86995970
+2026-07-16 20:28:00,837 [trainer.py] => Trainable params: 1189632
+2026-07-16 20:28:00,846 [ease.py] => Learning on 5-10
+  0%|          | 0/2 [00:00<?, ?it/s]Task 1, Epoch 1/2 => Loss 1.357, Train_accy 70.40:   0%|          | 0/2 [00:26<?, ?it/s]Task 1, Epoch 1/2 => Loss 1.357, Train_accy 70.40:  50%|█████     | 1/2 [00:26<00:26, 26.62s/it]Task 1, Epoch 2/2 => Loss 0.911, Train_accy 84.64:  50%|█████     | 1/2 [00:51<00:26, 26.62s/it]Task 1, Epoch 2/2 => Loss 0.911, Train_accy 84.64: 100%|██████████| 2/2 [00:51<00:00, 25.88s/it]Task 1, Epoch 2/2 => Loss 0.911, Train_accy 84.64: 100%|██████████| 2/2 [00:51<00:00, 25.99s/it]
+2026-07-16 20:28:52,846 [ease.py] => Task 1, Epoch 2/2 => Loss 0.911, Train_accy 84.64
+2026-07-16 20:29:29,719 [ease.py] => Task correct: 95.8
+2026-07-16 20:29:29,719 [ease.py] => Task acc: 96.4
+2026-07-16 20:29:29,767 [trainer.py] => No NME accuracy.
+2026-07-16 20:29:29,767 [trainer.py] => CNN: {'total': 93.3, '00-04': 92.6, '05-09': 94.0, 'old': 92.6, 'new': 94.0}
+2026-07-16 20:29:29,767 [trainer.py] => CNN top1 curve: [96.6, 93.3]
+2026-07-16 20:29:29,767 [trainer.py] => CNN top5 curve: [100.0, 99.5]
+
+Average Accuracy (CNN): 94.94999999999999
+2026-07-16 20:29:29,767 [trainer.py] => Average Accuracy (CNN): 94.94999999999999 
+
+2026-07-16 20:29:29,768 [trainer.py] => All params: 87007490
+2026-07-16 20:29:29,769 [trainer.py] => Trainable params: 1189632
+2026-07-16 20:29:29,776 [ease.py] => Learning on 10-15
+  0%|          | 0/2 [00:00<?, ?it/s]Task 2, Epoch 1/2 => Loss 1.316, Train_accy 75.72:   0%|          | 0/2 [00:25<?, ?it/s]Task 2, Epoch 1/2 => Loss 1.316, Train_accy 75.72:  50%|█████     | 1/2 [00:25<00:25, 25.28s/it]Task 2, Epoch 2/2 => Loss 0.827, Train_accy 85.00:  50%|█████     | 1/2 [00:54<00:25, 25.28s/it]Task 2, Epoch 2/2 => Loss 0.827, Train_accy 85.00: 100%|██████████| 2/2 [00:54<00:00, 27.37s/it]Task 2, Epoch 2/2 => Loss 0.827, Train_accy 85.00: 100%|██████████| 2/2 [00:54<00:00, 27.06s/it]
+2026-07-16 20:30:23,904 [ease.py] => Task 2, Epoch 2/2 => Loss 0.827, Train_accy 85.00
+2026-07-16 20:31:26,080 [ease.py] => Task correct: 92.86666666666666
+2026-07-16 20:31:26,080 [ease.py] => Task acc: 96.73333333333333
+2026-07-16 20:31:26,145 [trainer.py] => No NME accuracy.
+2026-07-16 20:31:26,145 [trainer.py] => CNN: {'total': 91.07, '00-04': 92.2, '05-09': 89.8, '10-14': 91.2, 'old': 91.0, 'new': 91.2}
+2026-07-16 20:31:26,145 [trainer.py] => CNN top1 curve: [96.6, 93.3, 91.07]
+2026-07-16 20:31:26,145 [trainer.py] => CNN top5 curve: [100.0, 99.5, 99.0]
+
+Average Accuracy (CNN): 93.65666666666665
+2026-07-16 20:31:26,145 [trainer.py] => Average Accuracy (CNN): 93.65666666666665 
+
+2026-07-16 20:31:26,146 [trainer.py] => All params: 87026690
+2026-07-16 20:31:26,147 [trainer.py] => Trainable params: 1189632
+2026-07-16 20:31:26,148 [ease.py] => Learning on 15-20
+  0%|          | 0/2 [00:00<?, ?it/s]Task 3, Epoch 1/2 => Loss 1.327, Train_accy 71.84:   0%|          | 0/2 [00:25<?, ?it/s]Task 3, Epoch 1/2 => Loss 1.327, Train_accy 71.84:  50%|█████     | 1/2 [00:25<00:25, 25.41s/it]Task 3, Epoch 2/2 => Loss 0.852, Train_accy 85.48:  50%|█████     | 1/2 [00:54<00:25, 25.41s/it]Task 3, Epoch 2/2 => Loss 0.852, Train_accy 85.48: 100%|██████████| 2/2 [00:54<00:00, 27.56s/it]Task 3, Epoch 2/2 => Loss 0.852, Train_accy 85.48: 100%|██████████| 2/2 [00:54<00:00, 27.24s/it]
+2026-07-16 20:32:20,640 [ease.py] => Task 3, Epoch 2/2 => Loss 0.852, Train_accy 85.48
+2026-07-16 20:33:54,096 [ease.py] => Task correct: 91.2
+2026-07-16 20:33:54,096 [ease.py] => Task acc: 96.15
+2026-07-16 20:33:54,166 [trainer.py] => No NME accuracy.
+2026-07-16 20:33:54,166 [trainer.py] => CNN: {'total': 89.4, '00-04': 92.2, '05-09': 88.4, '10-14': 90.2, '15-19': 86.8, 'old': 90.27, 'new': 86.8}
+2026-07-16 20:33:54,166 [trainer.py] => CNN top1 curve: [96.6, 93.3, 91.07, 89.4]
+2026-07-16 20:33:54,166 [trainer.py] => CNN top5 curve: [100.0, 99.5, 99.0, 97.95]
+
+Average Accuracy (CNN): 92.5925
+2026-07-16 20:33:54,166 [trainer.py] => Average Accuracy (CNN): 92.5925 
+
+2026-07-16 20:33:54,166 [metrics_logger.py] => [metrics] Learner has no _deployed_forward; skipping inference-cost measurement
+2026-07-16 20:33:54,167 [metrics_logger.py] => [metrics] wrote run_logs/final/ease/metrics_ease_cifar224_ease_smoke_s1993.json

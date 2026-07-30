@@ -1,0 +1,83 @@
+2026-07-17 17:39:13,070 [trainer.py] => config: exps/smoke/budget_smoke_progprompt.json
+2026-07-17 17:39:13,070 [trainer.py] => dataset: cifar224
+2026-07-17 17:39:13,070 [trainer.py] => memory_size: 0
+2026-07-17 17:39:13,070 [trainer.py] => memory_per_class: 0
+2026-07-17 17:39:13,070 [trainer.py] => fixed_memory: False
+2026-07-17 17:39:13,070 [trainer.py] => shuffle: True
+2026-07-17 17:39:13,070 [trainer.py] => init_cls: 5
+2026-07-17 17:39:13,070 [trainer.py] => increment: 5
+2026-07-17 17:39:13,070 [trainer.py] => backbone_type: vit_base_patch16_224_progprompt
+2026-07-17 17:39:13,070 [trainer.py] => device: [device(type='cuda', index=1)]
+2026-07-17 17:39:13,070 [trainer.py] => seed: 1993
+2026-07-17 17:39:13,070 [trainer.py] => tuned_epoch: 2
+2026-07-17 17:39:13,070 [trainer.py] => init_lr: 0.0015
+2026-07-17 17:39:13,071 [trainer.py] => batch_size: 48
+2026-07-17 17:39:13,071 [trainer.py] => weight_decay: 0.0
+2026-07-17 17:39:13,071 [trainer.py] => min_lr: 0.0
+2026-07-17 17:39:13,071 [trainer.py] => pretrained: True
+2026-07-17 17:39:13,071 [trainer.py] => print_forget: True
+2026-07-17 17:39:13,071 [trainer.py] => model_name: progprompt
+2026-07-17 17:39:13,071 [trainer.py] => prefix: budget_smoke_progprompt
+2026-07-17 17:39:13,071 [trainer.py] => prompt_len: 10
+2026-07-17 17:39:13,071 [trainer.py] => stop_after_tasks: 3
+2026-07-17 17:39:13,071 [trainer.py] => final_metrics: True
+2026-07-17 17:39:13,071 [trainer.py] => boundary_mode: budget
+2026-07-17 17:39:13,071 [trainer.py] => budget_mb: 300
+2026-07-17 17:39:13,071 [trainer.py] => scenario: cil
+Files already downloaded and verified
+Files already downloaded and verified
+2026-07-17 17:39:14,686 [data_manager.py] => [68, 56, 78, 8, 23, 84, 90, 65, 74, 76, 40, 89, 3, 92, 55, 9, 26, 80, 43, 38, 58, 70, 77, 1, 85, 19, 17, 50, 28, 53, 13, 81, 45, 82, 6, 59, 83, 16, 15, 44, 91, 41, 72, 60, 79, 52, 20, 10, 31, 54, 37, 95, 14, 71, 96, 98, 97, 2, 64, 66, 42, 22, 35, 86, 24, 34, 87, 21, 99, 0, 88, 27, 18, 94, 11, 12, 47, 25, 30, 46, 62, 69, 36, 61, 7, 63, 75, 5, 32, 4, 51, 48, 73, 93, 39, 67, 29, 49, 57, 33]
+2026-07-17 17:39:15,014 [budget_stream.py] => [budget-stream] 300MB budget -> 24 chunks, 2090 images/chunk (last=1930), new-classes/chunk min=3 max=5 mean=4.17
+2026-07-17 17:39:15,015 [trainer.py] => [budget] dataset=cifar224 budget=300MB -> 24 memory-chunks (seed 1993)
+This is for the BaseNet initialization.
+I'm using ViT with per-task progressive soft prompts.
+_IncompatibleKeys(missing_keys=['prompts.0', 'prompts.1', 'prompts.2', 'prompts.3', 'prompts.4', 'prompts.5', 'prompts.6', 'prompts.7', 'prompts.8', 'prompts.9', 'prompts.10', 'prompts.11', 'prompts.12', 'prompts.13', 'prompts.14', 'prompts.15', 'prompts.16', 'prompts.17', 'prompts.18', 'prompts.19', 'prompts.20', 'prompts.21', 'prompts.22', 'prompts.23'], unexpected_keys=[])
+After BaseNet initialization.
+2026-07-17 17:39:17,332 [trainer.py] => stop_after_tasks=3 (of 24 total)
+2026-07-17 17:39:17,591 [trainer.py] => All params: 85982976
+2026-07-17 17:39:17,592 [trainer.py] => Trainable params: 184320
+2026-07-17 17:39:17,898 [progprompt.py] => [ProgPrompt] Learning on 0-5
+  0%|          | 0/2 [00:00<?, ?it/s][ProgPrompt] Task 0, Epoch 1/2 => Loss 0.823, Acc 73.25:   0%|          | 0/2 [00:13<?, ?it/s][ProgPrompt] Task 0, Epoch 1/2 => Loss 0.823, Acc 73.25:  50%|█████     | 1/2 [00:13<00:13, 13.27s/it][ProgPrompt] Task 0, Epoch 2/2 => Loss 0.330, Acc 88.18:  50%|█████     | 1/2 [00:26<00:13, 13.27s/it][ProgPrompt] Task 0, Epoch 2/2 => Loss 0.330, Acc 88.18: 100%|██████████| 2/2 [00:26<00:00, 13.00s/it][ProgPrompt] Task 0, Epoch 2/2 => Loss 0.330, Acc 88.18: 100%|██████████| 2/2 [00:26<00:00, 13.04s/it]
+2026-07-17 17:39:44,026 [progprompt.py] => [ProgPrompt] Task 0 done. Acc 88.18
+2026-07-17 17:39:46,027 [trainer.py] => No NME accuracy.
+2026-07-17 17:39:46,027 [trainer.py] => CNN: {'total': 95.6, '00-04': 95.6, 'old': 0, 'new': 95.6}
+2026-07-17 17:39:46,027 [trainer.py] => CNN top1 curve: [95.6]
+2026-07-17 17:39:46,027 [trainer.py] => CNN top5 curve: [100.0]
+
+Average Accuracy (CNN): 95.6
+2026-07-17 17:39:46,027 [trainer.py] => Average Accuracy (CNN): 95.6 
+
+2026-07-17 17:39:46,028 [trainer.py] => All params: 85986821
+2026-07-17 17:39:46,028 [trainer.py] => Trainable params: 11525
+2026-07-17 17:39:46,029 [progprompt.py] => [ProgPrompt] Learning on 5-9
+  0%|          | 0/2 [00:00<?, ?it/s][ProgPrompt] Task 1, Epoch 1/2 => Loss 0.883, Acc 73.01:   0%|          | 0/2 [00:13<?, ?it/s][ProgPrompt] Task 1, Epoch 1/2 => Loss 0.883, Acc 73.01:  50%|█████     | 1/2 [00:13<00:13, 13.67s/it][ProgPrompt] Task 1, Epoch 2/2 => Loss 0.371, Acc 86.65:  50%|█████     | 1/2 [00:27<00:13, 13.67s/it][ProgPrompt] Task 1, Epoch 2/2 => Loss 0.371, Acc 86.65: 100%|██████████| 2/2 [00:27<00:00, 13.68s/it][ProgPrompt] Task 1, Epoch 2/2 => Loss 0.371, Acc 86.65: 100%|██████████| 2/2 [00:27<00:00, 13.68s/it]
+2026-07-17 17:40:13,388 [progprompt.py] => [ProgPrompt] Task 1 done. Acc 86.65
+2026-07-17 17:40:16,659 [trainer.py] => No NME accuracy.
+2026-07-17 17:40:16,659 [trainer.py] => CNN: {'total': 90.56, '00-04': 91.6, '05-09': 89.25, 'old': 91.6, 'new': 89.25}
+2026-07-17 17:40:16,660 [trainer.py] => CNN top1 curve: [95.6, 90.56]
+2026-07-17 17:40:16,660 [trainer.py] => CNN top5 curve: [100.0, 99.78]
+
+Average Accuracy (CNN): 93.08
+2026-07-17 17:40:16,660 [trainer.py] => Average Accuracy (CNN): 93.08 
+
+2026-07-17 17:40:16,660 [trainer.py] => All params: 85989897
+2026-07-17 17:40:16,661 [trainer.py] => Trainable params: 14601
+2026-07-17 17:40:16,661 [progprompt.py] => [ProgPrompt] Learning on 9-13
+  0%|          | 0/2 [00:00<?, ?it/s][ProgPrompt] Task 2, Epoch 1/2 => Loss 0.797, Acc 74.74:   0%|          | 0/2 [00:13<?, ?it/s][ProgPrompt] Task 2, Epoch 1/2 => Loss 0.797, Acc 74.74:  50%|█████     | 1/2 [00:13<00:13, 13.99s/it][ProgPrompt] Task 2, Epoch 2/2 => Loss 0.396, Acc 85.89:  50%|█████     | 1/2 [00:28<00:13, 13.99s/it][ProgPrompt] Task 2, Epoch 2/2 => Loss 0.396, Acc 85.89: 100%|██████████| 2/2 [00:28<00:00, 14.01s/it][ProgPrompt] Task 2, Epoch 2/2 => Loss 0.396, Acc 85.89: 100%|██████████| 2/2 [00:28<00:00, 14.01s/it]
+2026-07-17 17:40:44,688 [progprompt.py] => [ProgPrompt] Task 2 done. Acc 85.89
+2026-07-17 17:40:49,347 [trainer.py] => No NME accuracy.
+2026-07-17 17:40:49,348 [trainer.py] => CNN: {'total': 85.69, '00-04': 83.6, '05-09': 84.4, '10-14': 91.33, 'old': 85.89, 'new': 85.25}
+2026-07-17 17:40:49,348 [trainer.py] => CNN top1 curve: [95.6, 90.56, 85.69]
+2026-07-17 17:40:49,348 [trainer.py] => CNN top5 curve: [100.0, 99.78, 99.08]
+
+Average Accuracy (CNN): 90.61666666666667
+2026-07-17 17:40:49,348 [trainer.py] => Average Accuracy (CNN): 90.61666666666667 
+
+2026-07-17 17:40:49,348 [metrics_logger.py] => [metrics] Learner has no _deployed_forward; skipping inference-cost measurement
+2026-07-17 17:40:49,348 [metrics_logger.py] => [metrics] wrote run_logs/final/progprompt/metrics_progprompt_cifar224_budget_smoke_progprompt_s1993.json
+Accuracy Matrix (CNN):
+[[95.6  91.6  83.6 ]
+ [ 0.   89.25 84.4 ]
+ [ 0.    0.   91.33]]
+2026-07-17 17:40:49,349 [trainer.py] => Forgetting (CNN): 8.424999999999997
+2026-07-17 17:40:49,349 [trainer.py] => Forgetting (NME): 8.424999999999997
