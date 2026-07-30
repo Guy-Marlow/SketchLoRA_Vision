@@ -1,11 +1,18 @@
 """Config generator for the round-2 SLURM grid (user request 2026-07-27):
-SeqLoRA, SketchLoRA, O-LoRA, InfLoRA, TreeLoRA x {100, 200}MB x 3 seeds,
+SeqLoRA, SketchLoRA, O-LoRA, InfLoRA, TreeLoRA x {50, 100, 200}MB x 3 seeds,
 OmniBenchmark-1K, full 100-task split (REVISED 2026-07-27, was truncated to
 30 to match this session's interactive testing-cluster runs -- production
 runs use the full split), bounded_memory boundary mode -- same
 harness/fixes as the round-2 dose-response grid (exps/round2_grid/), just a
 different method/budget/seed subset plus TreeLoRA (new to round 2) and a
 frozen (non-ramped) InfLoRA retention setting.
+
+50MB added 2026-07-31 (user request, superseding a prior 300MB plan) --
+identical per-method HP convention as 100/200MB, just a third budget point.
+This generator is idempotent/deterministic (BASE/METHOD_CFG never depend on
+prior output), so re-running it after this edit rewrites the existing
+100MB/200MB config files with byte-identical content and additionally writes
+the 15 new 50MB ones -- verified via md5sum before/after, not assumed.
 
 Per-method HP conventions (identical to exps/round2_grid/ and
 scripts/run_lr_sweep_b2.py's CIFAR-100 sweep winners, propagated per the
@@ -82,7 +89,7 @@ METHOD_CFG = {
 
 # order matters -- METHOD-MAJOR execution order in the .slurm script
 METHODS = ["seqlora", "sketchlora", "olora", "inflora", "treelora"]
-BUDGETS = [100, 200]   # order matters -- outer loop in the .slurm script
+BUDGETS = [50, 100, 200]   # order matters -- outer loop in the .slurm script
 SEEDS = [1993, 1996, 1999]
 
 configs = []
