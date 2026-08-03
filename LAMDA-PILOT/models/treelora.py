@@ -26,6 +26,10 @@ from tqdm import tqdm
 from models.lora import Learner as LoRALearner
 from utils.kd_tree import KD_LoRA_Tree
 from utils.toolkit import tensor2numpy
+# *** UNTESTED as of 2026-08-03 *** -- measured-CE region tagging
+# (docs/ce_profiling_implementation_plan.md sec 4.4). No-op unless a profiling
+# session is active (utils/ce_profiler.py).
+from utils.ce_profiler import ce_region
 
 
 class Learner(LoRALearner):
@@ -48,13 +52,18 @@ class Learner(LoRALearner):
     def _stacked_A(self):
         """Current task's trainable A (down-proj), one row per wrapped module,
         flattened -- matches the reference's `loranew_A` parameter collection."""
-        net = self._network.module if hasattr(self._network, "module") else self._network
-        t = self._cur_task
-        rows = []
-        for attn in net.attn_modules():
-            rows.append(attn.lora_A_q[t].weight.reshape(-1))
-            rows.append(attn.lora_A_v[t].weight.reshape(-1))
-        return torch.stack(rows)   # [lora_depth, dim*rank]
+        # *** UNTESTED as of 2026-08-03 *** -- plan sec 4.4 "stacked_A_build":
+        # torch.stack of 24 reshaped [dim*rank] rows, called EVERY training
+        # step -- previously UNCOUNTED as its own line item (folded into
+        # treelora_aux_macs_per_step's flat constant).
+        with ce_region("treelora/stacked_A_build"):
+            net = self._network.module if hasattr(self._network, "module") else self._network
+            t = self._cur_task
+            rows = []
+            for attn in net.attn_modules():
+                rows.append(attn.lora_A_q[t].weight.reshape(-1))
+                rows.append(attn.lora_A_v[t].weight.reshape(-1))
+            return torch.stack(rows)   # [lora_depth, dim*rank]
 
     def _train(self, train_loader):
         self._network.to(self._device)
@@ -107,11 +116,64 @@ class Learner(LoRALearner):
         if self.reg > 0:
             self.tree.end_task(t)
 
+    # *** UNTESTED as of 2026-08-03 *** -- local GPUs were unavailable
+    # (thermal/damage risk) at fix time, so this has NOT been exercised on a
+    # live run. Verified only by static tracing: confirmed attn.frozen_delta_q/
+    # frozen_delta_v are unconditionally registered buffers (backbone/
+    # vit_lora.py, always exist regardless of enable_frozen_folding()), and
+    # confirmed self._cur_task correctly points to the live, not-yet-folded
+    # slot at read time by tracing freeze_to_task()'s fold_frozen_slots(task-1)
+    # call (folds slot t-1 when STARTING slot t, so slot t itself stays
+    # unfolded for its entire lifetime as "current") -- the same invariant
+    # InfLoRA's own persistent_state() already relies on in production. No
+    # live run has confirmed this executes without error or matches the
+    # ~399MB estimate computed by hand below. Confirm on the first real run
+    # before trusting its memory numbers.
+    #
+    # FIXED 2026-08-03 (found during a persistent-memory audit prompted by an
+    # anomalously large reported figure -- 1026MB at 50MB budget, LARGER than
+    # O-LoRA's own unbounded bank). The OLD override just added tree_grad_store
+    # on top of super().persistent_state() (models/lora.py's generic "every
+    # slot still in the ModuleList" accounting), which has the exact same two
+    # problems InfLoRA's own persistent_state() was written to fix back on
+    # 2026-07-21 (see models/inflora.py's docstring): (a) it counts every
+    # historical per-task lora_A/lora_B slot as still live, even after
+    # enable_frozen_folding() has folded them into frozen_delta_q/v, and (b) it
+    # never reads frozen_delta_q/v at all, since those are register_buffer, not
+    # nn.Parameter. Verified via utils/kd_tree.py that TreeLoRA's regularizer
+    # (tree_search/get_loss/_update_similarity) ONLY ever reads
+    # self.tree.all_accumulate_grads -- its own separate per-task snapshot
+    # store -- and NEVER reads back a folded task's live adapter weights, so
+    # (unlike O-LoRA, whose orthogonality penalty genuinely needs every past
+    # lora_A forever) there is no structural reason old TreeLoRA slots need to
+    # stay counted as persistent once folded. This override now matches
+    # InfLoRA's exact convention: frozen_delta (fixed, O(d^2) per block) +
+    # the current (not-yet-folded) task's own live slot + the tree's own
+    # gradient-snapshot store (tree_grad_store, TreeLoRA's genuine O(cycles)
+    # cost) + head. Measured effect on one real checkpoint (50MB, final):
+    # reported figure drops from 1026MB to ~399MB -- the removed ~682MB was
+    # entirely redundant, already-folded dead weight; NOTE this is an
+    # ACCOUNTING fix only, not a memory-reclamation fix -- old slots are still
+    # allocated on the GPU (free_folded_slots() is not called here, mirroring
+    # what old runs' actual behavior was), so this override describes what
+    # SHOULD be counted as "persistent," not a change to what's allocated.
     def persistent_state(self):
-        base = super().persistent_state()
+        net = self._network.module if hasattr(self._network, "module") else self._network
+        frozen_delta_bytes = 0
+        for attn in net.attn_modules():
+            frozen_delta_bytes += attn.frozen_delta_q.numel() * attn.frozen_delta_q.element_size()
+            frozen_delta_bytes += attn.frozen_delta_v.numel() * attn.frozen_delta_v.element_size()
+        cur_slot_bytes = 0
+        for attn in net.attn_modules():
+            for mlist in (attn.lora_A_q, attn.lora_B_q, attn.lora_A_v, attn.lora_B_v):
+                for p in mlist[self._cur_task].parameters():
+                    cur_slot_bytes += p.numel() * p.element_size()
         grad_bytes = sum(g.numel() * 4 for g in self.tree.all_accumulate_grads if g is not None)
-        return {"params": base["params"], "bytes": base["bytes"] + grad_bytes,
-                "breakdown": {**base["breakdown"], "tree_grad_store": grad_bytes}}
+        fc_bytes = sum(p.numel() * p.element_size() for p in net.fc.parameters()) if net.fc is not None else 0
+        total_bytes = frozen_delta_bytes + cur_slot_bytes + grad_bytes + fc_bytes
+        return {"params": int(total_bytes // 4), "bytes": int(total_bytes),
+                "breakdown": {"frozen_delta": frozen_delta_bytes, "current_slot": cur_slot_bytes,
+                             "tree_grad_store": grad_bytes, "fc": fc_bytes}}
 
     # ==================================================================
     # Boundary-agnostic streaming hooks (models/stream_mixin.py). Adapter slot

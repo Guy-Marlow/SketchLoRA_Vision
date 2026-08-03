@@ -35,6 +35,40 @@ Three co-existing evaluation regimes, in order of current relevance:
    general-CL / DER++ / GDumb bounded-buffer regime. **All current/future
    production runs use this harness.**
 
+## 1.5. Two-cluster operational rule (READ BEFORE running or citing ANY number)
+
+Two physically separate clusters are in play, and conflating them has been a
+recurring real risk:
+
+- **Local / "testing" cluster**: this host, 4 A100s (indices 0/1/2/4 usable;
+  index 3 is a small 4GB DGX card — OOMs immediately if a config targets it,
+  avoid). Direct shell/GPU access. **Local results are declared-methodology-
+  validation only, NEVER admissible findings** — used for variant ranking,
+  bug-finding, and ablation ordering (e.g. every `sketchlora_boltons` CA/
+  admission-rule number in §5/§7 above), not for anything that goes in a
+  paper/report as a real result.
+- **H200 / "experiments" cluster**: 8x H200, SLURM-only, NO shared filesystem
+  with this host, and **no direct access from this session** — no `sbatch`/
+  `squeue`/`ssh` reachability confirmed from here. The only way results arrive
+  is the user manually copying log/JSON files back into this repo (referred
+  to as "H200 logs" or "I've pulled the results from the H200s"). These
+  copied-back numbers ARE the admissible ones.
+- **Other users share this local host's GPUs** — confirmed collisions this
+  project has hit: `nway509` (RainbowPrompt jobs, GPU1/GPU4 observed occupied
+  for many hours at a stretch), `hwan397`, `tbai869`. **Never kill another
+  user's process to free a GPU; never schedule onto a GPU without checking
+  `nvidia-smi --query-compute-apps` first for a PID you don't own.** When
+  `CUDA_DEVICE_ORDER` is unset, raw `nvidia-smi` GPU indices can silently
+  remap (a config's `"device": ["4"]` has landed on the wrong physical card
+  before) — always set `CUDA_DEVICE_ORDER=PCI_BUS_ID`. Do NOT also set
+  `CUDA_VISIBLE_DEVICES` when a config already has an absolute `"device": [N]`
+  — the two remaps compound and throw `invalid device ordinal`.
+- Thermal/GPU-count constraints on the local cluster have been imposed by the
+  user before ("only one card for the next five hours") — these are
+  time-boxed and explicit; do not assume a GPU budget beyond what was last
+  stated, and do not assume a stated time-box has been lifted without asking
+  or re-confirming elapsed time.
+
 ## 2. Directory map
 
 ```
@@ -55,9 +89,10 @@ svd_sketching_vision/                  (git root)
                                        (round2_anchor/, round2_grid/, sketchlora_boltons/,
                                        imagenetr_grid/, final_vision/, review/, ...)
     scripts/                          gen_*.py config generators + *_queue.sh /
-                                       run_*.sh launchers (see §7)
+                                       run_*.sh launchers (see §12)
     run_logs/                         per-run stdout/stderr logs + metrics JSON
-                                       (gitignored by default; see §9 on this)
+                                       (gitignored — `.gitignore:30` at the
+                                       svd_sketching_vision repo root)
     docs/                             design/decision docs (harness archaeology,
                                        Plan C harness spec, frozen-variant spec,
                                        round-2 fixes, execution logs)
@@ -92,6 +127,41 @@ Every method in the current bounded_memory grids runs at **rank=10, lora_alpha=n
 should be doing with every single other test"), superseding an earlier, since-corrected
 rank8/α32(×4-scaling) draft. Optimizer/regularizer hyperparameters otherwise stay
 each method's own native design (not unified).
+
+**CE-metric audit finding (2026-07-28, InfLoRA — impl_plan_7.28.2026 §4):**
+`utils/ops_ledger.py`'s CE formula is `min(1, (1/N) * sum[Ops_fb*eps/Ops_total])`;
+InfLoRA's `_ce_boundary_macs_this_cycle` (`models/inflora.py`) charges only the
+INCREMENTAL covariance-bookkeeping cost of its two dedicated extra full passes
+per cycle (`_init_lora_A` at chunk-begin, `_update_dualgpm` at chunk-end — each
+a full forward over the whole chunk to accumulate `cur_matrix`), via
+`utils/ce_formulas.py::inflora_boundary_macs` — that function's own docstring
+admits its ~16%-of-forward magnitude is "taken from the plan, not independently
+re-derived." Auditing the actual call site
+(`bounded_memory_mixin.py::bounded_memory_run`, the `ce_ledger.record_unit(...)`
+call) confirms `auxiliary_pass_macs` is NEVER populated — meaning the passes'
+own BASE forward-pass compute (not just the marginal covariance-accumulation
+addition on top of it) is missing from `ops_total` entirely. Back-of-envelope
+correction using one real run's numbers (`persistent_state_breakdown`:
+frozen_delta=54.0MB fixed, dualgpm_bases 32.9->35.4MB growing, current_slot=
+1.4MB, fc~2.9MB; `inference_flops_per_image`=40.9 GFLOPs =~20.45 GMACs): the
+missing base-forward term is roughly 7x LARGER than the covariance-bookkeeping
+term currently counted, implying InfLoRA's TRUE CE is closer to **~0.96**, not
+the reported **~0.993-0.994** (round2_slurm_grid/imagenetr_grid numbers above
+all use the UNCORRECTED formula). **Not yet fixed** — needs a user decision
+(project-wide ledger fix, changing every historical InfLoRA CE number, vs.
+document as a known caveat) before any code changes, per this project's
+pre-registration discipline (§9) against post-hoc changes to reported metrics.
+Also computed alongside this audit: InfLoRA's best-case-folded persistent
+footprint (folding `frozen_delta` into the base weight matrix, valid for
+INFERENCE-only deployment) would be 92.1-54.0 = **38.1MB**, vs the
+as-implemented 92.1MB — but M_train (what's needed to keep LEARNING future
+tasks) still requires the full DualGPM basis footprint regardless, since
+those bases have no role at pure inference time but are load-bearing for
+projecting future tasks' covariance. Oracle-concession qualitative summary:
+InfLoRA is the only method needing the total horizon T a priori (injected via
+`_bounded_set_total_sessions`); O-LoRA/TreeLoRA need no horizon but grow state
+linearly; SketchLoRA needs neither (no horizon, O(1) state) — a genuine
+qualitative differentiator for the frontier story, not just a footnote.
 
 ## 4. SketchLoRA mechanism
 
@@ -278,8 +348,25 @@ comparable either.
 
 **ImageNet-R, full 20-task split, bounded_memory, seeds {1993,1996}**
 (`exps/imagenetr_grid/`, generated by `scripts/gen_imagenetr_grid_configs.py`,
-~80% complete as of this writing — 200MB cells and seed-1996 200MB still
-in-flight; base SketchLoRA only, no bolt-ons):
+LOCAL A100 cluster, base SketchLoRA only, no bolt-ons). **Status: KILLED at
+20/30 (67%) complete, 2026-07-28 ~18:19 NZST, by explicit user instruction**
+("You can kill the remaining jobs from the ImageNet-R runs to get started on
+this" — freeing GPUs for the SketchLoRA v2 plan, §5/§7 above). Both 50MB and
+100MB budgets are fully complete (both seeds, all 5 methods — the table
+below). At 200MB: seqlora/olora/treelora completed for seed 1993 only;
+`inflora_200mb_s1993` was killed mid-run (no result, do not treat as a
+crash — it was an intentional kill); `sketchlora_200mb_s1993` and the ENTIRE
+200mb/seed-1996 group (all 5 methods) were never started. **If resuming this
+grid, do not re-run the 20 completed cells** — orchestration lives in
+`scripts/imagenetr_grid_queue_v3.sh` (v1/v2 superseded, see script comments
+for why; v3 hard-excludes GPU0 from its pool because it was needed for
+concurrent SketchLoRA bolt-on runs at the time — re-check GPU availability
+before reusing that constraint verbatim). A separate, NEWER, H200-targeted
+version of this same grid (`exps/imagenetr_slurm_grid/`, 45 configs = 5
+methods x 3 budgets x 3 seeds incl. 1999, `scripts/imagenetr_slurm_grid.slurm`)
+was generated 2026-07-31 — see §11.5 — status of its actual SLURM submission
+is UNVERIFIED from this host (no direct H200 access, no local `sbatch`/`squeue`
+binaries; check with the user or H200-side logs).
 
 | Method | 50MB top1 (s1993/s1996) | 100MB top1 (s1993/s1996) |
 |---|---|---|
@@ -293,6 +380,101 @@ in-flight; base SketchLoRA only, no bolt-ons):
 Omni-1K** — ahead of only SeqLoRA, below O-LoRA/TreeLoRA/InfLoRA at both budgets
 checked so far. This is the current open competitiveness gap; 200MB cells may
 change the picture but are not yet complete.
+
+**H200, ADMISSIBLE, `round2_slurm_grid`: OmniBenchmark-1K, 30 real tasks,
+bounded_memory, 3-seed average (1993/1996/1999)** — the H200-cluster
+counterpart grid to the local `round2_anchor`/`imagenetr_grid` numbers above,
+no bolt-ons (plain `bounded_eviction`). Originally 4 methods x {100,200}MB
+(SeqLoRA/O-LoRA/InfLoRA/SketchLoRA); **extended 2026-08-01 via
+`scripts/round2_slurm_grid_completion_and_50mb.slurm`** to 5 methods
+(TreeLoRA added, fixing the `_bounded_train_epoch` crash described in §5/§10)
+x {50,100,200}MB — all **45 cells (5 methods x 3 budgets x 3 seeds) now
+complete at the accuracy-log level** (verified directly by grep'ing every
+`run_logs/round2_slurm_grid/<method>_<budget>mb_s<seed>.out` for
+`[bounded_mem eval]` lines through `volume 1.00` — no exceptions, no
+truncated runs). Final-checkpoint (100% of stream) top1/top5, 3-seed
+averaged:
+
+| Method | 50MB top1/top5 | 100MB top1/top5 | 200MB top1/top5 |
+|---|---|---|---|
+| O-LoRA | 40.71 / 70.41 | 43.10 / 72.90 | 44.66 / 74.58 |
+| InfLoRA | 39.07 / 69.08 | 40.63 / 70.86 | 41.85 / 72.19 |
+| TreeLoRA | 33.74 / 64.54 | 36.37 / 66.84 | 35.72 / 66.98 |
+| SketchLoRA | 29.12 / 59.30 | 29.31 / 58.78 | 26.88 / 56.09 |
+| SeqLoRA | 14.97 / 36.94 | 16.01 / 37.62 | 17.99 / 40.91 |
+
+Ordering (O-LoRA > InfLoRA > TreeLoRA > SketchLoRA > SeqLoRA) is stable
+across all three budgets. TreeLoRA sits clearly between InfLoRA and
+SketchLoRA — consistent with its local-cluster ImageNet-R positioning (§8).
+
+**Persistent-memory data is NOW COMPLETE for the full extended grid**
+(as of 2026-08-03 — took two rounds of targeted `scp` from the H200 side,
+per-file-pattern rather than a blind full-`run_logs/` copy, since a foreign
+session had committed the entire local `run_logs/` tree to the cluster,
+making it too large to round-trip wholesale; see `run_one()` in
+`scripts/round2_slurm_grid*.slurm` for the exact three-location write
+pattern every cell uses — `.out`/`.err` under `round2_slurm_grid/`,
+`boundedmem_*.json` at top-level `run_logs/`, `metrics_*.json` under
+`run_logs/final/<method>/`). All 45 cells' `metrics_*.json` now read
+`"status": "done"` with 10/10 `per_task` entries, TreeLoRA included (its
+first two sync attempts brought back a stale `"status": "running"`/0-entry
+ghost file from the ORIGINAL pre-fix crash attempt — not a location
+problem, the source file on H200 itself needed to catch up; a third sync
+resolved it). Final-checkpoint persistent MB, 3-seed averaged:
+
+| Method | 50MB persistent MB | 100MB persistent MB | 200MB persistent MB |
+|---|---|---|---|
+| TreeLoRA | 1026.0 | 515.5 | 260.3 |
+| O-LoRA | 685.0 | 344.7 (unbounded growth) | 174.5 |
+| InfLoRA | 91.6 | 92.0 (flat from task 1) | 92.0 |
+| SketchLoRA | 19.2 | 17.8 | 17.0 |
+| SeqLoRA | 4.3 | 4.3 | 4.3 |
+
+**Headline finding: TreeLoRA has BY FAR the largest and fastest-growing
+persistent footprint of any method in this grid** — larger than O-LoRA's
+already-unbounded bank at every budget, nearly 3x InfLoRA's at 50MB. Both
+O-LoRA and TreeLoRA's memory scales with CYCLE count (one new slot/leaf per
+cycle, not per real task), which is why the footprint is highest at the
+TIGHTEST budget (50MB → smallest chunks → most cycles → most slots/leaves
+accumulated over the same 30-task/1000-class stream) and shrinks
+monotonically as budget increases — the same mechanism, just more extreme
+for TreeLoRA's per-leaf storage than O-LoRA's per-slot storage. This
+directly changes SketchLoRA's/InfLoRA's relative positioning in the
+memory-vs-accuracy tradeoff story: TreeLoRA's accuracy edge over SketchLoRA
+(§ table above) comes at a MUCH steeper memory cost than O-LoRA's does.
+
+Plots (2026-08-03, final): `run_logs/round2_slurm_grid/plots/
+{top1,top5}_accuracy{,_50mb,_200mb}.png` and
+`persistent_memory{,_50mb,_200mb}.png` — 5 methods, all 3 budgets, EVERY
+panel now complete including TreeLoRA and the 50MB memory panel (which did
+not exist before this sync). Built from the authoritative structured
+`boundedmem_*.json`/`metrics_*.json` (not log-parsing — cross-validated
+against an earlier `.out`-log-parsed pass, values matched exactly).
+3-seed-averaged, y-axis 0-100 fixed for accuracy panels only (memory panel
+auto-scaled, now spanning up to ~1026MB), matplotlib/seaborn per the
+standing PNG-not-artifact rule — see reference in the user's persistent
+memory system, §13 below.
+
+**CRITICAL: a separate "final_vision" multi-dataset benchmark
+(cifar224/food101/sun397/imagenetr x 6 methods incl. cllora/treelora, 3 seeds)
+also exists in `run_logs/final_vision/` from an H200 pull the same day — this
+is EXPLICITLY DEFUNCT, old-config work per direct user correction** ("those
+aren't the runs we're interested in anymore... old defunct configs... What
+we're concerned about are the OmniBenchmark-1k runs, like we've been concerned
+about for the past week"). It traces to a 9-days-stale 11-method
+multi-dataset plan (originally `FINAL_EXPERIMENTS_IMPLEMENTATION_PLAN.md`,
+2026-07-16 to 2026-07-19) that is no longer the project's focus. **Do not
+reconstruct, analyze, or cite anything from `final_vision`'s cifar224/
+food101/sun397/imagenetr pull as a live finding.** (ImageNet-R also failed
+100% on H200 in that pull — all 18 method/seed combos crashed identically on
+`FileNotFoundError: ./data/imagenet-r/train/`, a data-prep gap on that
+cluster, unrelated to any method — noted here only in case the same missing-
+directory issue resurfaces for a CURRENT run that does need imagenet-r on
+H200.) The ONLY admissible H200 data as of this writing is the
+`round2_slurm_grid` table immediately above. If a future session is asked to
+"reconstruct the H200 tables/graphs" without qualification, confirm which
+grid is meant before assuming it's `final_vision` just because it's the most
+recently modified data on disk.
 
 ## 9. Pre-registration discipline (binding on any new analysis)
 
@@ -351,9 +533,36 @@ and `utils/randsvd.py`, plus untracked `impl_plan_7.27.2026/`,
 `exps/{imagenetr_grid,sketchlora_boltons}/`, expanded `exps/round2_grid/`, and
 numerous `scripts/*.sh` / `scripts/gen_*.py`. This represents the `floor`
 admission rule, the full CA v2 sweep, the CE-metric ledger, and the
-still-in-flight ImageNet-R grid — i.e., everything in §5-8 above. If this
-document is being read after a commit, treat §5-8 as the current baseline and
-verify against `git log` / `run_logs/` for anything more recent.
+(now-killed, see §8) local ImageNet-R grid — i.e., everything in §5-8 above.
+This repo IS a real git repo (`git remote -v` confirms
+`origin git@github.com:Guy-Marlow/SketchLoRA_Vision.git`, branch `main`, up to
+date with origin as of this writing) — `git status`/`git log` are reliable and
+should be checked fresh rather than assumed from this doc.
+
+### 11.5. Newer disk state found 2026-07-31 (AFTER this doc's own last edit —
+this doc itself can go stale; always diff `git status`/file mtimes against
+what's written here before trusting any status claim, including this one)
+
+Four new files, all dated 2026-07-31 (one day after this document's own
+2026-07-30 timestamp), untracked, evidently prepared for an H200 SLURM
+submission of Section 3's "money rerun" positioning work:
+- `scripts/gen_imagenetr_slurm_grid_configs.py` + `exps/imagenetr_slurm_grid/`
+  (45 configs = 5 methods x {50,100,200}MB x 3 seeds {1993,1996,1999} — the
+  H200-targeted continuation of the killed local ImageNet-R grid, now with a
+  3rd seed) + `scripts/imagenetr_slurm_grid.slurm`.
+- `scripts/gen_sketchlora_ablations_imagenetr20t_configs.py` +
+  `exps/sketchlora_ablations_imagenetr20t/` (12 configs = 4 SketchLoRA
+  variants — `current`/`exactsvd`/`fixedrank`/`globaleps` — x 3 seeds; notably
+  does NOT include the new `floor` admission rule as a named variant here,
+  suggesting either this set predates `floor` or floor is being tested
+  elsewhere) + `scripts/sketchlora_ablations_imagenetr20t.slurm`.
+
+**No evidence these were actually submitted to H200** was found from this
+host (no `run_logs` entries referencing them, no local `sbatch`/`squeue`
+binaries to check queue state, no SLURM `.out`/`.err` files anywhere under
+these names). Treat as "configs prepared, submission status unconfirmed" —
+verify with the user or by checking for H200-side log copies before assuming
+these ran, are running, or produced results.
 
 ## 12. How to launch a new run
 
@@ -374,3 +583,56 @@ unconditionally). `bounded_memory_mixin.py::bounded_memory_run`'s resumability
 check requires BOTH the accuracy-results JSON and the metrics JSON to indicate
 completion before skipping a config on relaunch — a run that completed under
 pre-metrics-fix code will not be silently skipped.
+
+## 13. Separate persistent-memory system (outside this repo, cross-session)
+
+Independently of this file, the operating agent (Claude Code) maintains its
+OWN cross-session memory store at
+`/home/gmar762/.claude/projects/-home-gmar762-research-continuous-learning/memory/`,
+indexed by `MEMORY.md` there. That system persists across DIFFERENT
+conversations/sessions (this document persists within/across continuations of
+THIS specific research thread, checked into the repo); the two are
+complementary, not redundant. Notable entries already there as of this
+writing, relevant to continuing this exact project: the two-cluster rule
+(§1.5 above originates from that memory, confirm it's still current there
+too), a standing rule that research plots are always static PNGs via
+matplotlib/seaborn (never web Artifacts) with bright pastel colors and
+`context="talk"` sizing, a standing rule that CE/runtime/persistent-memory
+metrics must be verified as actually wired into a harness (grep for the
+logging calls, never assume), and a note that the old rank8/alpha32/scaling-4
+vision convention (2026-07-01) is SUPERSEDED by the current rank10/alpha-null/
+scaling-1 convention used everywhere in this document. If picking up this
+project from a fresh conversation with no context, check that memory index
+too, not just this file.
+
+## 14. Current status snapshot / suggested next steps (as of this writing)
+
+Section 1 (admission rule `floor`) and Section 2 (CA v2 repair sweep) of
+`impl_plan_7.28.2026` are functionally DONE — code implemented, tests passing,
+sweep complete with a clear winner (`ca_v2_steps100_earlystop`, §7). Neither
+has been used in a completed PRODUCTION run yet (only local ablation/smoke
+runs) — the natural next step for each:
+- **`floor`**: needs a real comparison run (local ranking pass at minimum,
+  ideally an H200 production cell) against `bounded_eviction` at matched
+  settings, sweeping `admission_floor_k` in {1, 5} per the plan's own spec —
+  not yet done.
+- **CA v2**: the plan's own next step (arm "e", combining the steps100/
+  early-stop winner with a covariance-mode winner) is unrunnable as specified
+  since no covariance variant beat `diag` — either re-scope arm "e" (e.g. try
+  combining early-stop with `real_mix` at a lower fraction than 50%, which
+  wasn't sweeped) or accept `steps100_earlystop` alone as `ca_v2` and move to
+  Section 3.
+- **Section 3 (H200 money rerun)**: SLURM configs partially exist as of
+  2026-07-31 (§11.5) but submission is unconfirmed — this needs a human with
+  H200 access; report status, don't assume completion.
+- **Section 4 (InfLoRA positioning)**: the CE-hook audit (§3 above) found a
+  REAL, quantified gap — `inflora_boundary_macs()` only charges the
+  incremental covariance-bookkeeping cost of InfLoRA's two extra full passes
+  per cycle, never their own base forward-pass compute, understating
+  InfLoRA's true overhead by roughly 4x (reported CE ~0.993-0.994 vs a
+  back-of-envelope corrected ~0.96). This needs a DECISION (fix the ops-ledger
+  accounting project-wide, which changes every existing InfLoRA CE number, vs.
+  document as a known caveat) that has NOT yet been made — do not silently
+  "fix" this without surfacing the tradeoff first, per this project's own
+  pre-registration discipline (§9) against post-hoc changes that alter
+  reported numbers.

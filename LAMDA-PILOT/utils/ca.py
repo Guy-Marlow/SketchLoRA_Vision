@@ -45,6 +45,13 @@ import logging
 import torch
 from torch import nn
 from torch.nn import functional as F
+# *** UNTESTED as of 2026-08-03 *** -- measured-CE region tagging
+# (docs/ce_profiling_implementation_plan.md sec 4.1). Tags here use the
+# "sketchlora/" prefix because CA is currently only wired into SketchLoRA
+# (see module docstring: "Method-agnostic in principle; wired into SketchLoRA
+# first") -- if a second method adopts this module, these tag names should be
+# revisited rather than assumed still correct.
+from utils.ce_profiler import ce_region
 
 
 class ClassStats:
@@ -278,14 +285,23 @@ def align_head(fc, stats, ca_steps, ca_batch, ca_lr, device,
     # align_head) -- precompute low_rank_diag's per-class SVD ONCE rather than
     # once per one of ca_steps calls to sample_pseudo_features (found via
     # smoke test: recomputing it every call made this mode unusably slow).
-    factor_cache = build_low_rank_factor_cache(stats, seen, low_rank) \
-        if stats.cov_mode == "low_rank_diag" else None
+    # *** UNTESTED as of 2026-08-03 *** -- plan sec 4.1: previously UNCOUNTED
+    # (only fires when cov_mode=="low_rank_diag"; a per-class SVD over each
+    # class's reservoir, once per align_head call).
+    with ce_region("sketchlora/ca_low_rank_factor_cache_build"):
+        factor_cache = build_low_rank_factor_cache(stats, seen, low_rank) \
+            if stats.cov_mode == "low_rank_diag" else None
 
     val_feats = val_classes = None
     if early_stop_patience is not None:
         vbs = val_batch_size or ca_batch
-        val_feats, val_classes = _sample_held_out_val_batch(
-            stats, seen, vbs, device, low_rank=low_rank, factor_cache=factor_cache)
+        # *** UNTESTED as of 2026-08-03 *** -- plan sec 4.1: the held-out draw is
+        # the same underlying sample_pseudo_features work as the per-step draw
+        # below, just fired once (gated on early_stop_patience) -- same tag so
+        # both aggregate into one measured "sampling" total.
+        with ce_region("sketchlora/ca_pseudo_feature_sampling"):
+            val_feats, val_classes = _sample_held_out_val_batch(
+                stats, seen, vbs, device, low_rank=low_rank, factor_cache=factor_cache)
 
     def _masked_loss(logits, classes):
         mask = torch.full_like(logits, float("-inf"))
@@ -300,8 +316,14 @@ def align_head(fc, stats, ca_steps, ca_batch, ca_lr, device,
     n_pseudo = ca_batch - n_real
 
     for step in range(ca_steps):
-        feats_p, classes_p = sample_pseudo_features(stats, seen, max(n_pseudo, 1), device,
-                                                       low_rank=low_rank, factor_cache=factor_cache)
+        # *** UNTESTED as of 2026-08-03 *** -- plan sec 4.1: a per-sample Python
+        # loop with per-class sampling logic (see sample_pseudo_features's own
+        # body -- diag/shared_full/low_rank_diag each draw one sample at a time
+        # inside a for loop over the batch), previously entirely UNCOUNTED and
+        # run every ca_steps iteration (up to 300x per alignment event).
+        with ce_region("sketchlora/ca_pseudo_feature_sampling"):
+            feats_p, classes_p = sample_pseudo_features(stats, seen, max(n_pseudo, 1), device,
+                                                           low_rank=low_rank, factor_cache=factor_cache)
         if n_real > 0:
             real_feats, real_labels = real_feature_buffer
             ridx = torch.randint(0, real_feats.shape[0], (n_real,))

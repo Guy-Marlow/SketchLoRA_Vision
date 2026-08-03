@@ -73,6 +73,7 @@ from torch.utils.data import DataLoader
 
 from utils.metrics_logger import MetricsLogger
 from utils.ops_ledger import OpsLedger, measure_step_macs
+from utils.ce_profiler import CEProfileController, measure_baseline_and_actual
 
 num_workers = 8
 BYTES_PER_IMAGE = 224 * 224 * 3   # same accounting convention as budget_stream.py / stream_mixin.py
@@ -374,6 +375,19 @@ class BoundedMemoryMixin:
         ce_ledger = OpsLedger(os.path.join("run_logs", "final", args["model_name"]), _metrics_tag)
         self._bounded_ce_ledger_path = ce_ledger.out_path
         _ce_step_macs = None   # (fwd, bwd) MACs, measured once on cycle 0, reused every cycle
+        _ce_baseline_step_macs = None   # (fwd, bwd) MACs, R2 shared baseline, measured once alongside it
+
+        # *** UNTESTED as of 2026-08-03 *** -- measured-CE region profiling
+        # (docs/ce_profiling_implementation_plan.md, utils/ce_profiler.py). Additive
+        # to the existing analytic-formula ledger fields above -- both are recorded
+        # side by side per the plan's section 5/8 (the A/B comparison on identical
+        # cycles is itself the validation criterion, not redundancy to clean up).
+        # ce_profile_every=0 disables measured-region profiling entirely (formula
+        # path is completely unaffected either way) -- a safety valve given nothing
+        # in this file has touched a live run yet.
+        _ce_profile_every = int(args.get("ce_profile_every", 25))
+        ce_profile_controller = CEProfileController(
+            self._device, profile_every=_ce_profile_every, enabled=_ce_profile_every > 0)
 
         results = []
         cum_images = 0
@@ -386,6 +400,7 @@ class BoundedMemoryMixin:
             cycle_idx += 1
             c_start = cum_images
             c_end = min(total_images, c_start + cycle_images)
+            _is_final_cycle = c_end >= total_images   # last cycle of the whole run -- force-profiled
             chunk_data = all_data[c_start:c_end]
             chunk_targets = all_targets[c_start:c_end]
             train_set = data_manager.get_dataset(
@@ -404,43 +419,154 @@ class BoundedMemoryMixin:
                 (data_manager.nb_classes,), float("-inf"), device=self._device)
             cycle_class_mask[torch.as_tensor(cycle_classes, device=self._device)] = 0.0
 
-            self._stream_begin_chunk(loader)
+            # *** UNTESTED as of 2026-08-03 *** -- sets whether THIS cycle gets
+            # region-profiled (docs/ce_profiling_implementation_plan.md sec 3.2).
+            # MUST be called before _stream_begin_chunk below, NOT after -- a
+            # real bug caught during Step 4 (InfLoRA) planning: _stream_begin_chunk
+            # is where InfLoRA's _init_lora_A (a full extra forward pass + SVD,
+            # genuinely substantial) actually runs, and ce_region() tags inside it
+            # are no-ops unless a session is already active. Calling begin_cycle
+            # after _stream_begin_chunk (the original ordering here) would have
+            # made that entire cost permanently unmeasurable, on every cycle,
+            # regardless of sampling cadence.
+            ce_profile_controller.begin_cycle(cycle_idx, is_final=_is_final_cycle)
+
+            # *** UNTESTED as of 2026-08-03 *** -- plan sec 4.3: _stream_begin_chunk
+            # is the START-of-cycle boundary action (InfLoRA's _init_lora_A,
+            # O-LoRA/TreeLoRA's add_task_slot, SketchLoRA's cycle-start reset) --
+            # just as much a one-off per-cycle cost as _stream_end_chunk (the
+            # END-of-cycle action, already wrapped further below), and the
+            # EXISTING analytic formula already treats them as one combined
+            # "boundary" charge (_ce_boundary_macs_this_cycle's
+            # covariance_hooks_base_forward uses "2 * chunk_images * ..." to cover
+            # BOTH _init_lora_A's and _update_dualgpm's extra forward passes
+            # together). Tracked under its own controller kind
+            # ("boundary_begin") rather than reusing "boundary" (which
+            # _stream_end_chunk uses below) because CEProfileController.commit()
+            # overwrites its held value per kind -- using two kinds and merging
+            # their dicts at record_unit() below is simpler and safer than
+            # teaching the controller an accumulate-into-existing-dict mode.
+            with ce_profile_controller.session("boundary_begin") as _boundary_begin_sess:
+                self._stream_begin_chunk(loader)
+            ce_profile_controller.commit(_boundary_begin_sess, "boundary_begin", scale=1.0)
+
             self._bounded_new_optimizer()   # Round-2 §1.2: head weight_decay=0, uniform
             optimizer, scheduler = self._stream_optim, self._stream_sched
 
-            if _ce_step_macs is None:
-                # One-time Ops_fb measurement (impl_plan_7.27.2026 sec 2.2: "measured,
-                # not assumed"), AFTER _stream_begin_chunk so trainability/slot routing
-                # match real training exactly. Two separate profiled calls (fwd-only,
-                # fwd+bwd) on one real batch -- see utils/ops_ledger.py::measure_step_macs
-                # for why. zero_grad() after: this is a throwaway measurement, must not
-                # leak into the real optimizer's first step.
+            # *** UNTESTED as of 2026-08-03 *** -- CHANGED (user-directed, 2026-08-03,
+            # in response to the CE-smoke-test request): re-measure Ops_fb/baseline on
+            # EVERY profiled cycle, not just once at cycle 0. Originally this ran once
+            # ever and was reused for the whole run -- fine for O-LoRA/InfLoRA/TreeLoRA,
+            # whose folded merge=True forward is genuinely architecturally constant, but
+            # WRONG for SketchLoRA: cycle 0's sketch slot is still zero (unpopulated,
+            # pre-first-fold), so a cycle-0-only measurement would freeze
+            # merged_forward_excess_per_step (the R2 quantity that isolates the
+            # (B_hat @ A_hat) @ x sketch-inclusion cost) at ~0 for the ENTIRE run,
+            # exactly hiding the one number this whole exercise wants to see grow with
+            # r_hat. Gating on ce_profile_controller.profiling_this_cycle reuses the
+            # SAME sampling cadence as every other measured region (still held between
+            # samples, same as everything else) -- `or _ce_step_macs is None` guarantees
+            # at least one measurement happens even if ce_profile_every=0 disables
+            # sampling entirely.
+            if _ce_step_macs is None or ce_profile_controller.profiling_this_cycle:
+                # Ops_fb measurement (impl_plan_7.27.2026 sec 2.2: "measured, not
+                # assumed"), AFTER _stream_begin_chunk so trainability/slot routing
+                # match real training exactly. zero_grad() after: this is a throwaway
+                # measurement, must not leak into the real optimizer's first step.
+                #
+                # R2 (plan sec 2): ALSO measures a shared, method-independent baseline
+                # (single slot, merge=False -- the SeqLoRA-equivalent configuration)
+                # alongside the method's own actual routing, so a method's own extra
+                # forward cost (O-LoRA/InfLoRA/TreeLoRA's frozen_delta matmul,
+                # SketchLoRA's sketch-slot matmul) is charged rather than cancelling
+                # between numerator and denominator.
                 _probe_inputs, _probe_targets = next(iter(loader))[1:]
                 _probe_inputs = _probe_inputs.to(self._device)
                 _probe_targets = _probe_targets.to(self._device)
                 _slot, _merge = self._stream_slot(), self._stream_train_merge()
 
-                def _fwd_only():
-                    with torch.no_grad():
-                        self._network(_probe_inputs, task=_slot, merge=_merge)
+                def _loss_fn(logits):
+                    return F.cross_entropy(logits + cycle_class_mask, _probe_targets)
 
-                def _fwd_bwd():
-                    output = self._network(_probe_inputs, task=_slot, merge=_merge)
-                    loss = F.cross_entropy(output["logits"] + cycle_class_mask, _probe_targets)
-                    loss.backward()
-
-                _ce_step_macs = measure_step_macs(_fwd_only, _fwd_bwd, self._device)
+                _baseline_fwd, _baseline_bwd, _actual_fwd, _actual_bwd = measure_baseline_and_actual(
+                    self._network, _probe_inputs, _probe_targets, _loss_fn, _slot, _merge, self._device)
+                _ce_baseline_step_macs = (_baseline_fwd, _baseline_bwd)
+                _ce_step_macs = (_actual_fwd, _actual_bwd)
                 self._network.zero_grad()
 
+            # *** UNTESTED as of 2026-08-03 *** -- measured-CE region profiling
+            # (plan sec 1b item 5): profile epoch 0 only of a sampled cycle (whole
+            # epoch, not individual steps -- captures per-epoch-amortised costs like
+            # TreeLoRA's once-per-epoch tree_search stack rebuild correctly, which
+            # per-step sampling would misattribute), normalise to per-step by
+            # dividing by steps_per_epoch. ce_profile_controller.session("step")
+            # itself no-ops (returns a null context) on un-sampled cycles, and
+            # .commit() on a null/unsuccessful session just returns the held value
+            # from the last profiled cycle -- so this unconditional call is safe on
+            # every cycle, not just profiled ones.
             for _ep in range(epochs):
-                self._bounded_train_epoch(loader, optimizer, scheduler, cycle_class_mask)
-            self._stream_end_chunk(loader)
+                if _ep == 0:
+                    with ce_profile_controller.session("step") as _step_sess:
+                        self._bounded_train_epoch(loader, optimizer, scheduler, cycle_class_mask)
+                    ce_profile_controller.commit(
+                        _step_sess, "step", scale=1.0 / max(len(loader), 1))
+                else:
+                    self._bounded_train_epoch(loader, optimizer, scheduler, cycle_class_mask)
+
+            # *** UNTESTED as of 2026-08-03 *** -- R7 fix (plan sec 6 item 1): the
+            # formula-based aux cost must be snapshotted BEFORE _stream_end_chunk
+            # runs, not after. The ORIGINAL code called self._ce_aux_macs_per_step()
+            # inside record_unit() below, i.e. AFTER _stream_end_chunk had already
+            # fired -- for SketchLoRA specifically, _stream_end_chunk's _compress()
+            # call changes r_hat (the sketch's rank) via a fold, so the aux formula
+            # was reading the POST-fold r_hat, not the value that was actually in
+            # force while this cycle's training steps ran. Moving the read here
+            # fixes that for every method uniformly (a no-op change for methods
+            # whose aux state doesn't change at the boundary).
+            _ce_aux_macs_formula = self._ce_aux_macs_per_step()
+
+            with ce_profile_controller.session("boundary_end") as _boundary_end_sess:
+                self._stream_end_chunk(loader)
+            ce_profile_controller.commit(_boundary_end_sess, "boundary_end", scale=1.0)
+
+            # *** UNTESTED as of 2026-08-03 *** -- merge the begin- and
+            # end-of-cycle boundary region dicts into one (plain dict-union;
+            # region labels are namespaced per method/call-site, e.g.
+            # "inflora/init_lora_A_forward" vs "inflora/update_dualgpm_forward",
+            # so the two dicts are not expected to share keys in practice -- if
+            # they ever did, this union keeps boundary_end's value, silently, for
+            # that key only. Matches the pre-existing analytic formula's own
+            # convention of charging begin- and end-of-cycle one-off costs into
+            # the SAME "boundary_macs" category (e.g. InfLoRA's
+            # covariance_hooks_base_forward already combines both extra passes).
+            _measured_boundary = {**ce_profile_controller.current("boundary_begin"),
+                                  **ce_profile_controller.current("boundary_end")}
+
+            # *** UNTESTED as of 2026-08-03 *** -- added for the CE smoke test
+            # (user request: "data at each task boundary, so we can see how
+            # each method's compute is beginning to scale with task count").
+            # Same computation _bounded_eval's own "_nearest_latent_task" field
+            # already uses, just applied every cycle instead of only at
+            # accuracy checkpoints -- write-only telemetry, per this module's
+            # own leak-audit convention (see the module docstring).
+            _nearest_latent_task = int(np.searchsorted(task_image_cumends, c_end))
 
             ce_ledger.record_unit(
                 unit_idx=cycle_idx, steps_per_epoch=len(loader), n_epochs=epochs,
                 step_macs_fwd=_ce_step_macs[0], step_macs_bwd=_ce_step_macs[1],
-                aux_macs_per_step=self._ce_aux_macs_per_step(),
-                boundary_macs=self._ce_boundary_macs_this_cycle(len(chunk_data)))
+                aux_macs_per_step=_ce_aux_macs_formula,
+                boundary_macs=self._ce_boundary_macs_this_cycle(
+                    len(chunk_data), macs_per_image_fwd=_ce_step_macs[0] / self.batch_size),
+                measured_step_regions=ce_profile_controller.current("step"),
+                measured_boundary_regions=_measured_boundary,
+                baseline_step_macs_fwd=_ce_baseline_step_macs[0],
+                baseline_step_macs_bwd=_ce_baseline_step_macs[1],
+                nearest_latent_task=_nearest_latent_task,
+                profile_provenance={
+                    "step": ce_profile_controller.provenance("step"),
+                    "boundary_begin": ce_profile_controller.provenance("boundary_begin"),
+                    "boundary_end": ce_profile_controller.provenance("boundary_end"),
+                })
 
             cum_images = c_end
             # CHECKPOINT-interval granularity, not per-cycle: a checkpoint spans
@@ -531,10 +657,27 @@ class BoundedMemoryMixin:
         # shared epoch budget (E=20 in this campaign) -- computed OFFLINE from the
         # just-written ledger, logged here for quick reference; the ledger itself
         # (ce_ledger.out_path) is the artifact anything downstream should read from.
-        from utils.ops_ledger import compute_ce
-        ce_value = compute_ce(ce_ledger.records, eps=self.epochs)
-        logging.info("[CE metric] {} = {} (eps={}, N={} cycles)".format(
-            args["model_name"], ce_value, self.epochs, len(ce_ledger.records)))
+        #
+        # *** UNTESTED as of 2026-08-03 *** -- switched to compute_ce_report
+        # (docs/ce_profiling_implementation_plan.md), which reports the ORIGINAL
+        # formula-based CE (ce_formula, byte-identical to the old compute_ce(...)
+        # call this replaces) SIDE BY SIDE with the new measured-region CE
+        # (ce_measured) and both under the R2 shared-baseline numerator
+        # (*_baseline_numerator) -- plus n_actually_profiled, so it's never
+        # ambiguous how many of this run's cycles the measured numbers are really
+        # based on versus held from a prior sample. Headline logged value is
+        # ce_best (CHANGED 2026-08-03, matching trainer.py's oracle-path
+        # logging: the measured path is the one this whole exercise exists to
+        # trust, and every bounded_memory run now always populates the measured
+        # fields, so ce_best resolves to ce_measured_baseline_numerator here in
+        # practice) -- the full report (incl. ce_formula) stays in the log line
+        # for anyone who wants the old number for comparison.
+        from utils.ops_ledger import compute_ce_report
+        ce_report = compute_ce_report(ce_ledger.records, eps=self.epochs)
+        logging.info("[CE metric] {} = {} (source={}) (eps={}, N={} cycles) | full report: {}".format(
+            args["model_name"], ce_report["ce_best"] if ce_report else None,
+            ce_report["ce_best_source"] if ce_report else None,
+            self.epochs, len(ce_ledger.records), ce_report))
 
         self._bounded_results = results
         return results

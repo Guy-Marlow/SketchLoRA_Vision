@@ -26,6 +26,13 @@ import torch.nn as nn
 import timm
 from timm.models.layers import DropPath
 from timm.models.vision_transformer import PatchEmbed
+# *** UNTESTED as of 2026-08-03 *** -- ONE targeted tag added below
+# (_accumulate_cov, gated on self._collect, which only InfLoRA ever sets True
+# -- see that method's own docstring) for measured-CE region tagging
+# (docs/ce_profiling_implementation_plan.md sec 4.3). ce_region() is a no-op
+# unless a profiling session is active (utils/ce_profiler.py) -- no other
+# behavior in this shared backbone file is touched.
+from utils.ce_profiler import ce_region
 
 
 class Attention_LoRA(nn.Module):
@@ -170,11 +177,18 @@ class Attention_LoRA(nn.Module):
 
     def _accumulate_cov(self, x):
         # x: [B, N, C] input to the q/v projections (post norm1)
-        xd = x.detach()
-        cov = torch.bmm(xd.permute(0, 2, 1), xd).sum(dim=0)
-        n = x.shape[0] * x.shape[1]
-        self.cur_matrix = (self.cur_matrix * self.n_cur_matrix + cov) / (self.n_cur_matrix + n)
-        self.n_cur_matrix += n
+        # *** UNTESTED as of 2026-08-03 *** -- plan sec 4.3 "covariance_accumulate":
+        # only ever runs when self._collect is True, which only InfLoRA's
+        # _init_lora_A/_update_dualgpm ever set (see set_collect calls there) --
+        # every other method pays exactly zero here, both in reality and in
+        # this measurement. Previously folded into inflora_boundary_macs's flat
+        # formula; now separately measured too.
+        with ce_region("inflora/covariance_accumulate"):
+            xd = x.detach()
+            cov = torch.bmm(xd.permute(0, 2, 1), xd).sum(dim=0)
+            n = x.shape[0] * x.shape[1]
+            self.cur_matrix = (self.cur_matrix * self.n_cur_matrix + cov) / (self.n_cur_matrix + n)
+            self.n_cur_matrix += n
 
     def _lora_delta(self, x, A_list, B_list, frozen_delta):
         task, merge = self._task, self._merge
@@ -197,9 +211,33 @@ class Attention_LoRA(nn.Module):
             if task > self._folded_upto:
                 delta = delta + B_list[task](A_list[task](x))
             return delta * self.lora_scaling
+        # *** UNTESTED as of 2026-08-03 *** -- measured-CE region tagging
+        # (docs/ce_profiling_implementation_plan.md; extended 2026-08-03 per
+        # user request to directly expose the per-slot forward cost, rather
+        # than relying only on the R2 baseline/actual subtraction). This
+        # non-fold branch is currently only ever exercised with more than one
+        # relevant slot by SketchLoRA (task = RESIDUAL = 1, so the loop below
+        # sums slot 0 = SKETCH and slot 1 = RESIDUAL, 2 iterations); SeqLoRA
+        # only ever reaches task=0 (1 iteration, its own single adapter -- not
+        # "a sketch"). Tagged generically by slot index (not asserting "this is
+        # a sketch" in shared backbone code that every method's forward passes
+        # through) -- for SketchLoRA specifically:
+        #   shared/lora_delta_slot0_forward == the (B_hat @ A_hat) @ x term
+        #     (the frozen, compressed-history sketch -- what the user's
+        #     "(B_hatA_hat)x" question refers to)
+        #   shared/lora_delta_slot1_forward == the trainable residual's own
+        #     forward, i.e. the SAME cost the R2 baseline measurement already
+        #     isolates (merge=False on this same slot)
+        # so slot0's tag is the DIRECT, named counterpart to
+        # merged_forward_excess_per_step -- both should read the same value
+        # for SketchLoRA (2 slots only); slot0's tag is preferred for reading
+        # since it needs no subtraction, and it decomposes correctly even if a
+        # future method reaches this branch with more than 2 slots, which R2's
+        # single-baseline subtraction cannot do on its own.
         delta = 0.0
         for t in range(task + 1):
-            delta = delta + B_list[t](A_list[t](x))
+            with ce_region("shared/lora_delta_slot{}_forward".format(t)):
+                delta = delta + B_list[t](A_list[t](x))
         return delta * self.lora_scaling
 
     def _shape(self, tensor, seq_len, bsz):

@@ -130,10 +130,21 @@ class StreamMixin:
         per-step regularizer). Default: 0."""
         return 0.0
 
-    def _ce_boundary_macs_this_cycle(self, chunk_images):
+    def _ce_boundary_macs_this_cycle(self, chunk_images, macs_per_image_fwd=0.0):
         """One-off MACs charged once per CYCLE regardless of step count (e.g.
         InfLoRA's two extra full passes over the chunk for cur_matrix
-        accumulation). Returns an itemized dict; default: none."""
+        accumulation). Returns an itemized dict; default: none.
+
+        macs_per_image_fwd: the profiler-measured forward-only MACs for ONE
+        image (bounded_memory_mixin.py passes step_macs_fwd/batch_size, the
+        same one-time profiler measurement already used for Ops_fb). Needed
+        by any method whose boundary cost includes running full extra
+        forward passes over chunk-sized data (currently only InfLoRA's
+        DualGPM covariance-accumulation passes) -- the BASE cost of running
+        the pass at all, not just whatever incremental bookkeeping rides
+        along on top of it. Default 0.0 is a no-op for every other method
+        (O-LoRA, TreeLoRA, SketchLoRA, SeqLoRA), whose boundary costs don't
+        involve extra full forward passes over the data."""
         return {}
 
     def _stream_cil_forward(self, inputs):

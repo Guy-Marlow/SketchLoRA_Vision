@@ -2,10 +2,13 @@ import sys
 import logging
 import copy
 import torch
+from torch.nn import functional as F
 from utils import factory
 from utils.data_manager import DataManager
 from utils.toolkit import count_parameters
 from utils.metrics_logger import MetricsLogger
+from utils.ops_ledger import OpsLedger, measure_step_macs, compute_ce_report
+from utils.ce_profiler import CEProfileController, measure_baseline_and_actual
 import os
 import numpy as np
 
@@ -136,11 +139,63 @@ def _train(args):
     # completely unaffected. Additive only -- writes its own JSON, changes no existing
     # printed/logged output.
     mlog = None
+    ce_ledger = None
+    ce_profile_controller = None
     if args.get("final_metrics"):
         _tag = "{}_{}_{}_s{}".format(
             args["model_name"], args["dataset"],
             args.get("prefix") or (args.get("boundary_mode") or "task"), args["seed"])
         mlog = MetricsLogger(os.path.join("run_logs", "final", args["model_name"]), _tag, args)
+        # *** UNTESTED as of 2026-08-03 *** -- measured-CE for the ORACLE (real
+        # task-boundary) path (docs/ce_profiling_implementation_plan.md), added
+        # for the CE smoke test (user correction 2026-08-03: the smoke test runs
+        # here, NOT through models/bounded_memory_mixin.py -- that driver's
+        # CEProfileController/OpsLedger wiring never touches this codepath at
+        # all). Same OpsLedger/ce_region tags as bounded_memory (every tag lives
+        # inside the actual method code -- _orth_and_l2, _init_lora_A,
+        # update_DualGPM, _compress, tree_search, backbone/vit_lora.py's
+        # _lora_delta -- which is called identically by BOTH the oracle
+        # incremental_train() path and the bounded_memory driver, so the SAME
+        # tags fire correctly here with no method-file changes needed), gated
+        # behind the same "final_metrics" opt-in as MetricsLogger above so every
+        # other experiment track sharing this trainer.py (icarl/der/foster/...)
+        # is unaffected.
+        #
+        # STRUCTURAL DIFFERENCE from bounded_memory_mixin.py's wiring, not
+        # papered over: that driver calls _stream_begin_chunk / N x
+        # _bounded_train_epoch / _stream_end_chunk as three SEPARATE, driver-
+        # visible steps, so it can wrap each separately (kinds "boundary_begin"/
+        # "step"/"boundary_end"). incremental_train() is a single opaque call
+        # from trainer.py's perspective -- each method's own _train/
+        # incremental_train override decides internally when to run its
+        # boundary actions (InfLoRA's _init_lora_A/_update_dualgpm, SketchLoRA's
+        # _compress, ...), and trainer.py has no hook into that internal
+        # structure without invasively rewriting every method's oracle-path
+        # training loop, which is NOT part of this fix. So here there is only
+        # ONE controller kind ("task"), wrapping the ENTIRE incremental_train()
+        # call -- every ce_region tag anywhere inside it (whether conceptually
+        # "per-step" like O-LoRA's orth_penalty_matmul, or "boundary" like
+        # InfLoRA's init_lora_A_forward) gets captured together as ONE already-
+        # complete per-task total. That total is passed to record_unit() as
+        # measured_boundary_regions (a one-off cost, added once), NOT
+        # measured_step_regions (which would get MULTIPLIED by n_epochs*
+        # steps_per_epoch downstream and wildly overcount, since profiling the
+        # whole task already includes every epoch's steps). This is coarser
+        # than bounded_memory's split (no separate view of "per-step-only" vs
+        # "boundary-only" cost in oracle mode) but is not double-counted or
+        # mis-scaled -- see this file's own end-of-run comment for the
+        # ops_total_measured reconstruction this implies.
+        #
+        # COST CAVEAT: profiling the WHOLE incremental_train() call (every
+        # epoch, every step, real data) is far heavier than bounded_memory's
+        # epoch-0-only sampling -- fine for a 5-task smoke test at
+        # ce_profile_every=1, but would add real, non-trivial profiler overhead
+        # on a full campaign (e.g. 100 tasks) if used the same way. Not
+        # addressed here; a real campaign should use a larger ce_profile_every.
+        ce_ledger = OpsLedger(os.path.join("run_logs", "final", args["model_name"]), _tag)
+        ce_profile_controller = CEProfileController(
+            model._device, profile_every=int(args.get("ce_profile_every", 25)),
+            enabled=int(args.get("ce_profile_every", 25)) > 0)
 
     for task in range(_n_run):
         if args.get("boundary_mode") == "budget":
@@ -156,9 +211,60 @@ def _train(args):
         logging.info(
             "Trainable params: {}".format(count_parameters(model._network, True))
         )
-        model.incremental_train(data_manager)
+
+        if ce_profile_controller is not None:
+            ce_profile_controller.begin_cycle(task, is_final=(task == _n_run - 1))
+            with ce_profile_controller.session("task") as _task_sess:
+                model.incremental_train(data_manager)
+            ce_profile_controller.commit(_task_sess, "task", scale=1.0)
+        else:
+            model.incremental_train(data_manager)
+
         if mlog:
             mlog.mark_train_done()
+
+        if ce_ledger is not None:
+            # *** UNTESTED as of 2026-08-03 *** -- R2 baseline/actual probe
+            # (plan sec 2), AFTER incremental_train so model.train_loader (built
+            # inside it) exists and trainability/slot routing match real
+            # training exactly -- same requirement as the bounded_memory
+            # driver's own probe, just necessarily placed after rather than
+            # before the boundary action here (see this block's own note on why
+            # incremental_train can't be split into begin/train/end from
+            # trainer.py's side). zero_grad() after: throwaway measurement,
+            # must not leak into whatever the NEXT task's optimizer does.
+            _probe_inputs, _probe_targets = next(iter(model.train_loader))[1:]
+            _probe_inputs = _probe_inputs.to(model._device)
+            _probe_targets = _probe_targets.to(model._device)
+            _slot, _merge = model._train_adapter(), model.train_merge
+            _lo, _hi = model._known_classes, model._total_classes
+
+            def _oracle_loss_fn(logits):
+                return F.cross_entropy(logits[:, _lo:_hi], _probe_targets - _lo)
+
+            _baseline_fwd, _baseline_bwd, _actual_fwd, _actual_bwd = measure_baseline_and_actual(
+                model._network, _probe_inputs, _probe_targets, _oracle_loss_fn, _slot, _merge, model._device)
+            model._network.zero_grad()
+
+            # Formula-based aux/boundary hooks (_ce_aux_macs_per_step /
+            # _ce_boundary_macs_this_cycle) are NOT called here, deliberately:
+            # they read bounded_memory/stream_mixin-only state (e.g. O-LoRA's
+            # _ce_aux_macs_per_step reads self._stream_chunk, which _stream_init
+            # -- only ever called by stream_run()/bounded_memory_run() -- sets;
+            # the oracle path never calls _stream_init at all) and would raise
+            # AttributeError if invoked here. aux_macs_per_step/boundary_macs
+            # are left at record_unit's defaults (0.0/None) for oracle-mode
+            # records -- ce_formula will therefore read ~1.0 for every method in
+            # this mode (expected, not a bug: the formula path simply has
+            # nothing to report here). ce_measured (from measured_boundary_regions
+            # below) is the number that actually reflects oracle-mode overhead.
+            ce_ledger.record_unit(
+                unit_idx=task, steps_per_epoch=len(model.train_loader), n_epochs=model.epochs,
+                step_macs_fwd=_actual_fwd, step_macs_bwd=_actual_bwd,
+                measured_boundary_regions=ce_profile_controller.current("task"),
+                baseline_step_macs_fwd=_baseline_fwd, baseline_step_macs_bwd=_baseline_bwd,
+                nearest_latent_task=task,   # exact in oracle mode -- task IS the real task index
+                profile_provenance={"task": ce_profile_controller.provenance("task")})
 
         # Full prior-CIL eval cadence: every task, EXCEPT OmniBenchmark-1K (by far
         # the longest-running split -- at 100 tasks, a full prior-CIL eval every
@@ -243,6 +349,23 @@ def _train(args):
         if test_loader is not None:
             mlog.record_inference_cost(model, test_loader)
         mlog.finalize(cnn_matrix, til_matrix, task)
+
+    # *** UNTESTED as of 2026-08-03 *** -- same end-of-run CE summary convention
+    # as models/bounded_memory_mixin.py's own (compute_ce_report, not the
+    # original bare compute_ce -- see that module for why). Headline logged
+    # value is ce_best (FIXED 2026-08-03, user-flagged: logging ce_formula here
+    # is wrong -- the formula hooks are skipped entirely in oracle mode, so
+    # ce_formula is an inert ~1.0 for every method by construction, not a real
+    # answer), which resolves to the most trustworthy variant actually
+    # available (see compute_ce_report's own docstring for the preference
+    # order) -- for oracle-mode runs that will always be a measured value, not
+    # the formula placeholder.
+    if ce_ledger is not None:
+        ce_report = compute_ce_report(ce_ledger.records, eps=model.epochs)
+        logging.info("[CE metric] {} = {} (source={}) (eps={}, N={} tasks) | full report: {}".format(
+            args["model_name"], ce_report["ce_best"] if ce_report else None,
+            ce_report["ce_best_source"] if ce_report else None,
+            model.epochs, len(ce_ledger.records), ce_report))
 
     if 'print_forget' in args.keys() and args['print_forget'] is True:
         if len(cnn_matrix) > 0:

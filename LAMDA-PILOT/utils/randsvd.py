@@ -57,6 +57,62 @@ def rand_svd(M: np.ndarray | torch.Tensor, target_rank: int, oversampling: int):
         return (B_hat, A_hat)
 
 
+# *** UNTESTED as of 2026-08-03 *** -- FIX for a real correctness bug (user-
+# flagged, "catastrophic"): models/sketchlora.py's adaptive-rank (energy_target)
+# path was calling torch.linalg.svdvals(delta_W) -- an EXACT SVD of the full
+# matrix -- to decide the target rank r_hat_t, THEN separately calling rand_svd()
+# above (its OWN independent randomized decomposition) to build the actual
+# (B_hat, A_hat) factors. That means the rank decision used perfect knowledge of
+# the true spectrum that a randomized method is never supposed to have access to
+# (a real, accuracy-affecting deviation from the algorithm as intended -- not
+# just a wasted-compute issue), AND paid for two unrelated SVDs every fold when
+# exactly one was ever supposed to happen.
+#
+# rand_svd_probe splits rand_svd's own algorithm into two steps: (1) run the
+# SAME randomized projection + QR + exact-SVD-of-the-small-reduced-matrix,
+# computing enough directions to safely cover the composite's true rank (an
+# EXACT upper bound derivable from the LoRA structure itself -- prev_rank +
+# residual_total, no estimation needed), returning the FULL, UNTRUNCATED (U, S,
+# Vh); (2) the caller (models/sketchlora.py::_compress) picks r_hat_t from
+# THIS S (the randomized method's own approximate spectrum, not the exact one),
+# then slices U/S/Vh to r_hat_t to build the final factors -- the identical
+# construction rand_svd() uses internally, just with the truncation point
+# decided AFTER the (one) decomposition instead of required as an input before
+# it. Exactly one SVD (on the small M_bar), on the smaller matrix, matching how
+# the algorithm is supposed to work.
+#
+# working_rank MUST be a valid upper bound on M's true rank (see the caller) --
+# same requirement rand_svd() already has for target_rank+oversampling, just
+# made explicit here since working_rank is now determined by the CALLER's
+# knowledge of the matrix's structure rather than being "whatever rank we
+# already decided we want."
+def rand_svd_probe(M: torch.Tensor, working_rank: int, oversampling: int):
+    M = M.cuda()
+    omega = torch.randn(M.shape[1], working_rank + oversampling, device=M.device)
+    Y = M @ omega
+    Q, _ = torch.linalg.qr(Y)
+    M_bar = Q.t() @ M
+    try:
+        U_bar, S, Vh = torch.linalg.svd(M_bar)
+    except torch._C._LinAlgError:
+        # same cusolver-heuristic-non-convergence fallback as rand_svd() above.
+        U_bar, S, Vh = torch.linalg.svd(M_bar, driver="gesvd")
+    U = Q @ U_bar   # NOT truncated -- caller picks r_hat_t and slices
+    return U, S, Vh
+
+
+def factors_from_probe(U, S, Vh, r_hat):
+    """Truncate a rand_svd_probe() decomposition to r_hat directions, building
+    (B_hat, A_hat) with the SAME construction rand_svd() uses internally
+    (S_root = sqrt(S[:r_hat]); B_hat = U[:,:r_hat] * S_root; A_hat = S_root *
+    Vh[:r_hat,:]) -- kept as a small helper so this exact formula is written
+    once, not duplicated at every call site that needs to slice a probe."""
+    root_S = S[:r_hat].sqrt()
+    B_hat = U[:, :r_hat] * root_S.unsqueeze(0)
+    A_hat = root_S.unsqueeze(1) * Vh[:r_hat, :]
+    return B_hat, A_hat
+
+
 def rand_svd_debug(M: np.ndarray, target_rank: int, oversampling: int):
 
     omega = np.random.randn(M.shape[1], target_rank + oversampling)

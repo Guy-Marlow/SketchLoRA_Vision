@@ -79,9 +79,16 @@ from torch.nn import functional as F
 from models.lora import Learner as LoRALearner
 
 # trusted randomized-SVD implementation (vendored into utils/ for self-containment)
-from utils.randsvd import rand_svd
+from utils.randsvd import rand_svd, rand_svd_probe, factors_from_probe
 from utils.countsketch import countsketch_compress
 from utils.admission import floor_admission_merge
+# *** UNTESTED as of 2026-08-03 *** -- measured-CE region tagging
+# (docs/ce_profiling_implementation_plan.md sec 4.1, sec 5 Step 2). ce_region()
+# is a no-op unless a profiling session is active (utils/ce_profiler.py), so
+# these tags are safe to leave in permanently and do not change any computed
+# value -- only what utils/ops_ledger.py's measured_step_regions/
+# measured_boundary_regions record.
+from utils.ce_profiler import ce_region
 
 # fixed-slot convention: 0 = frozen sketch, 1 = trainable residual
 SKETCH = 0
@@ -451,9 +458,18 @@ class Learner(LoRALearner):
             at_period_boundary = (self._cur_task + 1) % self.svd_period == 0
             should_fold = at_period_boundary
         elif self.lazy_merge_mode == "legacy_saturation":
-            should_fold = self._lazy_should_fold()
+            # *** UNTESTED as of 2026-08-03 *** -- runs every cycle (whether or not
+            # a fold fires this cycle), and per-module does a torch.linalg.svdvals
+            # -- plan sec 4.1: "UNCOUNTED and expensive," the most costly of the
+            # lazy-merge gates precisely because it runs unconditionally.
+            with ce_region("sketchlora/lazy_saturation_check"):
+                should_fold = self._lazy_should_fold()
         else:   # plateau
-            should_fold = self._plateau_tracker.should_fold(self._residual_products())
+            # *** UNTESTED as of 2026-08-03 *** -- also runs every cycle
+            # (plan sec 4.1). _residual_products() (building [d,d] per module)
+            # is evaluated as part of this same statement, inside the region.
+            with ce_region("sketchlora/lazy_plateau_check"):
+                should_fold = self._plateau_tracker.should_fold(self._residual_products())
 
         self._last_cycle_folded = should_fold   # read by _ce_boundary_macs_this_cycle
         if should_fold:
@@ -473,8 +489,16 @@ class Learner(LoRALearner):
         if self.classifier_alignment and self.ca_logit_adjust_only:
             from utils.ca import apply_logit_adjustment
             net = self._network.module if hasattr(self._network, "module") else self._network
-            self._ca_logit_correction = apply_logit_adjustment(
-                net.fc, self._ca_stats, self.ca_logit_adjust_tau, self._ca_logit_correction)
+            # *** UNTESTED as of 2026-08-03 *** -- the plan's formula-based
+            # accounting (_ce_boundary_macs_this_cycle below) leaves this uncosted
+            # by design ("no head retraining ... negligible against a real
+            # forward/backward pass") -- tagged anyway (R5) since even a per-class
+            # closed-form update has real, non-zero host-side Python-loop cost
+            # (logit_adjust_bias's `for c in seen: ...`) that a MAC-only view
+            # would never show regardless of how the formula treats it.
+            with ce_region("sketchlora/ca_logit_adjust"):
+                self._ca_logit_correction = apply_logit_adjustment(
+                    net.fc, self._ca_stats, self.ca_logit_adjust_tau, self._ca_logit_correction)
             logging.info("[CA] cycle {}: logit_adjust_only tau={}".format(
                 self._cur_task, self.ca_logit_adjust_tau))
         elif self.classifier_alignment:
@@ -484,10 +508,21 @@ class Learner(LoRALearner):
             if self.ca_real_mix_frac > 0 and self._ca_real_buffer_feats is not None \
                     and self._ca_real_buffer_feats.shape[0] > 0:
                 real_buf = (self._ca_real_buffer_feats, self._ca_real_buffer_labels)
-            ca_result = align_head(
-                net.fc, self._ca_stats, self.ca_steps, self.ca_batch, self.ca_lr, self._device,
-                real_feature_buffer=real_buf, real_mix_frac=self.ca_real_mix_frac,
-                early_stop_patience=self.ca_early_stop_patience, val_batch_size=self.ca_val_batch)
+            # *** UNTESTED as of 2026-08-03 *** -- boundary marker for align_head's
+            # loop/loss/backward/optimizer cost specifically. align_head's own
+            # internals (utils/ca.py) carry NESTED tags for the two sub-costs the
+            # plan calls out as previously uncounted (ca_pseudo_feature_sampling,
+            # ca_low_rank_factor_cache_build) -- per ce_profiler.py's EXCLUSIVE
+            # attribution (a region's harvested cost stops at any nested ce/
+            # scope), this outer tag's own number is "align_head minus those two,"
+            # NOT a grand total -- the grand total is the SUM of this tag plus its
+            # nested children, exactly what charged_macs()/charged_seconds()
+            # already compute over the whole region dict.
+            with ce_region("sketchlora/ca_alignment"):
+                ca_result = align_head(
+                    net.fc, self._ca_stats, self.ca_steps, self.ca_batch, self.ca_lr, self._device,
+                    real_feature_buffer=real_buf, real_mix_frac=self.ca_real_mix_frac,
+                    early_stop_patience=self.ca_early_stop_patience, val_batch_size=self.ca_val_batch)
             logging.info("[CA] cycle {}: steps={} final_loss={} stopped_early={}".format(
                 self._cur_task, ca_result["steps"], ca_result["final_loss"],
                 ca_result["stopped_early"]))
@@ -506,11 +541,15 @@ class Learner(LoRALearner):
             return 0.0
         return sketchlora_step_macs_sketch_inclusion(r_hat)
 
-    def _ce_boundary_macs_this_cycle(self, chunk_images):
+    def _ce_boundary_macs_this_cycle(self, chunk_images, macs_per_image_fwd=0.0):
         # impl_plan_7.27.2026 sec 2.3(b/c): per-fold merge cost (only charged on
         # cycles that actually folded -- lazy-merge variants skip most cycles)
         # + CA alignment cost (charged every cycle CA runs, matching
         # _stream_end_chunk's own "every cycle" cadence for CA above).
+        # macs_per_image_fwd unused here -- SketchLoRA's boundary costs (SVD
+        # merge, CA alignment) don't involve extra full forward passes over
+        # chunk-sized data, only accepted for signature compatibility with
+        # the base hook (see models/stream_mixin.py).
         from utils.ce_formulas import sketchlora_fold_macs, sketchlora_ca_macs, N_MODULES
         out = {}
         if getattr(self, "_last_cycle_folded", False) and self._diag_records:
@@ -563,9 +602,18 @@ class Learner(LoRALearner):
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-            self._ca_stats.update(output["features"], targets)
+            # *** UNTESTED as of 2026-08-03 *** -- these two run every training
+            # step whenever classifier_alignment is on (plan sec 4.1: previously
+            # UNCOUNTED entirely). ClassStats.update is a per-SAMPLE Python loop
+            # with Welford updates, and in cov_mode="shared_full" it also does a
+            # [feat_dim,feat_dim] outer product per sample -- potentially large,
+            # and invisible to the analytic formula, which only ever models
+            # align_head's boundary-time cost, never this per-step bookkeeping.
+            with ce_region("sketchlora/ca_class_stats_update"):
+                self._ca_stats.update(output["features"], targets)
             if self.ca_real_mix_frac > 0:
-                self._ca_buffer_update(output["features"].detach(), targets.detach())
+                with ce_region("sketchlora/ca_reservoir_update"):
+                    self._ca_buffer_update(output["features"].detach(), targets.detach())
         if scheduler is not None:
             scheduler.step()
 
@@ -727,10 +775,15 @@ class Learner(LoRALearner):
                                    (attn.lora_A_v, attn.lora_B_v)):
                 A_s, B_s = A_list[SKETCH].weight, B_list[SKETCH].weight     # [r,d],[d,r]
                 dev, dt = B_s.device, B_s.dtype
-                delta_W = B_s @ A_s                                        # [d, d], unscaled
-                for slot in residual_slots:
-                    A_r, B_r = A_list[slot].weight, B_list[slot].weight
-                    delta_W = delta_W + B_r @ A_r
+                # *** UNTESTED as of 2026-08-03 *** -- plan sec 4.1: runs every
+                # (block, proj) pair, every compress call, for every admission
+                # rule (including "floor", which reuses this same delta_W) --
+                # previously folded into one flat sketchlora_fold_macs formula.
+                with ce_region("sketchlora/fold_composite_build"):
+                    delta_W = B_s @ A_s                                    # [d, d], unscaled
+                    for slot in residual_slots:
+                        A_r, B_r = A_list[slot].weight, B_list[slot].weight
+                        delta_W = delta_W + B_r @ A_r
 
                 if skip_compression:
                     # transplant the lone residual into slot 0 verbatim, at its
@@ -740,27 +793,41 @@ class Learner(LoRALearner):
                     A_hat = A_list[only_slot].weight.clone()
                     final_rank = B_hat.shape[1]
                     if self.sketch_diag:
-                        fro_delta = delta_W.float().norm()
-                        retained.append(1.0)
-                        sigma_next.append(0.0)
-                        fro.append(fro_delta.item())
-                        rhat.append(final_rank)
+                        # *** UNTESTED as of 2026-08-03 *** -- plan sec 4.1/R3: our
+                        # own diagnostic bookkeeping, never charged to the method.
+                        with ce_region("_excluded/sketch_diag"):
+                            fro_delta = delta_W.float().norm()
+                            retained.append(1.0)
+                            sigma_next.append(0.0)
+                            fro.append(fro_delta.item())
+                            rhat.append(final_rank)
                     B_hat, A_hat = B_hat.to(dev, dt), A_hat.to(dev, dt)
-                    if final_rank == B_s.shape[1]:
-                        B_s.data.copy_(B_hat)
-                        A_s.data.copy_(A_hat)
-                    else:
-                        newA = nn.Linear(delta_W.shape[0], final_rank, bias=False).to(dev, dt)
-                        newB = nn.Linear(final_rank, delta_W.shape[0], bias=False).to(dev, dt)
-                        newA.weight.data.copy_(A_hat)
-                        newB.weight.data.copy_(B_hat)
-                        for p in list(newA.parameters()) + list(newB.parameters()):
-                            p.requires_grad = False
-                        A_list[SKETCH] = newA
-                        B_list[SKETCH] = newB
-                    for slot in residual_slots:
-                        nn.init.kaiming_uniform_(A_list[slot].weight, a=math.sqrt(5))
-                        nn.init.zeros_(B_list[slot].weight)
+                    # *** UNTESTED as of 2026-08-03 *** -- plan sec 4.1: nn.Linear
+                    # construction + copy_ when the sketch slot's rank changes;
+                    # previously UNCOUNTED entirely (fires on most adaptive-mode
+                    # folds -- this skip_compression branch is only the FIRST-ever
+                    # fold, but the same tag is reused in every branch below so
+                    # they aggregate into one measured total).
+                    with ce_region("sketchlora/fold_slot_realloc"):
+                        if final_rank == B_s.shape[1]:
+                            B_s.data.copy_(B_hat)
+                            A_s.data.copy_(A_hat)
+                        else:
+                            newA = nn.Linear(delta_W.shape[0], final_rank, bias=False).to(dev, dt)
+                            newB = nn.Linear(final_rank, delta_W.shape[0], bias=False).to(dev, dt)
+                            newA.weight.data.copy_(A_hat)
+                            newB.weight.data.copy_(B_hat)
+                            for p in list(newA.parameters()) + list(newB.parameters()):
+                                p.requires_grad = False
+                            A_list[SKETCH] = newA
+                            B_list[SKETCH] = newB
+                    # *** UNTESTED as of 2026-08-03 *** -- plan sec 4.1: kaiming/
+                    # zeros re-init of every residual slot -- "small but real,"
+                    # previously UNCOUNTED. Same tag reused in every branch below.
+                    with ce_region("sketchlora/fold_residual_reset"):
+                        for slot in residual_slots:
+                            nn.init.kaiming_uniform_(A_list[slot].weight, a=math.sqrt(5))
+                            nn.init.zeros_(B_list[slot].weight)
                     module_idx += 1
                     continue
 
@@ -771,145 +838,221 @@ class Learner(LoRALearner):
                     # Fully self-contained (computes its own S, B_hat, A_hat,
                     # final_rank); everything AFTER this block (FD shrinkage,
                     # diagnostics, slot write-back) is shared/unchanged.
-                    R = None
-                    for slot in residual_slots:
-                        A_r, B_r = A_list[slot].weight, B_list[slot].weight
-                        term = (B_r @ A_r).float()
-                        R = term if R is None else R + term
-                    residual_total = sum(A_list[slot].weight.shape[0] for slot in residual_slots)
-                    B_hat, A_hat, final_rank, S, g_stats = floor_admission_merge(
-                        delta_W.float(), B_s.float(), R, residual_total,
-                        self.energy_target, self.admission_floor_k, self.rank_cap,
-                        self.oversampling, rand_svd)
-                    B_hat, A_hat = B_hat.to(dev, dt), A_hat.to(dev, dt)
+                    # *** UNTESTED as of 2026-08-03 *** -- plan sec 4.1: extra QR
+                    # + full torch.linalg.svd(R_orth) + a second rand_svd inside
+                    # floor_admission_merge (utils/admission.py) -- previously
+                    # UNCOUNTED entirely (gated on admission_rule=="floor"). The
+                    # R-composite build immediately above is specific to this
+                    # admission rule (not shared with fold_composite_build's
+                    # delta_W), so it is included in the same tag.
+                    with ce_region("sketchlora/fold_merge_admission_floor"):
+                        R = None
+                        for slot in residual_slots:
+                            A_r, B_r = A_list[slot].weight, B_list[slot].weight
+                            term = (B_r @ A_r).float()
+                            R = term if R is None else R + term
+                        residual_total = sum(A_list[slot].weight.shape[0] for slot in residual_slots)
+                        B_hat, A_hat, final_rank, S, g_stats = floor_admission_merge(
+                            delta_W.float(), B_s.float(), R, residual_total,
+                            self.energy_target, self.admission_floor_k, self.rank_cap,
+                            self.oversampling, rand_svd)
+                        B_hat, A_hat = B_hat.to(dev, dt), A_hat.to(dev, dt)
                     floor_k_protected.append(g_stats["k_protected"])
                     floor_energy_filled.append(g_stats["energy_filled"])
                     if self.sketch_diag:
-                        recon_err = (delta_W.float() - (B_hat.float() @ A_hat.float())).norm()
-                        fro_delta = delta_W.float().norm()
-                        retained.append(1.0 - (recon_err / fro_delta).item() ** 2 if fro_delta > 0 else 1.0)
-                        sigma_next.append(S[final_rank].item() if S.numel() > final_rank else 0.0)
-                        fro.append(fro_delta.item())
-                        rhat.append(final_rank)
-                    for slot in residual_slots:
-                        nn.init.kaiming_uniform_(A_list[slot].weight, a=math.sqrt(5))
-                        nn.init.zeros_(B_list[slot].weight)
-                    if final_rank == B_s.shape[1]:
-                        B_s.data.copy_(B_hat)
-                        A_s.data.copy_(A_hat)
-                    else:
-                        newA = nn.Linear(delta_W.shape[0], final_rank, bias=False).to(dev, dt)
-                        newB = nn.Linear(final_rank, delta_W.shape[0], bias=False).to(dev, dt)
-                        newA.weight.data.copy_(A_hat)
-                        newB.weight.data.copy_(B_hat)
-                        for p in list(newA.parameters()) + list(newB.parameters()):
-                            p.requires_grad = False
-                        A_list[SKETCH] = newA
-                        B_list[SKETCH] = newB
+                        with ce_region("_excluded/sketch_diag"):
+                            recon_err = (delta_W.float() - (B_hat.float() @ A_hat.float())).norm()
+                            fro_delta = delta_W.float().norm()
+                            retained.append(1.0 - (recon_err / fro_delta).item() ** 2 if fro_delta > 0 else 1.0)
+                            sigma_next.append(S[final_rank].item() if S.numel() > final_rank else 0.0)
+                            fro.append(fro_delta.item())
+                            rhat.append(final_rank)
+                    with ce_region("sketchlora/fold_residual_reset"):
+                        for slot in residual_slots:
+                            nn.init.kaiming_uniform_(A_list[slot].weight, a=math.sqrt(5))
+                            nn.init.zeros_(B_list[slot].weight)
+                    with ce_region("sketchlora/fold_slot_realloc"):
+                        if final_rank == B_s.shape[1]:
+                            B_s.data.copy_(B_hat)
+                            A_s.data.copy_(A_hat)
+                        else:
+                            newA = nn.Linear(delta_W.shape[0], final_rank, bias=False).to(dev, dt)
+                            newB = nn.Linear(final_rank, delta_W.shape[0], bias=False).to(dev, dt)
+                            newA.weight.data.copy_(A_hat)
+                            newB.weight.data.copy_(B_hat)
+                            for p in list(newA.parameters()) + list(newB.parameters()):
+                                p.requires_grad = False
+                            A_list[SKETCH] = newA
+                            B_list[SKETCH] = newB
                     module_idx += 1
                     continue
 
                 S = None
-                if full_svd_needed:
-                    U, S, Vh = torch.linalg.svd(delta_W.float())          # reused for diag + recon
-                elif need_svdvals:
-                    S = torch.linalg.svdvals(delta_W.float())             # full spectrum, desc
+                U_probe = Vh_probe = None   # populated only for merge_op=="randsvd" -- see below
+                # *** UNTESTED as of 2026-08-03 *** -- plan sec 4.1 "fold_rank_select":
+                # the svdvals/full-svd spectrum computation AND the subsequent
+                # r_hat_t decision-tree (bounded_eviction/cap/energy_target/
+                # nocompress/naive_sum/countsketch) -- both genuinely part of
+                # "how the rank gets chosen," previously folded into one flat
+                # sketchlora_fold_macs formula regardless of which admission path
+                # actually ran this cycle.
+                #
+                # FIXED 2026-08-03 (user-flagged, "catastrophic"): for
+                # merge_op=="randsvd" this used to call torch.linalg.svdvals on
+                # the FULL exact delta_W here, then rand_svd() (its own SEPARATE
+                # randomized decomposition) later to build the factors -- the
+                # rank decision was using perfect knowledge of the true spectrum
+                # a randomized method should never have, and every fold paid for
+                # two unrelated SVDs instead of one. Fixed: when merge_op==
+                # "randsvd", run rand_svd_probe ONCE here (the SAME randomized
+                # projection + small-matrix-SVD rand_svd() does internally),
+                # sized to a working_rank that is an EXACT upper bound on
+                # delta_W's true rank (prev_rank + residual_total -- derivable
+                # from the LoRA structure itself, not estimated); the rank
+                # decision below now reads THIS randomized S, and the
+                # construction phase further down slices the SAME U_probe/S/
+                # Vh_probe instead of calling rand_svd a second time.
+                prev_rank = A_s.shape[0]
+                residual_total = sum(A_list[slot].weight.shape[0] for slot in residual_slots)
+                composite_rank = prev_rank + residual_total
+                with ce_region("sketchlora/fold_rank_select"):
+                    if full_svd_needed:
+                        U, S, Vh = torch.linalg.svd(delta_W.float())          # reused for diag + recon
+                    elif self.merge_op == "randsvd" and need_svdvals:
+                        # fixed-rank randsvd (energy_target is None) still needs
+                        # enough columns for the eventual self.svd_rank slice,
+                        # which composite_rank alone is not guaranteed to cover
+                        # (e.g. early in training, before enough has accumulated).
+                        _working_rank = (composite_rank if self.energy_target is not None
+                                        else max(composite_rank, self.svd_rank))
+                        U_probe, S, Vh_probe = rand_svd_probe(delta_W, _working_rank, self.oversampling)
+                    elif need_svdvals:
+                        S = torch.linalg.svdvals(delta_W.float())             # full spectrum, desc
 
-                # -- choose the target rank for this compression --
-                if self.merge_op == "naive_sum":
-                    r_hat_t = self.svd_rank                                # == lora_rank (asserted)
-                elif self.merge_op == "nocompress":
-                    # numerical rank of delta_W (Experiments_Timeline.pdf sec 1.b.iii.4): keep
-                    # EVERY singular direction above the standard numerical-rank threshold --
-                    # this is "no compression" in the sense that nothing informative is dropped,
-                    # not literally infinite rank.
-                    thresh = max(delta_W.shape) * self.nocompress_eps * (S[0].item() if S.numel() else 0.0)
-                    r_hat_t = max(1, int((S > thresh).sum().item()))
-                elif self.energy_target is not None:
-                    total = S.pow(2).sum()
-                    if total > 0:
-                        cum = torch.cumsum(S.pow(2), 0) / total
-                        k_eps = int((cum < (1.0 - self.energy_target)).sum().item()) + 1
-                    else:
-                        k_eps = 1
-                    k_eps = max(1, min(k_eps, delta_W.shape[0]))
-                    if self.admission_rule == "bounded_eviction":
-                        # Plan A §A5.2 / Round 2 §2.4: never evict more than the
-                        # residual's OWN just-added rank per merge (bounds eviction to
-                        # <= what was just contributed, so rank is monotone non-
-                        # decreasing below the cap -- the pure-global-eps branch below
-                        # can otherwise evict far more than that in one merge if the
-                        # composite's post-fold energy spectrum happens to concentrate
-                        # differently, which is the "retroactive mass-eviction" /
-                        # post-peak rank collapse A5.2 exists to fix).
-                        #
-                        # RESOLVED (Round 2 §2.4, restates the spec-conformant rule
-                        # explicitly): below cap, evict t = min(r_residual, k_eps)
-                        # trailing directions; at cap, evict exactly (composite_rank -
-                        # r_max). Two readings of k_eps exist and both are implemented,
-                        # switchable via sketchlora_eviction_reading (default
-                        # "conformant"), unit-tested in scripts/test_eviction_rule.py:
-                        #   conformant: k_eps = requested EVICTION count (naive_evict
-                        #     below, = max(0, composite_rank - keep_rank)) -- rank
-                        #     tracks the energy signal responsively, selected as correct.
-                        #   literal_keeprank: k_eps = the KEEP-rank threshold itself,
-                        #     substituted directly as the eviction count -- evicts almost
-                        #     nothing whenever the threshold is aggressive (small
-                        #     keep-rank), the opposite of the rule's purpose; kept only
-                        #     as a documented, tested, never-used-in-production path.
-                        # (The floor variant of this formula -- never evict more than
-                        # residual_total - k of the new directions -- was tried as
-                        # "force_increase" and RETIRED 2026-07-28: its at-cap branch
-                        # below ignored the floor entirely, so it silently degenerated
-                        # to plain bounded_eviction once rank hit the cap. Superseded by
-                        # admission_rule="floor", a separate top-level dispatch above
-                        # that fixes this by construction -- see utils/admission.py.)
-                        prev_rank = A_s.shape[0]
-                        residual_total = sum(A_list[slot].weight.shape[0] for slot in residual_slots)
-                        composite_rank = prev_rank + residual_total
-                        cap = self.rank_cap if self.rank_cap is not None else composite_rank
-                        if composite_rank > cap:
-                            # at/above the cap: evict exactly enough to return to r_max.
-                            evict = composite_rank - cap
-                        elif self.eviction_reading == "literal_keeprank":
-                            evict = min(residual_total, k_eps)
+                    # -- choose the target rank for this compression --
+                    if self.merge_op == "naive_sum":
+                        r_hat_t = self.svd_rank                                # == lora_rank (asserted)
+                    elif self.merge_op == "nocompress":
+                        # numerical rank of delta_W (Experiments_Timeline.pdf sec 1.b.iii.4): keep
+                        # EVERY singular direction above the standard numerical-rank threshold --
+                        # this is "no compression" in the sense that nothing informative is dropped,
+                        # not literally infinite rank.
+                        thresh = max(delta_W.shape) * self.nocompress_eps * (S[0].item() if S.numel() else 0.0)
+                        r_hat_t = max(1, int((S > thresh).sum().item()))
+                    elif self.energy_target is not None:
+                        total = S.pow(2).sum()
+                        if total > 0:
+                            cum = torch.cumsum(S.pow(2), 0) / total
+                            k_eps = int((cum < (1.0 - self.energy_target)).sum().item()) + 1
                         else:
-                            naive_evict = max(0, composite_rank - k_eps)
-                            evict = min(residual_total, naive_evict)
-                        r_hat_t = max(1, composite_rank - evict)
+                            k_eps = 1
+                        k_eps = max(1, min(k_eps, delta_W.shape[0]))
+                        if self.admission_rule == "bounded_eviction":
+                            # Plan A §A5.2 / Round 2 §2.4: never evict more than the
+                            # residual's OWN just-added rank per merge (bounds eviction to
+                            # <= what was just contributed, so rank is monotone non-
+                            # decreasing below the cap -- the pure-global-eps branch below
+                            # can otherwise evict far more than that in one merge if the
+                            # composite's post-fold energy spectrum happens to concentrate
+                            # differently, which is the "retroactive mass-eviction" /
+                            # post-peak rank collapse A5.2 exists to fix).
+                            #
+                            # RESOLVED (Round 2 §2.4, restates the spec-conformant rule
+                            # explicitly): below cap, evict t = min(r_residual, k_eps)
+                            # trailing directions; at cap, evict exactly (composite_rank -
+                            # r_max). Two readings of k_eps exist and both are implemented,
+                            # switchable via sketchlora_eviction_reading (default
+                            # "conformant"), unit-tested in scripts/test_eviction_rule.py:
+                            #   conformant: k_eps = requested EVICTION count (naive_evict
+                            #     below, = max(0, composite_rank - keep_rank)) -- rank
+                            #     tracks the energy signal responsively, selected as correct.
+                            #   literal_keeprank: k_eps = the KEEP-rank threshold itself,
+                            #     substituted directly as the eviction count -- evicts almost
+                            #     nothing whenever the threshold is aggressive (small
+                            #     keep-rank), the opposite of the rule's purpose; kept only
+                            #     as a documented, tested, never-used-in-production path.
+                            # (The floor variant of this formula -- never evict more than
+                            # residual_total - k of the new directions -- was tried as
+                            # "force_increase" and RETIRED 2026-07-28: its at-cap branch
+                            # below ignored the floor entirely, so it silently degenerated
+                            # to plain bounded_eviction once rank hit the cap. Superseded by
+                            # admission_rule="floor", a separate top-level dispatch above
+                            # that fixes this by construction -- see utils/admission.py.)
+                            # prev_rank/residual_total/composite_rank now computed once,
+                            # unconditionally, above (needed there for rand_svd_probe's
+                            # working_rank too) -- reused here rather than recomputed.
+                            cap = self.rank_cap if self.rank_cap is not None else composite_rank
+                            if composite_rank > cap:
+                                # at/above the cap: evict exactly enough to return to r_max.
+                                evict = composite_rank - cap
+                            elif self.eviction_reading == "literal_keeprank":
+                                evict = min(residual_total, k_eps)
+                            else:
+                                naive_evict = max(0, composite_rank - k_eps)
+                                evict = min(residual_total, naive_evict)
+                            r_hat_t = max(1, composite_rank - evict)
+                        else:
+                            r_hat_t = k_eps
+                            if self.rank_cap is not None:
+                                # A5.1's hard cap lands independently of the admission-rule
+                                # sign-off (A5.2) -- applies as a plain clamp here too.
+                                r_hat_t = min(r_hat_t, self.rank_cap)
+                    elif self.merge_op == "countsketch":
+                        r_hat_t = self.cs_rank
                     else:
-                        r_hat_t = k_eps
-                        if self.rank_cap is not None:
-                            # A5.1's hard cap lands independently of the admission-rule
-                            # sign-off (A5.2) -- applies as a plain clamp here too.
-                            r_hat_t = min(r_hat_t, self.rank_cap)
-                elif self.merge_op == "countsketch":
-                    r_hat_t = self.cs_rank
-                else:
-                    r_hat_t = self.svd_rank
+                        r_hat_t = self.svd_rank
 
                 # -- compute the merged (B_hat, A_hat) factor pair per the chosen algorithm --
+                # *** UNTESTED as of 2026-08-03 *** -- plan sec 4.1: each merge_op
+                # gets its OWN region name (not one shared "fold_merge" tag) --
+                # only one branch runs per cycle (R4), and distinct names let the
+                # ledger show which merge algorithm is actually driving the cost
+                # on ablation sweeps over merge_op, rather than a single number
+                # that silently means something different depending on config.
                 if self.merge_op == "naive_sum":
                     # no SVD at all: literal running sum of the raw factor matrices
                     # (Experiments_Timeline.pdf sec 1.b.iii.3) -- does NOT preserve
                     # delta_W = B_hat @ A_hat in general; that is the deliberate point of this
                     # ablation, not a bug.
-                    B_hat, A_hat = B_s.clone(), A_s.clone()
-                    for slot in residual_slots:
-                        B_hat = B_hat + B_list[slot].weight
-                        A_hat = A_hat + A_list[slot].weight
+                    with ce_region("sketchlora/fold_merge_naive_sum"):
+                        B_hat, A_hat = B_s.clone(), A_s.clone()
+                        for slot in residual_slots:
+                            B_hat = B_hat + B_list[slot].weight
+                            A_hat = A_hat + A_list[slot].weight
                 elif self.merge_op == "countsketch":
-                    B_ws = [B_s] + [B_list[slot].weight for slot in residual_slots]
-                    A_ws = [A_s] + [A_list[slot].weight for slot in residual_slots]
-                    seed = (int(self.cs_seed) * 1_000_003 + (self._cur_task + 1) * 9176
-                            + module_idx) % (2 ** 63 - 1)
-                    B_hat, A_hat = countsketch_compress(B_ws, A_ws, r_hat_t, seed)
+                    with ce_region("sketchlora/fold_merge_countsketch"):
+                        B_ws = [B_s] + [B_list[slot].weight for slot in residual_slots]
+                        A_ws = [A_s] + [A_list[slot].weight for slot in residual_slots]
+                        seed = (int(self.cs_seed) * 1_000_003 + (self._cur_task + 1) * 9176
+                                + module_idx) % (2 ** 63 - 1)
+                        B_hat, A_hat = countsketch_compress(B_ws, A_ws, r_hat_t, seed)
                 elif full_svd_needed:
-                    root_S = S[:r_hat_t].sqrt()
-                    B_hat = U[:, :r_hat_t].to(dt) * root_S.to(dt).unsqueeze(0)
-                    A_hat = root_S.to(dt).unsqueeze(1) * Vh[:r_hat_t, :].to(dt)
+                    # plan sec 4.1 names this "fold_merge_randsvd"'s sibling for the
+                    # exactsvd/nocompress merge_ops -- reconstruction from the S/U/Vh
+                    # already computed in fold_rank_select above (no second SVD).
+                    with ce_region("sketchlora/fold_merge_full_svd_reconstruct"):
+                        root_S = S[:r_hat_t].sqrt()
+                        B_hat = U[:, :r_hat_t].to(dt) * root_S.to(dt).unsqueeze(0)
+                        A_hat = root_S.to(dt).unsqueeze(1) * Vh[:r_hat_t, :].to(dt)
                 else:
-                    B_hat, A_hat = rand_svd(delta_W, r_hat_t, self.oversampling)
+                    with ce_region("sketchlora/fold_merge_randsvd"):
+                        # FIXED 2026-08-03 (see fold_rank_select above): if a probe
+                        # decomposition was already computed there (the normal case
+                        # whenever need_svdvals is True -- i.e. sketch_diag,
+                        # energy_target, or fd_shrinkage is on, which is every
+                        # production config), reuse it -- slicing to r_hat_t is the
+                        # ONLY thing that happens here, no second SVD. Falls back to
+                        # a single fresh rand_svd() call only in the narrow case
+                        # where none of those three were on (need_svdvals was False,
+                        # so fold_rank_select never ran a decomposition at all) --
+                        # still exactly one SVD either way, never two.
+                        if U_probe is not None:
+                            B_hat, A_hat = factors_from_probe(U_probe, S, Vh_probe, r_hat_t)
+                        else:
+                            # gesvd fallback path (utils/randsvd.py, 2026-07-28) is
+                            # inside rand_svd itself -- this tag covers it
+                            # automatically whenever it fires.
+                            B_hat, A_hat = rand_svd(delta_W, r_hat_t, self.oversampling)
                 B_hat, A_hat = B_hat.to(dev, dt), A_hat.to(dev, dt)
                 final_rank = B_hat.shape[1]
 
@@ -922,48 +1065,62 @@ class Learner(LoRALearner):
                 # already logged) otherwise, since "Sigma[l]" has no meaning for a
                 # hash-based or literal-sum merge.
                 if self.fd_shrinkage and self.merge_op in ("randsvd", "exactsvd") and S is not None:
-                    from utils.fd import apply_fd_shrinkage
-                    B_hat, A_hat, fd_stats = apply_fd_shrinkage(B_hat, A_hat, S, final_rank)
-                    fd_rents.append(fd_stats)
-                    while len(self._fd_cumulative_rent) <= module_idx:
-                        self._fd_cumulative_rent.append(0.0)
-                    self._fd_cumulative_rent[module_idx] += fd_stats["rent"]
+                    # *** UNTESTED as of 2026-08-03 *** -- plan sec 4.1: previously
+                    # UNCOUNTED entirely (gated on fd_shrinkage=True).
+                    with ce_region("sketchlora/fold_fd_shrinkage"):
+                        from utils.fd import apply_fd_shrinkage
+                        B_hat, A_hat, fd_stats = apply_fd_shrinkage(B_hat, A_hat, S, final_rank)
+                        fd_rents.append(fd_stats)
+                        while len(self._fd_cumulative_rent) <= module_idx:
+                            self._fd_cumulative_rent.append(0.0)
+                        self._fd_cumulative_rent[module_idx] += fd_stats["rent"]
 
                 if self.sketch_diag:
-                    # ACTUAL achieved retained energy from the real reconstruction, not the
-                    # idealized truncated-SVD value -- naive_sum/countsketch do not achieve the
-                    # optimal projection at their nominal rank, so this must be measured, not
-                    # assumed, to make diagnostics comparable across merge_op ablations.
-                    recon_err = (delta_W.float() - (B_hat.float() @ A_hat.float())).norm()
-                    fro_delta = delta_W.float().norm()
-                    retained.append(1.0 - (recon_err / fro_delta).item() ** 2 if fro_delta > 0 else 1.0)
-                    sigma_next.append(S[final_rank].item() if (S is not None and S.numel() > final_rank) else 0.0)
-                    fro.append(fro_delta.item())
-                    rhat.append(final_rank)
+                    # *** UNTESTED as of 2026-08-03 *** -- plan sec 4.1/R3: our own
+                    # diagnostic bookkeeping (recon-error measurement), never
+                    # charged to the method.
+                    with ce_region("_excluded/sketch_diag"):
+                        # ACTUAL achieved retained energy from the real reconstruction, not the
+                        # idealized truncated-SVD value -- naive_sum/countsketch do not achieve the
+                        # optimal projection at their nominal rank, so this must be measured, not
+                        # assumed, to make diagnostics comparable across merge_op ablations.
+                        recon_err = (delta_W.float() - (B_hat.float() @ A_hat.float())).norm()
+                        fro_delta = delta_W.float().norm()
+                        retained.append(1.0 - (recon_err / fro_delta).item() ** 2 if fro_delta > 0 else 1.0)
+                        sigma_next.append(S[final_rank].item() if (S is not None and S.numel() > final_rank) else 0.0)
+                        fro.append(fro_delta.item())
+                        rhat.append(final_rank)
 
-                if final_rank == B_s.shape[1]:
-                    # rank unchanged -> in-place copy (fixed mode, or no growth)
-                    B_s.data.copy_(B_hat)
-                    A_s.data.copy_(A_hat)
-                else:
-                    # rank changed (adaptive mode, or nocompress's growing sketch) -> replace
-                    # slot-0 Linears (variable width)
-                    dim = delta_W.shape[0]
-                    newA = nn.Linear(dim, final_rank, bias=False).to(dev, dt)
-                    newB = nn.Linear(final_rank, dim, bias=False).to(dev, dt)
-                    newA.weight.data.copy_(A_hat)
-                    newB.weight.data.copy_(B_hat)
-                    for p in list(newA.parameters()) + list(newB.parameters()):
-                        p.requires_grad = False
-                    A_list[SKETCH] = newA
-                    B_list[SKETCH] = newB
+                # *** UNTESTED as of 2026-08-03 *** -- plan sec 4.1 "fold_slot_realloc":
+                # same tag as the skip_compression/floor branches above -- fires on
+                # most adaptive-mode folds, previously UNCOUNTED.
+                with ce_region("sketchlora/fold_slot_realloc"):
+                    if final_rank == B_s.shape[1]:
+                        # rank unchanged -> in-place copy (fixed mode, or no growth)
+                        B_s.data.copy_(B_hat)
+                        A_s.data.copy_(A_hat)
+                    else:
+                        # rank changed (adaptive mode, or nocompress's growing sketch) -> replace
+                        # slot-0 Linears (variable width)
+                        dim = delta_W.shape[0]
+                        newA = nn.Linear(dim, final_rank, bias=False).to(dev, dt)
+                        newB = nn.Linear(final_rank, dim, bias=False).to(dev, dt)
+                        newA.weight.data.copy_(A_hat)
+                        newB.weight.data.copy_(B_hat)
+                        for p in list(newA.parameters()) + list(newB.parameters()):
+                            p.requires_grad = False
+                        A_list[SKETCH] = newA
+                        B_list[SKETCH] = newB
                 # reset every residual slot: kaiming A, zero B -> clean + eval no-op.
                 # All P must reset (not just the one that just trained) since the NEXT
                 # period's _train_adapter() revisits slot 1 first and merge=True would
                 # otherwise re-sum a stale prior-period residual left non-zero.
-                for slot in residual_slots:
-                    nn.init.kaiming_uniform_(A_list[slot].weight, a=math.sqrt(5))
-                    nn.init.zeros_(B_list[slot].weight)
+                # *** UNTESTED as of 2026-08-03 *** -- plan sec 4.1 "fold_residual_reset":
+                # same tag as the skip_compression/floor branches above.
+                with ce_region("sketchlora/fold_residual_reset"):
+                    for slot in residual_slots:
+                        nn.init.kaiming_uniform_(A_list[slot].weight, a=math.sqrt(5))
+                        nn.init.zeros_(B_list[slot].weight)
                 module_idx += 1
         self._sketch_populated = True
         if self.sketch_diag:

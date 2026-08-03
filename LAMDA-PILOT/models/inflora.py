@@ -26,6 +26,10 @@ import torch
 from torch.utils.data import DataLoader
 
 from models.lora import Learner as LoRALearner
+# *** UNTESTED as of 2026-08-03 *** -- measured-CE region tagging
+# (docs/ce_profiling_implementation_plan.md sec 4.3). No-op unless a profiling
+# session is active (utils/ce_profiler.py).
+from utils.ce_profiler import ce_region
 
 num_workers = 8
 
@@ -128,7 +132,12 @@ class Learner(LoRALearner):
         # FLAGGED CHANGE (2026-07-21): freeze_to_task just folded chunk-1's slot into
         # frozen_delta -- free its now-fully-redundant weight memory (see
         # Attention_LoRA.free_folded_slot's docstring; InfLoRA-specific, safe here).
-        self._network.free_folded_slots(self._stream_chunk - 1)
+        # *** UNTESTED as of 2026-08-03 *** -- plan sec 4.3: tagged "for
+        # completeness" per the plan -- expected negligible (nn.Identity()
+        # replacement, no tensor compute), included so the ledger shows it was
+        # considered rather than silently absent.
+        with ce_region("inflora/free_folded_slots"):
+            self._network.free_folded_slots(self._stream_chunk - 1)
         for p in self._network.fc.parameters():
             p.requires_grad = True
         self._network.to(self._device)
@@ -138,15 +147,54 @@ class Learner(LoRALearner):
     def _stream_end_chunk(self, loader):
         self._update_dualgpm(loader)             # grow DualGPM feature memory
 
-    def _ce_boundary_macs_this_cycle(self, chunk_images):
+    def _ce_boundary_macs_this_cycle(self, chunk_images, macs_per_image_fwd=0.0):
         # impl_plan_7.27.2026 sec 2.3: CONFIRMED two dedicated extra full passes
         # over the chunk's own data per cycle (_init_lora_A at begin, _update_
-        # dualgpm at end, both above) -- not a per-step cost. Expected to
-        # dominate InfLoRA's non-fwd/bwd overhead (~16% of one forward per
-        # image, recurring every image of every cycle).
+        # dualgpm at end, both above) -- not a per-step cost.
+        #
+        # *** UNTESTED as of 2026-08-03 *** -- local GPUs were unavailable
+        # (thermal/damage risk) at the time this was written, so this has NOT
+        # been exercised on a live run. Verified only by static tracing: the
+        # macs_per_image_fwd plumbing (stream_mixin.py's base signature ->
+        # bounded_memory_mixin.py's call site -> here) has exactly one call
+        # site in the whole codebase (grepped), and the arithmetic/units were
+        # checked by hand, but no profiler run has confirmed this executes
+        # without error or produces the expected magnitude. Confirm on the
+        # first real run (e.g. imagenetr_slurm_grid) before trusting its CE
+        # numbers -- check the written ops_ledger_*.json for a populated
+        # "covariance_hooks_base_forward" key with a plausible (nonzero,
+        # roughly 7x the "covariance_hooks_bookkeeping" key) magnitude.
+        #
+        # FIXED 2026-08-03 (undercounting bug found during a persistent-memory/
+        # CE audit): this used to charge ONLY the incremental cost of the
+        # covariance accumulation itself (inflora_boundary_macs -- the extra
+        # outer-product bookkeeping, ~16% of one forward per the plan's own
+        # figure), never the BASE forward-pass cost of running those two
+        # passes at all. But _init_lora_A/_update_dualgpm each call
+        # net(inputs, ..., merge=True) -- a genuine full ViT forward, not just
+        # a covariance-accumulation step -- so the covariance bookkeeping is a
+        # small increment riding on top of an otherwise-full-price forward
+        # pass, and only the small increment was ever being charged. Audited
+        # the actual ce_ledger.record_unit(...) call site
+        # (bounded_memory_mixin.py) and confirmed auxiliary_pass_macs (the
+        # field meant to hold "a full extra pass costs this much") was never
+        # populated for InfLoRA anywhere -- nothing was covering this gap.
+        # Fixed by adding the base cost explicitly: 2 passes x chunk_images x
+        # macs_per_image_fwd (the same profiler-measured per-image forward
+        # cost already used for Ops_fb, now threaded through this hook -- see
+        # models/stream_mixin.py's base signature and bounded_memory_mixin.py's
+        # call site). Back-of-envelope: this missing term was found to be
+        # roughly 7x larger than the covariance-bookkeeping term alone, i.e.
+        # the previously-reported CE (~0.993-0.994) understated InfLoRA's true
+        # overhead by roughly 4x (true CE closer to ~0.96). NOT applied
+        # retroactively to already-completed runs (round2_slurm_grid) -- this
+        # fix takes effect on new runs only (e.g. the imagenetr_slurm_grid
+        # submission), per explicit user instruction not to estimate/backfill
+        # old CE numbers.
         from utils.ce_formulas import inflora_boundary_macs, inflora_dualgpm_svd_macs
         return {
-            "covariance_hooks": inflora_boundary_macs(chunk_images),
+            "covariance_hooks_base_forward": 2 * chunk_images * macs_per_image_fwd,
+            "covariance_hooks_bookkeeping": inflora_boundary_macs(chunk_images),
             "dualgpm_svd": inflora_dualgpm_svd_macs(),
         }
 
@@ -173,7 +221,12 @@ class Learner(LoRALearner):
         # NOT applied to O-LoRA/TreeLoRA/HideLoRA, which also opt into folding but
         # may still need individual past slots -- O-LoRA's orthogonality penalty
         # genuinely reads every past lora_A forever).
-        self._network.free_folded_slots(self._cur_task - 1)
+        # *** UNTESTED as of 2026-08-03 *** -- same tag as _stream_begin_chunk's
+        # call, for the oracle (non-bounded-memory) per-task path; CE profiling
+        # is currently only wired into bounded_memory_mixin.py, so this is a
+        # no-op today, kept for consistency if that ever changes.
+        with ce_region("inflora/free_folded_slots"):
+            self._network.free_folded_slots(self._cur_task - 1)
         for p in self._network.fc.parameters():
             p.requires_grad = True
 
@@ -199,28 +252,44 @@ class Learner(LoRALearner):
         net.eval()
         net.reset_cur_matrix()
         net.set_collect(True)
-        for _, inputs, _t in train_loader:
-            net(inputs.to(self._device), task=self._cur_task, merge=True)
+        # *** UNTESTED as of 2026-08-03 *** -- plan sec 4.3 "init_lora_A_forward":
+        # a genuine FULL extra forward pass over the whole chunk (this is the
+        # base-forward cost the 2026-08-03 CE-undercounting fix added to the
+        # analytic formula -- this tag is its measured counterpart). Includes
+        # backbone/vit_lora.py::_accumulate_cov's bmm(x^T,x) via
+        # set_collect(True) above (tagged separately inside that method as
+        # "inflora/covariance_accumulate").
+        with ce_region("inflora/init_lora_A_forward"):
+            for _, inputs, _t in train_loader:
+                net(inputs.to(self._device), task=self._cur_task, merge=True)
         net.set_collect(False)
 
-        for kk, attn in enumerate(net.attn_modules()):
-            cur = attn.cur_matrix.clone().double()           # [dim, dim] on cpu
-            if self._cur_task == 0:
-                U, S, _ = torch.linalg.svd(cur)
-                basis = U[:, :self.rank]
-            else:
-                fmat = self.feature_mat[kk].double()
-                if self.project_type[kk] == "remove":
-                    cur = cur - fmat @ cur
+        # *** UNTESTED as of 2026-08-03 *** -- plan sec 4.3 "init_lora_A_svd":
+        # per-module SVD in float64 (NOT float32 -- a real cost multiplier the
+        # old flat formula never modeled) + the feature_mat projection.
+        # Previously UNCOUNTED as its own line item (folded into
+        # inflora_dualgpm_svd_macs's single flat n_modules*dim^3 constant,
+        # which also covers update_DualGPM below -- conflating two genuinely
+        # different operations into one number).
+        with ce_region("inflora/init_lora_A_svd"):
+            for kk, attn in enumerate(net.attn_modules()):
+                cur = attn.cur_matrix.clone().double()           # [dim, dim] on cpu
+                if self._cur_task == 0:
+                    U, S, _ = torch.linalg.svd(cur)
+                    basis = U[:, :self.rank]
                 else:
-                    assert self.project_type[kk] == "retain"
-                    cur = fmat @ cur
-                U, S, _ = torch.linalg.svd(cur, full_matrices=False)
-                basis = U[:, :self.rank]
-            A = (basis.t() / math.sqrt(3)).float().to(self._device)   # [rank, dim]
-            attn.lora_A_q[self._cur_task].weight.data.copy_(A)
-            attn.lora_A_v[self._cur_task].weight.data.copy_(A)
-            attn.reset_cur_matrix()
+                    fmat = self.feature_mat[kk].double()
+                    if self.project_type[kk] == "remove":
+                        cur = cur - fmat @ cur
+                    else:
+                        assert self.project_type[kk] == "retain"
+                        cur = fmat @ cur
+                    U, S, _ = torch.linalg.svd(cur, full_matrices=False)
+                    basis = U[:, :self.rank]
+                A = (basis.t() / math.sqrt(3)).float().to(self._device)   # [rank, dim]
+                attn.lora_A_q[self._cur_task].weight.data.copy_(A)
+                attn.lora_A_v[self._cur_task].weight.data.copy_(A)
+                attn.reset_cur_matrix()
 
     # -- (3) grow the DualGPM feature memory ----------------------------
     @torch.no_grad()
@@ -229,19 +298,34 @@ class Learner(LoRALearner):
         net.eval()
         net.reset_cur_matrix()
         net.set_collect(True)
-        for _, inputs, _t in train_loader:
-            net(inputs.to(self._device), task=self._cur_task, merge=True)
+        # *** UNTESTED as of 2026-08-03 *** -- plan sec 4.3 "update_dualgpm_forward":
+        # the SECOND full extra forward pass this cycle (measured counterpart
+        # of the 2026-08-03 base-forward-cost fix).
+        with ce_region("inflora/update_dualgpm_forward"):
+            for _, inputs, _t in train_loader:
+                net(inputs.to(self._device), task=self._cur_task, merge=True)
         net.set_collect(False)
 
         mat_list = [attn.cur_matrix.clone() for attn in net.attn_modules()]
         for attn in net.attn_modules():
             attn.reset_cur_matrix()
+        # update_DualGPM tags its own internals (inflora/update_dualgpm_linalg,
+        # inflora/dualgpm_python_loop) -- see that method, plan sec 4.3.
         self.update_DualGPM(mat_list)
 
-        self.feature_mat = []
-        for p in range(len(self.feature_list)):
-            Uf = self.feature_list[p] @ self.feature_list[p].t()
-            self.feature_mat.append(Uf)
+        # *** UNTESTED as of 2026-08-03 *** -- plan sec 4.3 "feature_mat_rebuild":
+        # O(r_i * dim^2), grows with r_i (the CURRENT DualGPM basis size for
+        # layer p) -- previously UNCOUNTED as its own line item. This is
+        # DISTINCT from update_dualgpm_linalg (computed above, inside
+        # update_DualGPM) even though both read feature_list -- this rebuild
+        # happens AFTER update_DualGPM has already finished growing
+        # feature_list for this cycle, producing the CACHED projector
+        # _init_lora_A reads next cycle.
+        with ce_region("inflora/feature_mat_rebuild"):
+            self.feature_mat = []
+            for p in range(len(self.feature_list)):
+                Uf = self.feature_list[p] @ self.feature_list[p].t()
+                self.feature_mat.append(Uf)
 
     # -- DualGPM (torch/GPU port of InfLoRA/methods/inflora.py::update_DualGPM --
     # verbatim algorithm, same SVD-throughout structure as the reference (no eigh
@@ -254,67 +338,91 @@ class Learner(LoRALearner):
     def update_DualGPM(self, mat_list):
         threshold = (self.lame - self.lamb) * self._cur_task / self.total_sessions + self.lamb
         logging.info("[InfLoRA] DualGPM threshold: {:.4f}".format(threshold))
+        # *** UNTESTED as of 2026-08-03 *** -- plan sec 4.3, THE region expected
+        # to reproduce the observed 36.2->38.8 s/cycle wall-clock climb (docs/
+        # ce_profiling_implementation_plan.md sec 0 defect #2): the OLD analytic
+        # formula (inflora_dualgpm_svd_macs) is a flat n_modules*dim^3 constant
+        # that ignores feature_list[i]'s growing column count r_i -- but
+        # `feature_list[i] @ (feature_list[i].t() @ activation)` below is
+        # genuinely O(r_i * dim^2), and r_i grows every cycle this branch runs.
+        # Two DISTINCT regions inside this function, not one: this tag covers
+        # the tensor/SVD ops (which DO grow with r_i and are real MACs); the
+        # rank-selection for-loops below are tagged separately as
+        # "inflora/dualgpm_python_loop" (R5 -- Python-loop + implicit
+        # tensor->bool sync cost via `if accumulated_sval < threshold:`,
+        # invisible to a MAC-only view regardless of r_i).
         if len(self.feature_list) == 0:
-            for activation in mat_list:
-                U, S, Vh = torch.linalg.svd(activation, full_matrices=False)
-                sval_total = (S ** 2).sum()
-                sval_ratio = (S ** 2) / sval_total
-                r = int(torch.sum(torch.cumsum(sval_ratio, 0) < threshold).item())
-                self.feature_list.append(U[:, 0:max(r, 1)])
-                self.project_type.append('remove' if r < (activation.shape[0] / 2) else 'retain')
+            with ce_region("inflora/update_dualgpm_linalg"):
+                for activation in mat_list:
+                    U, S, Vh = torch.linalg.svd(activation, full_matrices=False)
+                    sval_total = (S ** 2).sum()
+                    sval_ratio = (S ** 2) / sval_total
+                    r = int(torch.sum(torch.cumsum(sval_ratio, 0) < threshold).item())
+                    self.feature_list.append(U[:, 0:max(r, 1)])
+                    self.project_type.append('remove' if r < (activation.shape[0] / 2) else 'retain')
         else:
             for i in range(len(mat_list)):
                 activation = mat_list[i]
                 if self.project_type[i] == 'remove':
-                    U1, S1, Vh1 = torch.linalg.svd(activation, full_matrices=False)
-                    sval_total = (S1 ** 2).sum()
-                    act_hat = activation - self.feature_list[i] @ (self.feature_list[i].t() @ activation)
-                    U, S, Vh = torch.linalg.svd(act_hat, full_matrices=False)
-                    sval_hat = (S ** 2).sum()
-                    sval_ratio = (S ** 2) / sval_total
-                    accumulated_sval = (sval_total - sval_hat) / sval_total
+                    with ce_region("inflora/update_dualgpm_linalg"):
+                        U1, S1, Vh1 = torch.linalg.svd(activation, full_matrices=False)
+                        sval_total = (S1 ** 2).sum()
+                        act_hat = activation - self.feature_list[i] @ (self.feature_list[i].t() @ activation)
+                        U, S, Vh = torch.linalg.svd(act_hat, full_matrices=False)
+                        sval_hat = (S ** 2).sum()
+                        sval_ratio = (S ** 2) / sval_total
+                        accumulated_sval = (sval_total - sval_hat) / sval_total
                     r = 0
-                    for ii in range(sval_ratio.shape[0]):
-                        if accumulated_sval < threshold:
-                            accumulated_sval += sval_ratio[ii]
-                            r += 1
-                        else:
-                            break
+                    with ce_region("inflora/dualgpm_python_loop"):
+                        for ii in range(sval_ratio.shape[0]):
+                            if accumulated_sval < threshold:
+                                accumulated_sval += sval_ratio[ii]
+                                r += 1
+                            else:
+                                break
                     if r == 0:
                         continue
-                    Ui = torch.cat([self.feature_list[i], U[:, 0:r]], dim=1)
-                    self.feature_list[i] = Ui[:, 0:Ui.shape[0]] if Ui.shape[1] > Ui.shape[0] else Ui
+                    with ce_region("inflora/update_dualgpm_linalg"):
+                        Ui = torch.cat([self.feature_list[i], U[:, 0:r]], dim=1)
+                        self.feature_list[i] = Ui[:, 0:Ui.shape[0]] if Ui.shape[1] > Ui.shape[0] else Ui
                 else:
                     assert self.project_type[i] == 'retain'
-                    U1, S1, Vh1 = torch.linalg.svd(activation, full_matrices=False)
-                    sval_total = (S1 ** 2).sum()
-                    act_hat = self.feature_list[i] @ (self.feature_list[i].t() @ activation)
-                    U, S, Vh = torch.linalg.svd(act_hat, full_matrices=False)
-                    sval_hat = (S ** 2).sum()
-                    sval_ratio = (S ** 2) / sval_total
-                    accumulated_sval = sval_hat / sval_total
+                    with ce_region("inflora/update_dualgpm_linalg"):
+                        U1, S1, Vh1 = torch.linalg.svd(activation, full_matrices=False)
+                        sval_total = (S1 ** 2).sum()
+                        act_hat = self.feature_list[i] @ (self.feature_list[i].t() @ activation)
+                        U, S, Vh = torch.linalg.svd(act_hat, full_matrices=False)
+                        sval_hat = (S ** 2).sum()
+                        sval_ratio = (S ** 2) / sval_total
+                        accumulated_sval = sval_hat / sval_total
                     r = 0
-                    for ii in range(sval_ratio.shape[0]):
-                        if accumulated_sval >= (1 - threshold):
-                            accumulated_sval -= sval_ratio[ii]
-                            r += 1
-                        else:
-                            break
+                    with ce_region("inflora/dualgpm_python_loop"):
+                        for ii in range(sval_ratio.shape[0]):
+                            if accumulated_sval >= (1 - threshold):
+                                accumulated_sval -= sval_ratio[ii]
+                                r += 1
+                            else:
+                                break
                     if r == 0:
                         continue
-                    act_feature = self.feature_list[i] - U[:, 0:r] @ (U[:, 0:r].t() @ self.feature_list[i])
-                    Ui, Si, Vi = torch.linalg.svd(act_feature, full_matrices=True)
-                    self.feature_list[i] = Ui[:, :self.feature_list[i].shape[1] - r]
+                    with ce_region("inflora/update_dualgpm_linalg"):
+                        act_feature = self.feature_list[i] - U[:, 0:r] @ (U[:, 0:r].t() @ self.feature_list[i])
+                        Ui, Si, Vi = torch.linalg.svd(act_feature, full_matrices=True)
+                        self.feature_list[i] = Ui[:, :self.feature_list[i].shape[1] - r]
 
         # convert any over-grown 'remove' layer to its 'retain' complement
-        for i in range(len(self.feature_list)):
-            if self.project_type[i] == 'remove' and \
-                    (self.feature_list[i].shape[1] > (self.feature_list[i].shape[0] / 2)):
-                feature = self.feature_list[i]
-                U, S, V = torch.linalg.svd(feature, full_matrices=True)
-                self.feature_list[i] = U[:, feature.shape[1]:]
-                self.project_type[i] = 'retain'
-            elif self.project_type[i] == 'retain':
-                assert self.feature_list[i].shape[1] <= (self.feature_list[i].shape[0] / 2)
-            logging.info("[InfLoRA] Layer {}: {}/{} type {}".format(
-                i + 1, self.feature_list[i].shape[1], self.feature_list[i].shape[0], self.project_type[i]))
+        # *** UNTESTED as of 2026-08-03 *** -- same "update_dualgpm_linalg" tag:
+        # an SVD-dominated pass, no per-iteration tensor->bool sync (the shape
+        # comparisons here are plain Python ints, .shape[1] is not a tensor).
+        with ce_region("inflora/update_dualgpm_linalg"):
+            for i in range(len(self.feature_list)):
+                if self.project_type[i] == 'remove' and \
+                        (self.feature_list[i].shape[1] > (self.feature_list[i].shape[0] / 2)):
+                    feature = self.feature_list[i]
+                    U, S, V = torch.linalg.svd(feature, full_matrices=True)
+                    self.feature_list[i] = U[:, feature.shape[1]:]
+                    self.project_type[i] = 'retain'
+                elif self.project_type[i] == 'retain':
+                    assert self.feature_list[i].shape[1] <= (self.feature_list[i].shape[0] / 2)
+                logging.info("[InfLoRA] Layer {}: {}/{} type {}".format(
+                    i + 1, self.feature_list[i].shape[1], self.feature_list[i].shape[0], self.project_type[i]))
