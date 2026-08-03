@@ -95,6 +95,16 @@ if ! python -c "import torch, timm; assert torch.cuda.is_available()" 2>/tmp/ce_
 fi
 rm -f /tmp/ce_smoke_imagenetr5t_preflight_$$.err
 
+# utils/data.py:239-240 hardcodes ./data/imagenet-r/{train,test} (hyphenated,
+# matching data_prep.py's TARGET_DIR convention), but on this cluster the data
+# is materialized at ./data/imagenetr (no hyphen) -- a naming mismatch, not
+# missing data. Symlink rather than re-download or rename: idempotent, fully
+# reversible, doesn't touch the existing directory.
+if [ ! -e ./data/imagenet-r ] && [ -d ./data/imagenetr ]; then
+  ln -s imagenetr ./data/imagenet-r
+  echo "==== symlinked ./data/imagenet-r -> ./data/imagenetr $(date) ===="
+fi
+
 echo "==== config generation start $(date) ===="
 python scripts/gen_ce_smoke_imagenetr5t_configs.py
 echo "==== config generation done $(date) ===="
