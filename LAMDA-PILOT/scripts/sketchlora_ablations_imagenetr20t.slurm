@@ -1,9 +1,9 @@
 #!/bin/bash
 #SBATCH --job-name=sketchlora_ablations_imagenetr20t
-#SBATCH --time=72:00:00
-#SBATCH --gres=gpu:2
-#SBATCH --cpus-per-task=18
-#SBATCH --mem=128G
+#SBATCH --time=12:00:00
+#SBATCH --gres=gpu:1
+#SBATCH --cpus-per-task=10
+#SBATCH --mem=48G
 #SBATCH --open-mode=append
 #SBATCH --output=/data/gmar762/research/continuous_learning/svd_sketching_vision/LAMDA-PILOT/run_logs/sketchlora_ablations_imagenetr20t/slurm_%j.out
 #SBATCH --error=/data/gmar762/research/continuous_learning/svd_sketching_vision/LAMDA-PILOT/run_logs/sketchlora_ablations_imagenetr20t/slurm_%j.err
@@ -77,15 +77,29 @@
 # probe (ops_fb_baseline, merged_forward_excess_per_step) are unaffected and
 # still populate every record.
 #
-# Wall time (72h, scaled up from the original 48h estimate by 6/4 variants --
-# still unverified, not a measurement) is a rough estimate: oracle SketchLoRA
-# at tuned_epoch=20 over ImageNet-R's real 20-task split (400 total epochs of
-# training, no budget-based cycling) has no directly comparable timing
-# precedent in this project's history at this exact epoch convention -- pad
-# accordingly, watch the first run's wall-clock and adjust for any future
-# resubmission. exactsvd_ca additionally pays classifier-alignment's own
-# ca_steps=300 extra optimization steps per task boundary, on top of the
-# exactsvd variant's own cost -- likely the slowest of the six.
+# Wall time set to 12h (explicit user request 2026-08-04, down from a rough
+# 144h full-completion estimate for all 18 runs sequentially on one GPU) --
+# at this budget the job will almost certainly NOT finish all 18 cells in one
+# submission; it relies on the RESUMABLE/LOCKFILE design below (skip whatever
+# already shows "status": "done") to make partial progress across repeated
+# resubmissions rather than needing one long-lived allocation. Whatever
+# variant/seed is mid-run when the wall clock hits will be left incomplete
+# (no partial-epoch checkpoint inside a single task) and simply re-run from
+# scratch on the next submission -- exactsvd_ca (extra ca_steps=300 per task
+# boundary) and the slower merge_ops are likeliest to be the ones still
+# incomplete after any given 12h window.
+#
+# RESOURCES (1 GPU, 10 CPU cores, 48GB RAM -- explicit user request
+# 2026-08-04, down from the prior 2 GPU/18 cpu/128GB): NGPU below is DERIVED
+# from what SLURM actually granted (torch.cuda.device_count(), read once
+# during the pre-flight check), not hardcoded -- so --gres in the header
+# above is now the ONLY place GPU count is specified; the worker-pool code
+# further down automatically matches whatever that says, including if it's
+# ever changed back up. This was a real bug in the prior version of this
+# script: NGPU=2 was hardcoded independently of --gres, so requesting fewer
+# GPUs than 2 without also editing NGPU would have silently sent real jobs to
+# a nonexistent CUDA device (see prior conversation turn for the full
+# failure mode) -- structurally can't happen anymore.
 #
 # RESUMABLE / LOCKFILE: same convention as every other script in this
 # series -- skips a cell whose accuracy json shows "partial": false; refuses
@@ -115,14 +129,29 @@ source /data/gmar762/anaconda3/etc/profile.d/conda.sh
 conda activate "${CONDA_ENV_NAME:-treelora}"
 export CUDA_DEVICE_ORDER=PCI_BUS_ID
 
-# Pre-flight sanity check (same convention as round2_slurm_grid.slurm).
-if ! python -c "import torch, timm; assert torch.cuda.is_available()" 2>/tmp/sketchlora_ablations_imagenetr20t_preflight_$$.err; then
-  echo "FATAL: pre-flight check failed (torch/timm import or CUDA unavailable). Details:"
+# Pre-flight sanity check (same convention as round2_slurm_grid.slurm),
+# EXTENDED to also derive NGPU here (2026-08-04, user request) -- one
+# python/torch startup does both jobs. torch.cuda.device_count() reads
+# however many GPUs are actually visible inside this job's cgroup, which is
+# whatever --gres above actually granted, NOT a value duplicated/hardcoded
+# in this file -- so the two can never drift apart again (see the header
+# comment on the bug this replaces).
+NGPU=$(python -c "import torch, timm; assert torch.cuda.is_available(); print(torch.cuda.device_count())" \
+  2>/tmp/sketchlora_ablations_imagenetr20t_preflight_$$.err)
+# Regex validation, not a numeric [ -lt ] comparison: if NGPU somehow came
+# back non-numeric, "[ "$NGPU" -lt 1 ]" itself errors ("integer expression
+# expected") with a NONZERO exit status -- which reads as FALSE to this if,
+# i.e. the FATAL branch would be silently skipped and the script would carry
+# on with a garbage NGPU. Matching a strict positive-integer pattern instead
+# has no such failure mode.
+if [ -z "$NGPU" ] || ! [[ "$NGPU" =~ ^[1-9][0-9]*$ ]]; then
+  echo "FATAL: pre-flight check failed (torch/timm import, CUDA unavailable, or non-numeric device count). Details:"
   cat /tmp/sketchlora_ablations_imagenetr20t_preflight_$$.err
   rm -f /tmp/sketchlora_ablations_imagenetr20t_preflight_$$.err
   exit 1
 fi
 rm -f /tmp/sketchlora_ablations_imagenetr20t_preflight_$$.err
+echo "==== detected NGPU=${NGPU} (torch.cuda.device_count(), derived not hardcoded) $(date) ===="
 
 echo "==== config generation start $(date) ===="
 python scripts/gen_sketchlora_ablations_imagenetr20t_configs.py
@@ -130,7 +159,6 @@ echo "==== config generation done $(date) ===="
 
 VARIANTS=(current exactsvd globaleps fixedrank exactsvd_ca countsketch)
 SEEDS=(1993 1996 1999)
-NGPU=2
 
 echo "==== sketchlora_ablations_imagenetr20t start: ${#VARIANTS[@]} variants x ${#SEEDS[@]} seeds, ${NGPU} GPUs $(date) ===="
 
