@@ -58,14 +58,22 @@ TARGET_DIR = {
 
 
 def _extract(archive, dest):
-    if archive.endswith((".tar.gz", ".tgz", ".tar")):
-        with tarfile.open(archive) as t:
-            t.extractall(dest)
-    elif archive.endswith(".zip"):
+    """Detect archive format from CONTENT (magic bytes via zipfile/tarfile's own
+    sniffers), not the filename -- `prep_gdrive` downloads to a generic
+    `<name>.archive` name (Google Drive doesn't expose the real extension), so a
+    suffix-based dispatch never matched anything and this always raised
+    "Unknown archive type" (found 2026-08-06, reproduced on a fresh Windows
+    install; `archive.endswith(...)` was checking a name that can never end in
+    .zip/.tar.gz/etc). zipfile.is_zipfile/tarfile.is_tarfile read the actual
+    file header, so this works regardless of what the file happens to be named."""
+    if zipfile.is_zipfile(archive):
         with zipfile.ZipFile(archive) as z:
             z.extractall(dest)
+    elif tarfile.is_tarfile(archive):
+        with tarfile.open(archive) as t:
+            t.extractall(dest)
     else:
-        raise ValueError(f"Unknown archive type: {archive}")
+        raise ValueError(f"Unknown archive type (not a zip or tar, by content): {archive}")
 
 
 def prep_cifar100(data_root):

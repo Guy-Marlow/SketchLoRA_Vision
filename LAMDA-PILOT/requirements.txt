@@ -10,10 +10,23 @@ timm==0.6.7
 numpy
 scipy
 tqdm
-Pillow           # image loading (utils/data_manager.py); usually pulled in
-                 # transitively by torchvision, listed explicitly for clarity
+# Pillow/filelock/huggingface_hub/datasets pinned 2026-08-06: previously
+# unpinned, which let a fresh install (first reproduced on a Windows install,
+# "the machine I'm swapping to") resolve mutually incompatible versions --
+# huggingface_hub importing `BaseFileLock` from an installed `filelock` too
+# old to have it, and a broken/shadowed PIL install
+# (`ImportError: cannot import name 'Image' from 'PIL' (unknown location)`)
+# traced to the same class of dependency-resolution drift. Versions below are
+# copied directly from `pip freeze` in this project's own validated Linux
+# "treelora" conda env, not guessed.
+Pillow==12.2.0   # image loading (utils/data_manager.py); usually pulled in
+                 # transitively by torchvision, pinned explicitly here since
+                 # an unpinned/mismatched install has broken imports before
+filelock==3.29.0 # transitive dep of huggingface_hub; pinned because an
+                 # unpinned resolution can land a filelock version older
+                 # than what the pinned huggingface_hub below requires
 gdown            # dataset download (scripts/data_prep.py, Google-Drive-hosted
                  # PILOT distributions e.g. ImageNet-R)
-datasets         # HF `datasets` library (scripts/data_prep.py: SUN397/Food101
+datasets==2.18.0 # HF `datasets` library (scripts/data_prep.py: SUN397/Food101
                  # via HF_IMAGEFOLDER)
-huggingface_hub  # scripts/data_prep.py: cache scanning / HfFileSystem
+huggingface_hub==0.36.2  # scripts/data_prep.py: cache scanning / HfFileSystem
