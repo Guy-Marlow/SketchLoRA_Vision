@@ -33,7 +33,14 @@ Three co-existing evaluation regimes, in order of current relevance:
    cycle only (data-derived mask, never task-derived). Eval fires on DATA VOLUME
    checkpoints (5%/10% of stream), never on task/cycle count. This is the
    general-CL / DER++ / GDumb bounded-buffer regime. **All current/future
-   production runs use this harness.**
+   production runs use this harness** — **EXCEPT** the
+   `sketchlora_ablations_imagenetr20t` campaign (§8.7), which deliberately runs
+   regime 1 (plain oracle CIL, no `boundary_mode` key at all) on the full
+   ImageNet-R 20-task split, specifically to isolate SketchLoRA's own
+   merge/rank/CA mechanisms from any bounded-memory-streaming interaction.
+   Don't assume every new SketchLoRA config is bounded_memory just because
+   that's the general rule — check for the presence/absence of
+   `boundary_mode` in the config itself.
 
 ## 1.5. Two-cluster operational rule (READ BEFORE running or citing ANY number)
 
@@ -81,10 +88,16 @@ svd_sketching_vision/                  (git root)
   rand_svd_impl/                       original randsvd prototype (superseded by
                                        LAMDA-PILOT/utils/randsvd.py, vendored copy)
   LAMDA-PILOT/                         <- everything below is relative to here
-    models/                           one file per CL method, mixins in lora.py
+    models/                           one file per CL method, mixins in lora.py;
+                                       noadapt.py (2026-08-05) = no-adaptation
+                                       floor baseline, frozen ViT + NCM head
     backbone/                         ViT variants (vit_lora.py = shared LoRA scaffold)
-    utils/                            randsvd, countsketch, admission, lazy, ca, fd,
-                                       ce_formulas, ops_ledger, data_manager, metrics_logger
+    utils/                            randsvd (+ rand_svd_probe/factors_from_probe,
+                                       2026-08-03 fix, see §8.5), countsketch, admission,
+                                       lazy, ca, fd, ce_formulas (LEGACY, superseded by
+                                       ce_profiler for anything that matters, see §8.6),
+                                       ce_profiler (2026-08-03, measured-CE region
+                                       profiling), ops_ledger, data_manager, metrics_logger
     exps/                             JSON configs, one per run; organized by campaign
                                        (round2_anchor/, round2_grid/, sketchlora_boltons/,
                                        imagenetr_grid/, final_vision/, review/, ...)
@@ -116,10 +129,12 @@ svd_sketching_vision/                  (git root)
 | O-LoRA | `models/olora.py` | O(cycles): one frozen slot + orthogonality penalty per boundary | λ₁=0.5, λ₂=0, lr 1e-3 |
 | InfLoRA | `models/inflora.py` | O(cycles): DualGPM bases | lamb=lame=0.975 (CONSTANT — see §8, this differs from the oracle grid's asymmetric 0.95/1.0), lr 5e-4; needs a total-session count T, granted as `T := ceil(stream_images/cycle_images)` via `_bounded_set_total_sessions` |
 | TreeLoRA | `models/treelora.py`, `utils/kd_tree.py` | O(cycles): hierarchical leaf tree | reg=0.1 (corrected from an inherited reg=0.5 that traced to the NLP/TRACE launch script, not the paper's vision default), lr 1e-3 |
-| SketchLoRA | `models/sketchlora.py` | **O(1)**: two slots, sketch+residual | see §4-6 |
+| SketchLoRA | `models/sketchlora.py` | **O(1)**: two slots, sketch+residual | see §4-6; **rand_svd merge_op has a fixed 2026-08-03 accuracy bug, see §8.5 before trusting any pre-that-date number** |
+| noadapt | `models/noadapt.py` (2026-08-05) | O(1): frozen backbone, no adapter ever trained | no-adaptation floor baseline — frozen ViT-B/16 (LoRA slot stays zero-init no-op forever), classifier head fit by one closed-form nearest-class-mean pass/task, ZERO gradient steps of any kind. Oracle-regime only (§8.7), not part of the bounded_memory grids. Purpose: how much of any method's accuracy is just the pretrained backbone's already-near-linearly-separable features vs. real continual adaptation. |
 | HiDeLoRA | `models/hidelora.py` | — | EXCLUDED from all current work — genuinely broken under any streaming/bounded-memory design (see §10, "HiDeLoRA collapse") |
 | ProgPrompt | `models/progprompt.py` | — | status open/unresolved under streaming (sequence-length train/eval mismatch, §10); not in current bounded_memory grids |
 | CL-LoRA, TUNA, EASE, RainbowPrompt | native/ported | — | oracle-grid only; not part of the bounded_memory task-agnostic track |
+| SeqLoRA (oracle, ImageNet-R 20t) | `models/lora.py` (base Learner), `_train_adapter`/`_eval_adapter` pinned to 0 | O(1) | added to `sketchlora_ablations_imagenetr20t` (§8.7) 2026-08-05 as a comparison point, standard HPs (lr 3e-4, rank 10, α-null) — same convention as the bounded_memory roster's SeqLoRA row above, just run under the oracle regime this once |
 
 Every method in the current bounded_memory grids runs at **rank=10, lora_alpha=null
 (scale ×1), batch=48, tuned_epoch=20** — a deliberately unified convention
@@ -476,6 +491,307 @@ H200.) The ONLY admissible H200 data as of this writing is the
 grid is meant before assuming it's `final_vision` just because it's the most
 recently modified data on disk.
 
+## 8.5. SketchLoRA `rand_svd` double-SVD accuracy bug (fixed 2026-08-03, commit `886455b`) — READ BEFORE TRUSTING ANY PRE-FIX NUMBER
+
+`_compress()`'s adaptive-rank path (`svd_energy_target` set — the default,
+used by `current`/`exactsvd`/`globaleps`/`exactsvd_ca` in every campaign to
+date) was calling `torch.linalg.svdvals(delta_W)` — an EXACT SVD of the full
+matrix — to decide the target rank `r_hat_t`, then SEPARATELY calling
+`rand_svd()` (its own independent randomized decomposition) to build the
+actual `(B_hat, A_hat)` factors. The rank decision was using perfect spectral
+knowledge a randomized method should never have access to — a real deviation
+from the specified algorithm, not just wasted compute. **This means every
+SketchLoRA result in this document (and every SketchLoRA number anywhere in
+this repo) dated before 2026-08-03 that used `merge_op="randsvd"` +
+adaptive rank — i.e. every §8 table above (`round2_anchor`, `round2_slurm_grid`,
+`imagenetr_grid`), the whole CA v1/v2 sweep in §7, everything — was produced
+under this bug.** Do not treat those numbers as reflecting the algorithm as
+specified; they reflect a strictly easier rank-selection procedure than
+`randsvd` is supposed to have.
+
+**Fix** (`utils/randsvd.py`: new `rand_svd_probe()` + `factors_from_probe()`;
+`models/sketchlora.py::_compress()`): the randomized decomposition now runs
+ONCE, sized to `composite_rank = prev_rank + residual_total` (an EXACT upper
+bound on `delta_W`'s true rank, derived from the LoRA factor structure, not
+estimated), and both the rank decision and the final factors come from that
+single decomposition. The same bug pattern still exists, UNFIXED, in
+`utils/admission.py::floor_admission_merge` (only reachable via
+`sketchlora_admission="floor"`, not used in any production config to date —
+lower priority but real, fix before ever using `floor` for a reported number).
+
+**Reassuring finding post-fix** (§8.7's `sketchlora_ablations_imagenetr20t`
+campaign, run entirely under the fixed code): `exactsvd`'s accuracy (which
+was never affected by this bug — it always used a genuine full exact SVD)
+tracks `current`/randsvd's POST-fix accuracy within ~0.5-1 point per seed —
+the fix did not leave `randsvd` meaningfully behind the "ideal" exact-SVD
+ceiling. This is real evidence the fix didn't break anything, but it is not
+the same claim as "the pre-fix numbers above are still valid" — they aren't;
+the fix changed what the algorithm actually does, even if the net accuracy
+effect turned out to be small on this particular split.
+
+## 8.6. Measured-CE profiling system (2026-08-03, supersedes `ce_formulas.py` for anything reported)
+
+The original CE (computational-efficiency) accounting — `utils/ce_formulas.py`,
+hand-derived analytic MAC formulas per method, referenced throughout §3/§8
+above — was abandoned after three separate formula bugs were found by manual
+re-reading (InfLoRA missing its own base-forward cost, entirely the subject
+of §3's "CE-metric audit finding" above; InfLoRA's flat `dim^3` DualGPM term
+ignoring basis growth; TreeLoRA's flat per-step formula plus a zero boundary
+term). Replaced with direct `torch.profiler` region measurement:
+`utils/ce_profiler.py` (`ce_region(label)` context-manager tag, wrapped in a
+no-op when no profiling session is active so tags are safe to leave in
+permanently; `CEProfileSession`; `CEProfileController`, which handles
+sampling cadence + hold-between-cycles logic), `utils/ops_ledger.py`
+(`OpsLedger.record_unit()` extended with `measured_step_regions`/
+`measured_boundary_regions`/`baseline_step_macs_fwd`/`baseline_step_macs_bwd`/
+`profile_provenance`; `compute_ce(source=, baseline_numerator=)`;
+`compute_ce_report()` returns `ce_formula`/`ce_measured`/
+`ce_formula_baseline_numerator`/`ce_measured_baseline_numerator` plus
+`ce_best`/`ce_best_source`, a preference-ordered pick of the most trustworthy
+variant actually available — **this is the value to log/read, never
+`ce_formula` alone**, which is an inert ~1.0 under oracle mode by
+construction since the old aux/boundary formula hooks are never called
+there).
+
+**The fairness rule this whole redesign encodes**: "would SeqLoRA also pay
+this cost?" If yes, it's shared baseline, never charged as a method's own
+overhead. The single biggest fairness hole this fixes: a naive per-method
+`Ops_fb` measurement lets a method's own extra forward cost (O-LoRA/
+InfLoRA/TreeLoRA's frozen-delta matmul, SketchLoRA's sketch-inclusion matmul)
+sit in BOTH the CE numerator and denominator and cancel, making an
+expensive-forward method with no aux cost read CE=1.0 and look free. Fix
+("R2" in the implementation notes): measure a SeqLoRA-equivalent baseline
+(single slot, `merge=False`) via `measure_baseline_and_actual()` and use it
+as a shared numerator correction — this is what `ce_best_source` resolving
+to `ce_measured_baseline_numerator` means in every log line you'll see.
+
+**Two structurally different wiring paths, gated behind `final_metrics=true`
+(same flag `MetricsLogger` uses)**:
+- `models/bounded_memory_mixin.py` (the streaming driver): THREE profiling
+  kinds per cycle — `boundary_begin` (`_stream_begin_chunk`), `step` (epoch 0
+  of a sampled cycle only), `boundary_end` (`_stream_end_chunk`) — because the
+  driver calls these as three separate, driver-visible steps and can wrap
+  each independently.
+- `trainer.py`'s oracle per-task loop (added 2026-08-03 specifically for this
+  — the oracle path had ZERO CE logging of any kind before): only ONE
+  controller kind, `"task"`, wrapping the entire opaque
+  `model.incremental_train(data_manager)` call (each method decides
+  internally when to run its own boundary actions; trainer.py has no hook
+  into that internal structure). Routed into `measured_boundary_regions`
+  (a one-off per-task cost), NOT `measured_step_regions` (which gets
+  multiplied by `n_epochs*steps_per_epoch` downstream and would wildly
+  overcount a whole-task profile). Coarser than bounded_memory's 3-way split
+  — no separate "per-step-only" vs "boundary-only" view under oracle mode —
+  but not double-counted or mis-scaled.
+
+**`ce_profile_every` semantics — the single most important gotcha for
+reading any CE number in this repo**: this controls ONLY the expensive
+full-region `torch.profiler` trace (`measured_step_regions`/
+`measured_boundary_regions`, what `n_actually_profiled` in a `[CE metric]`
+log line counts). It does NOT gate the cheap, always-on single-batch R2
+baseline probe (`measure_baseline_and_actual`, called unconditionally
+whenever `final_metrics` is on) — so `ce_profile_every=0` (used throughout
+`sketchlora_ablations_imagenetr20t`, §8.7, because profiling a WHOLE
+`incremental_train()` call — every epoch, every step, real data — over 20
+real tasks is expensive) still produces a real, non-1.0 `ce_best` value via
+`ce_measured_baseline_numerator`; it just means `n_actually_profiled: 0` and
+no per-region breakdown exists for those runs. `ce_profile_every=1` (used in
+the staged-but-not-yet-submitted `ce_smoke_imagenetr5t` 5-task validation
+run, `scripts/ce_smoke_imagenetr5t.slurm` + its config generator) profiles
+every task and IS meant to give the full region breakdown, at real cost (took
+~40min for 4 tasks of the cheapest method in early testing) — appropriate
+only for a short validation run, not a full campaign.
+
+**Known unresolved, flagged not silently assumed**: whether
+`torch.profiler.record_function` correctly attributes a *backward* pass back
+to a forward-tagged region is unverified against real torch 2.4.1 behavior
+(O-LoRA's `orth_penalty_matmul` tag only gives a measured FORWARD floor).
+O-LoRA's `orth_prev_cache_rebuild` fires once per CYCLE not once per EPOCH
+(unlike TreeLoRA's analogous cache) — deliberately left unmodeled rather than
+force-fitting the standard per-step scaling pipeline, which would overstate
+it ~20x. `utils/admission.py::floor_admission_merge`'s same exact-SVD-for-
+rank-selection pattern as §8.5's bug is unfixed there too (ablation-only,
+lower priority). Full implementation detail: `docs/ce_profiling_implementation_plan.md`.
+
+**Nothing in this CE-profiler subsystem has been GPU-tested as of this
+writing** — every line was verified only by `ast.parse`, real Python imports,
+and synthetic (fabricated-input, no `torch.profiler`) unit tests of the
+ledger/controller logic, per the two-cluster rule (§1.5) — local GPUs are
+off-limits for anything beyond that. The `ce_smoke_imagenetr5t` 5-task
+ImageNet-R oracle smoke test exists specifically to validate this on a real
+H200 run before trusting any number it produces, and — as far as this
+document's own authors know — has not yet been confirmed submitted.
+
+## 8.7. `sketchlora_ablations_imagenetr20t` campaign (2026-08-04/05) — real H200 results, a real bug found and fixed, a repair round staged
+
+6 SketchLoRA merge/rank/admission variants x 3 seeds (1993/1996/1999),
+ImageNet-R FULL 20-task split (`init_cls=10, increment=10`), ORACLE
+boundaries (no `boundary_mode` key — the §1 exception), `final_metrics=true`,
+**`ce_profile_every=0`** (region-level CE breakdown deliberately off, see
+§8.6 — only the cheap formula+baseline-probe CE path populates every
+record). Full per-variant reasoning: `scripts/gen_sketchlora_ablations_imagenetr20t_configs.py`'s
+own docstring (long, careful, read directly rather than re-derived here).
+
+**The 6 original variants**, each changing exactly one axis off `current`
+(the frozen-v1 production config used everywhere else in this repo):
+`current` (adaptive rank ε=0.01, `bounded_eviction`, `rank_cap=128`,
+`merge_op=randsvd`), `exactsvd` (`merge_op=exactsvd`), `globaleps`
+(`sketchlora_admission=global_eps`, removes the bounded_eviction per-merge
+cap), `fixedrank` (`svd_energy_target` unset → rank pinned at
+`svd_rank=lora_rank=10`, never adapts; admission forced to `global_eps`),
+`exactsvd_ca` (`exactsvd` + `classifier_alignment=True`, `ca_steps=300`/
+`ca_batch=128`/`ca_lr=0.001`), `countsketch` (`fixedrank`'s sibling:
+`merge_op=countsketch`, fixed rank for the same "no spectrum to threshold on"
+reason).
+
+**Run status (SLURM job 22181, one 12h allocation, started 2026-08-04
+03:42 NZST)**: 16/18 cells completed fully (all 20 tasks).
+`countsketch_s1996` was cut mid-run at task 10/20 when the wall clock hit (no
+partial-epoch checkpointing — a resubmit reruns it from task 0, not
+resumes); `countsketch_s1999` never started. `scripts/sketchlora_ablations_imagenetr20t.slurm`
+is resumable (skips any cell whose `metrics_*.json` already shows
+`"status": "done"`, lockfile-guarded) — resubmitting it picks up just those
+2 remaining cells, does not need to be folded into anything else.
+
+**Local-copy caveat**: only the per-cell `.out` stdout files + the SLURM
+job's own `.out`/`.err` were ever copied back to
+`run_logs/sketchlora_ablations_imagenetr20t/` — the actual
+`metrics_*.json`/`ops_ledger_*.json` (which live under
+`run_logs/final/sketchlora/` on the H200 side) were never transferred. Every
+number below was extracted by parsing the captured stdout
+(`Average Accuracy (CNN)` / `CNN top5 curve` / `[CE metric] sketchlora = ...`
+lines), not from the structured JSON.
+
+**Results (final avg CIL top1/top5 over all 20 tasks, mean of complete
+seeds; CE = `ce_best`, source `ce_measured_baseline_numerator` for every
+record since `ce_profile_every=0`)**:
+
+| variant | top1 mean | top5 mean | CE |
+|---|---:|---:|---|
+| current | 62.67 | 83.68 | ~0.982 |
+| exactsvd | 63.22 | 83.80 | ~0.982 |
+| exactsvd_ca | *(bug — see below, byte-identical to `exactsvd` as originally run)* | | |
+| globaleps | 62.56 | 83.46 | ~0.983 |
+| fixedrank | 59.05 | 80.45 | ~0.996 |
+| countsketch | **17.32** (s1993 only, complete) | 26.86 | ~0.996 |
+
+**Key findings:**
+1. **CountSketch merge collapses catastrophically** — 17.3% avg CIL top1 vs
+   59-64% for every SVD-based variant, a ~42-point gap. The partial `s1996`
+   run (already at 33.6% by task 10/20, per-task curve falling into single
+   digits by task 6-9) is consistent. `utils/countsketch.py` was audited
+   directly before this campaign and looks sound (handles the all-zero-norm
+   edge case, deterministic per-(task,module) seed) — working hypothesis is
+   this is a real algorithmic result (hash-based rank reduction genuinely
+   destroys task-discriminative structure SVD truncation preserves), not an
+   implementation bug. Needs `countsketch_s1996`/`s1999` to finish before
+   citing 17.3 as more than a single data point.
+2. **`fixedrank` costs ~3.6 points top1 (~3.2 top5) vs `current`'s adaptive
+   threshold** — real, consistent across all 3 seeds. Adaptive rank selection
+   is earning its complexity.
+3. **`globaleps` is statistically indistinguishable from `current`** (62.56
+   vs 62.67 mean) — on this split/budget, disabling the `bounded_eviction`
+   eviction cap doesn't move accuracy, contrary to what its existence (as a
+   fix for "rank collapse") might suggest. Worth revisiting on a longer
+   horizon or tighter budget with more merge events before concluding the
+   cap is unnecessary in general.
+4. **`exactsvd_ca` was a silent no-op — `classifier_alignment` never
+   actually ran, root cause confirmed not speculated.** `exactsvd_ca`'s CNN
+   top1/top5 curves were BYTE-IDENTICAL to plain `exactsvd`'s on every seed.
+   Traced: the actual `align_head`/`apply_logit_adjustment` call lived
+   entirely inside `models/sketchlora.py::_stream_end_chunk`, a
+   `StreamMixin` hook only ever invoked by `bounded_memory_mixin.py`'s or
+   `stream_mixin.py`'s own drivers — NEVER by `trainer.py`'s plain oracle
+   `incremental_train()` path, which is what this entire campaign uses (the
+   §1 exception). SketchLoRA still compressed correctly under oracle mode
+   because it separately overrides `_train()` to fold at period boundaries —
+   but that override never touched CA, so `self._ca_stats` was never even
+   constructed and the whole CA branch was dead code: no crash, no log line,
+   silently skipped.
+
+**Fixed 2026-08-05, commit `543a4fc`**, in `models/sketchlora.py`: new
+shared helpers `_ca_lazy_init_stats()` (idempotent lazy build of
+`self._ca_stats`) and `_ca_reset_reservoir()` (extracted unchanged from
+`_stream_begin_chunk`'s existing per-cycle reset) are now called from BOTH
+`_stream_init`/`_stream_begin_chunk` (streaming, unchanged) AND the oracle
+`_train()` override (new). New `_run_ca_alignment()` — the `align_head`/
+`apply_logit_adjustment` dispatch, mechanically extracted from
+`_stream_end_chunk` bit-exact (same `ce_region` tags) — is called from both
+`_stream_end_chunk` (unchanged) and the end of oracle `_train()` (new),
+matching "every cycle" cadence (a task IS a cycle under oracle mode with
+`svd_period=1`, the value every production/ablation config uses). New
+`_train_with_ca()` is the oracle-path counterpart to the streaming path's
+`_bounded_train_epoch`: reimplements `models/lora.py::_train`'s multi-epoch
+loop so the same forward pass that computes the training loss also feeds
+`ClassStats.update`/the real-feature reservoir — no extra forward pass,
+mirroring `_bounded_train_epoch`'s own design. Verified with a synthetic
+CPU-only unit test (fake network standing in for the real ViT, per §1.5 — no
+local GPU execution): `ClassStats` builds and populates correctly,
+`align_head`/`apply_logit_adjustment` demonstrably change `net.fc`'s
+weights, lazy-init is idempotent across a simulated next task, the reservoir
+resets correctly. **Still not GPU-tested for real** — the repair campaign
+below is what validates it.
+
+**`models/noadapt.py` added 2026-08-05** (registered in `utils/factory.py`
+as `model_name="noadapt"`) — see the roster table in §3.
+
+**Repair/extension campaign, staged 2026-08-05, NOT yet run** (no direct
+H200 access from this session — §1.5). Two independent SLURM scripts, same
+resources each (1 GPU, 10 CPU cores, 48GB RAM, 3h30m wall — split into two
+scripts and given this exact wall time at explicit user request):
+- `scripts/sketchlora_ablations_imagenetr20t_repair_a.slurm` (9 cells):
+  `exactsvd_ca` FORCE-rerun once (bypasses the pre-existing `"status": done`
+  marker from job 22181's corrupted run — the one cell in either script that
+  does this — overwrites `run_logs/final/sketchlora/{metrics,ops_ledger}_..._exactsvd_ca_..._s<seed>.json`
+  in place; its own stdout capture is `exactsvd_ca_s<seed>.out`, deliberately
+  a different filename from job 22181's `sketchlora_exactsvd_ca_s<seed>.out`
+  so the old corrupted-run stdout survives alongside it as a historical
+  record) + `seqlora` (new comparison point, see §3) + `noadapt` (new
+  baseline, normal skip-if-done for both).
+- `scripts/sketchlora_ablations_imagenetr20t_repair_b.slurm` (6 cells, both
+  brand new, normal skip-if-done): `fixedrank_ca` (= `fixedrank` + CA, same
+  CA hyperparameters as `exactsvd_ca` — isolates how much of `fixedrank`'s
+  ~3.6pt deficit vs `current` is closable by correcting classifier HEAD
+  drift alone vs. requiring the adaptive rank itself) + `fixedrank_exactsvd_ca`
+  (`fixedrank_ca` but `merge_op=exactsvd` — how much further exact-SVD
+  reconstruction recovers once CA has already been credited).
+  Config generator for all 4 new configs (shared by both scripts, idempotent
+  if run twice): `scripts/gen_sketchlora_ablations_imagenetr20t_repair_configs.py`.
+  Independent scripts (share only the generator + output directory) — safe
+  to submit both at once. Neither touches `current`/`exactsvd`/`globaleps`/
+  `fixedrank`/`countsketch`'s own outputs (different tags, never opened).
+  All 15 new `.out` filenames (`<variant>_s<seed>.out`, no `sketchlora_`
+  prefix) were checked against every existing filename in
+  `run_logs/sketchlora_ablations_imagenetr20t/` — no collisions.
+  `countsketch_s1996`/`s1999` (job 22181's own incomplete cells) are
+  explicitly OUT OF SCOPE for both repair scripts — resubmit the ORIGINAL
+  `scripts/sketchlora_ablations_imagenetr20t.slurm` separately for those.
+
+**Known bug in the diagnostics output, found 2026-08-05, NOT fixed** — real,
+pre-existing (not introduced by the repair scripts), but directly bites
+them: `models/sketchlora.py`'s `_diag_path` (`sketchlora.py:343`, the path
+`run_logs/sketchlora_diag_*.json` that `sketch_diag=True`'s per-compression
+retained-energy/r̂ records get written to) is keyed only by
+`(energy_target-or-svd_rank, n_lora_blocks, split, seed)` — NOT by
+variant/prefix/`merge_op`. Two collision groups exist across the whole
+campaign: `adapt0.01_ball_ic10i10_seed<seed>` (shared by `current`,
+`exactsvd`, `globaleps`, `exactsvd_ca`) and `r10_ball_ic10i10_seed<seed>`
+(shared by `fixedrank`, `countsketch`, `fixedrank_ca`,
+`fixedrank_exactsvd_ca`). Each variant sharing a tag opens the same JSON
+path and overwrites it (`"w"` mode) on every compression event, so only the
+LAST variant to run in that group (by execution order) has a surviving file
+on disk — this already silently happened during job 22181 (`current`'s and
+`exactsvd`'s own diag files no longer exist; `exactsvd_ca` clobbered them
+last) and WILL recur in `repair_b` (`fixedrank_ca` then
+`fixedrank_exactsvd_ca` run sequentially in the same script, same tag —
+`fixedrank_ca`'s diag JSON will be lost). Does NOT affect accuracy/CE
+numbers (those live in per-run `metrics_*.json`/stdout, unaffected) and does
+NOT affect the `[SketchDiag]` stdout log lines (each variant's own `.out`
+file keeps its own lines regardless — only the consolidated JSON is lossy).
+**Not fixed** — would require making `_diag_path` include `args.get("prefix")`.
+Do this before submitting either repair script if per-variant compression
+diagnostics (not just stdout) matter for this round.
+
 ## 9. Pre-registration discipline (binding on any new analysis)
 
 This project pre-registers predictions verbatim, dated, before seeing results
@@ -524,45 +840,52 @@ standard: report contradicting results as contradictions.
   step — logit-suppression). Fixed in Round 2 via cycle-derived class masking.
   All Round-1 numbers are diagnostic-only, never cite as production.
 
-## 11. Uncommitted work as of this writing (verify current git status before assuming)
+## 11. Git state as of this writing (2026-08-05, commit `543a4fc`) — verify current git status before assuming
 
-At the time this document was written, `git status` showed modifications to
-`models/{bounded_memory_mixin,inflora,olora,sketchlora,stream_mixin,treelora}.py`
-and `utils/randsvd.py`, plus untracked `impl_plan_7.27.2026/`,
-`impl_plan_7.28.2026/`, `utils/{admission,lazy,ca,fd,ce_formulas,ops_ledger}.py`,
-`exps/{imagenetr_grid,sketchlora_boltons}/`, expanded `exps/round2_grid/`, and
-numerous `scripts/*.sh` / `scripts/gen_*.py`. This represents the `floor`
-admission rule, the full CA v2 sweep, the CE-metric ledger, and the
-(now-killed, see §8) local ImageNet-R grid — i.e., everything in §5-8 above.
-This repo IS a real git repo (`git remote -v` confirms
-`origin git@github.com:Guy-Marlow/SketchLoRA_Vision.git`, branch `main`, up to
-date with origin as of this writing) — `git status`/`git log` are reliable and
-should be checked fresh rather than assumed from this doc.
+As of this writing, `origin/main` is at `543a4fc` ("Fix SketchLoRA
+classifier_alignment dead under oracle-mode training; add no-adaptation
+baseline; stage repair/extension campaign") and the working tree is clean
+with respect to every file this document describes — §8.5-§8.7's fix,
+`models/noadapt.py`, both repair `.slurm` scripts, their config generator,
+and the 12 new `exps/sketchlora_ablations_imagenetr20t/*.json` configs are
+ALL committed and pushed. Commit history for this whole arc, newest first:
+`543a4fc` (§8.7's fix + repair campaign) → `d9326b0` (resource tuning on the
+original ablations script) → `45db144` (original `sketchlora_ablations_imagenetr20t`
+campaign, 6 variants x 3 seeds) → `14257dd` (ImageNet-R data-path symlink
+fix, `./data/imagenet-r` → `./data/imagenetr`, backported into both
+`ce_smoke_imagenetr5t.slurm` and `imagenetr_slurm_grid.slurm`) → `886455b`
+(§8.5/§8.6's fix — measured-CE profiling + the rand_svd bug fix).
 
-### 11.5. Newer disk state found 2026-07-31 (AFTER this doc's own last edit —
-this doc itself can go stale; always diff `git status`/file mtimes against
-what's written here before trusting any status claim, including this one)
+**What IS still uncommitted / untracked, and should stay that way** (an
+inherited, pre-existing pattern from other work in this repo, not part of
+anything §8.5-§8.7 touched — do not stage or commit these without a specific
+reason): extensive modifications/deletions under `run_logs/final_vision/`
+and `run_logs/round2_slurm_grid/` (stale plots/logs churn from an unrelated,
+defunct campaign, §8's "final_vision" callout), plus a handful of untracked
+files (`exps/imagenetr_slurm_grid/`, `exps/round2_slurm_grid/_smoke_cefix_*.json`,
+`scripts/gen_imagenetr_slurm_grid_configs.py`) whose origin/purpose was never
+fully investigated by the sessions that did the §8.5-§8.7 work — they were
+deliberately left alone (not staged, not deleted) rather than guessed about.
+If a future session needs to touch `run_logs/` or these specific untracked
+files, investigate their origin first rather than assuming they're safe to
+discard or commit.
 
-Four new files, all dated 2026-07-31 (one day after this document's own
-2026-07-30 timestamp), untracked, evidently prepared for an H200 SLURM
-submission of Section 3's "money rerun" positioning work:
-- `scripts/gen_imagenetr_slurm_grid_configs.py` + `exps/imagenetr_slurm_grid/`
-  (45 configs = 5 methods x {50,100,200}MB x 3 seeds {1993,1996,1999} — the
-  H200-targeted continuation of the killed local ImageNet-R grid, now with a
-  3rd seed) + `scripts/imagenetr_slurm_grid.slurm`.
-- `scripts/gen_sketchlora_ablations_imagenetr20t_configs.py` +
-  `exps/sketchlora_ablations_imagenetr20t/` (12 configs = 4 SketchLoRA
-  variants — `current`/`exactsvd`/`fixedrank`/`globaleps` — x 3 seeds; notably
-  does NOT include the new `floor` admission rule as a named variant here,
-  suggesting either this set predates `floor` or floor is being tested
-  elsewhere) + `scripts/sketchlora_ablations_imagenetr20t.slurm`.
+### 11.5. `imagenetr_slurm_grid` — status unconfirmed, separate from §8.7
 
-**No evidence these were actually submitted to H200** was found from this
-host (no `run_logs` entries referencing them, no local `sbatch`/`squeue`
-binaries to check queue state, no SLURM `.out`/`.err` files anywhere under
-these names). Treat as "configs prepared, submission status unconfirmed" —
-verify with the user or by checking for H200-side log copies before assuming
-these ran, are running, or produced results.
+`scripts/gen_imagenetr_slurm_grid_configs.py` + `exps/imagenetr_slurm_grid/`
+(45 configs = 5 methods x {50,100,200}MB x 3 seeds {1993,1996,1999}, the
+H200-targeted continuation of the (killed, §8) local ImageNet-R
+`bounded_memory` grid) + `scripts/imagenetr_slurm_grid.slurm` — this is a
+DIFFERENT campaign from `sketchlora_ablations_imagenetr20t` (§8.7): it's the
+5-method `bounded_memory` budget grid (regime 3), not the oracle-regime
+SketchLoRA-only ablation series (regime 1). **No evidence this grid was
+actually submitted to/completed on H200** has ever been confirmed from any
+session with access to this repo (no local `sbatch`/`squeue` binaries to
+check queue state). Treat as "configs prepared, submission status
+unconfirmed" — verify with the user or by checking for H200-side log copies
+before assuming this ran, is running, or produced results. (Its own data
+symlink fix, `14257dd`, IS committed regardless of whether the grid itself
+was ever run — see §11's commit list.)
 
 ## 12. How to launch a new run
 
@@ -584,55 +907,94 @@ check requires BOTH the accuracy-results JSON and the metrics JSON to indicate
 completion before skipping a config on relaunch — a run that completed under
 pre-metrics-fix code will not be silently skipped.
 
-## 13. Separate persistent-memory system (outside this repo, cross-session)
+## 13. Separate persistent-memory system (outside this repo, NOT git-portable — read this if you're a fresh session on a clone)
 
 Independently of this file, the operating agent (Claude Code) maintains its
 OWN cross-session memory store at
 `/home/gmar762/.claude/projects/-home-gmar762-research-continuous-learning/memory/`,
-indexed by `MEMORY.md` there. That system persists across DIFFERENT
-conversations/sessions (this document persists within/across continuations of
-THIS specific research thread, checked into the repo); the two are
-complementary, not redundant. Notable entries already there as of this
-writing, relevant to continuing this exact project: the two-cluster rule
-(§1.5 above originates from that memory, confirm it's still current there
-too), a standing rule that research plots are always static PNGs via
-matplotlib/seaborn (never web Artifacts) with bright pastel colors and
-`context="talk"` sizing, a standing rule that CE/runtime/persistent-memory
-metrics must be verified as actually wired into a harness (grep for the
-logging calls, never assume), and a note that the old rank8/alpha32/scaling-4
-vision convention (2026-07-01) is SUPERSEDED by the current rank10/alpha-null/
-scaling-1 convention used everywhere in this document. If picking up this
-project from a fresh conversation with no context, check that memory index
-too, not just this file.
+indexed by `MEMORY.md` there. **That system is local to one specific
+machine's Claude Code install and is NEVER committed to this git repo — it
+does not exist in a fresh `git clone`.** This document (`context.md`) is the
+ONLY mechanism in this project that actually travels with the repo — that is
+its entire purpose, and it is why it is kept this dense: **if you are a
+Claude instance reading this after a fresh clone on a different machine, this
+file plus code comments (this codebase leans heavily on long, careful header
+comments in `.slurm`/config-generator scripts specifically so a fresh reader
+doesn't need the memory system to reconstruct intent — see any
+`scripts/*.slurm` file for examples) are ALL the context you have. Do not
+assume access to anything under `~/.claude/projects/`, do not reference it,
+and do not ask the user to "check memory" — it isn't there for you.**
 
-## 14. Current status snapshot / suggested next steps (as of this writing)
+Notable content that lived in that memory system as of 2026-08-05, already
+folded into this document above so a clone doesn't need it: the two-cluster
+rule (§1.5), the CE-instrumentation redesign and fairness conventions (§8.6),
+the rand_svd bug (§8.5), the `sketchlora_ablations_imagenetr20t` campaign and
+its CA bug fix (§8.7), the rank10/alpha-null/scaling-1 convention superseding
+the old rank8/alpha32/scaling-4 one (§3). Standing STYLE/PROCESS rules that
+are NOT project facts and so are not repeated in this doc, but worth knowing
+if you're continuing this work under the SAME operator who has stated them
+before: research plots are always static PNGs via matplotlib/seaborn (never
+web Artifacts), bright pastel colors, `context="talk"` sizing; before
+proposing a speed optimization to a method WITH a published reference
+implementation, trace what the reference's own code actually does first —
+don't assume a naive port is "our inefficiency" to fix without checking (the
+O-LoRA orthogonality-penalty vectorization, §3, was reframed this way); for
+code with NO reference (SketchLoRA's own `rand_svd`/CountSketch), the bar for
+any optimization is bit-identical output (`torch.equal`), not merely
+`allclose` — a batched-GPU-QR/SVD optimization was tested and declined on
+exactly this bar (~1e-4 drift, not bit-exact). If continuing this project
+in a fresh session where that memory system IS available (i.e., same machine,
+not a clone), it remains useful for finer-grained blow-by-blow history than
+this document carries — but treat this document as authoritative for
+anything the two disagree on, since memory entries are frequently stale
+point-in-time snapshots and this file is the one artifact both sides of this
+project (human and any Claude instance, on any machine) are expected to keep
+in sync.
 
-Section 1 (admission rule `floor`) and Section 2 (CA v2 repair sweep) of
-`impl_plan_7.28.2026` are functionally DONE — code implemented, tests passing,
-sweep complete with a clear winner (`ca_v2_steps100_earlystop`, §7). Neither
-has been used in a completed PRODUCTION run yet (only local ablation/smoke
-runs) — the natural next step for each:
-- **`floor`**: needs a real comparison run (local ranking pass at minimum,
-  ideally an H200 production cell) against `bounded_eviction` at matched
-  settings, sweeping `admission_floor_k` in {1, 5} per the plan's own spec —
-  not yet done.
-- **CA v2**: the plan's own next step (arm "e", combining the steps100/
-  early-stop winner with a covariance-mode winner) is unrunnable as specified
-  since no covariance variant beat `diag` — either re-scope arm "e" (e.g. try
-  combining early-stop with `real_mix` at a lower fraction than 50%, which
-  wasn't sweeped) or accept `steps100_earlystop` alone as `ca_v2` and move to
-  Section 3.
-- **Section 3 (H200 money rerun)**: SLURM configs partially exist as of
-  2026-07-31 (§11.5) but submission is unconfirmed — this needs a human with
-  H200 access; report status, don't assume completion.
-- **Section 4 (InfLoRA positioning)**: the CE-hook audit (§3 above) found a
-  REAL, quantified gap — `inflora_boundary_macs()` only charges the
-  incremental covariance-bookkeeping cost of InfLoRA's two extra full passes
-  per cycle, never their own base forward-pass compute, understating
-  InfLoRA's true overhead by roughly 4x (reported CE ~0.993-0.994 vs a
-  back-of-envelope corrected ~0.96). This needs a DECISION (fix the ops-ledger
-  accounting project-wide, which changes every existing InfLoRA CE number, vs.
-  document as a known caveat) that has NOT yet been made — do not silently
-  "fix" this without surfacing the tradeoff first, per this project's own
-  pre-registration discipline (§9) against post-hoc changes that alter
-  reported numbers.
+## 14. Current status snapshot / suggested next steps (as of 2026-08-05)
+
+**Most immediate, most likely to be what a fresh session is picked up to do:**
+1. **Submit both `scripts/sketchlora_ablations_imagenetr20t_repair_a.slurm`
+   and `_repair_b.slurm` on H200** (§8.7) — staged, committed, pushed, not
+   yet run; no session working from this repo alone has H200 access (§1.5),
+   this needs the human operator. Before submitting, decide whether to fix
+   the `_diag_path` collision bug (§8.7's last paragraph) — cheap to fix,
+   currently silently drops `fixedrank_ca`'s own compression-diagnostics JSON.
+2. Once repair_a/b land: confirm `exactsvd_ca` now differs from `exactsvd`
+   (the whole point of the CA/oracle-mode fix — if the curves are STILL
+   identical, the fix itself has a bug, don't assume success); read
+   `seqlora`/`noadapt` as new floor/reference points; use `fixedrank_ca` vs
+   `fixedrank` vs `current` to decompose how much of the adaptive-rank
+   advantage is classifier-head drift vs. rank itself.
+3. Resubmit the ORIGINAL `scripts/sketchlora_ablations_imagenetr20t.slurm`
+   separately to finish `countsketch_s1996`/`s1999` (out of scope for the
+   repair scripts, §8.7) — needed for a stable 3-seed countsketch-collapse
+   result before citing it anywhere.
+4. Copy back `run_logs/final/{sketchlora,seqlora,noadapt}/*.json` and
+   `run_logs/sketchlora_diag_*.json` from H200 once runs complete — neither
+   repair script does this automatically, and this document's own §8.7
+   numbers are stdout-derived only, not sourced from the structured JSON.
+
+**Older, lower-priority open items, still genuinely open as of this
+writing** (carried forward from the pre-2026-08 state of this document; no
+session since has picked these up, they are not implicitly superseded by
+anything in §8.5-§8.7):
+- **Admission rule `floor`** (§5): implemented, unit-tested, never used in a
+  completed production run. Needs a real comparison against
+  `bounded_eviction` at matched settings, sweeping `admission_floor_k` in
+  {1, 5}. Also still carries §8.5's rand_svd-adjacent exact-SVD-for-rank-
+  selection bug in `floor_admission_merge` specifically — fix that first if
+  `floor` is ever used for a reported number.
+- **CA v2 arm "e"** (§7): unrunnable as originally specified (no covariance
+  variant beat `diag`) — needs re-scoping (e.g. combine early-stop with a
+  lower `real_mix_frac`) or explicit acceptance of `steps100_earlystop` alone
+  as `ca_v2`.
+- **`imagenetr_slurm_grid`** (§11.5): submission status still unconfirmed.
+- **InfLoRA CE-accounting gap** (§3's "CE-metric audit finding"): a real,
+  quantified ~4x understatement of InfLoRA's true overhead in the OLD
+  `ce_formulas.py` accounting. §8.6's measured-CE system may have already
+  superseded this concern for any NEW InfLoRA run (it measures rather than
+  estimates), but the historical InfLoRA CE numbers cited in §3/§8 above were
+  never revisited under the new system — if InfLoRA's CE is reported again,
+  confirm it's coming from `compute_ce_report`'s `ce_best`, not the old
+  `ce_formulas.py` path, before trusting it.
