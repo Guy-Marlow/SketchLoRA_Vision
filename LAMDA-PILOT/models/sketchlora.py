@@ -72,11 +72,14 @@ import math
 import os
 import sys
 
+import numpy as np
 import torch
-from torch import nn
+from torch import nn, optim
 from torch.nn import functional as F
+from tqdm import tqdm
 
 from models.lora import Learner as LoRALearner
+from utils.toolkit import tensor2numpy
 
 # trusted randomized-SVD implementation (vendored into utils/ for self-containment)
 from utils.randsvd import rand_svd, rand_svd_probe, factors_from_probe
@@ -428,10 +431,36 @@ class Learner(LoRALearner):
     def _stream_init(self):
         self._cur_task = -1                       # diagnostic chunk id used by _compress
         if self.classifier_alignment:
+            self._ca_lazy_init_stats()
+
+    def _ca_lazy_init_stats(self):
+        """Build self._ca_stats once self._network.fc exists (not available at
+        __init__ time -- update_fc runs later). Shared by both harnesses: the
+        streaming path calls this from _stream_init (once, before any cycle);
+        the oracle path (2026-08-05 fix -- classifier_alignment was previously
+        DEAD CODE under trainer.py's plain per-task loop, since _stream_init is
+        only ever called from bounded_memory_mixin.py/stream_mixin.py, never
+        from models/lora.py::incremental_train -- see
+        sketchlora_ablations_imagenetr20t's exactsvd_ca finding) calls this
+        lazily from _train, guarded by `if self._ca_stats is None` so repeated
+        per-task calls are a no-op after the first."""
+        if self._ca_stats is None:
             from utils.ca import ClassStats
             net = self._network.module if hasattr(self._network, "module") else self._network
             self._ca_stats = ClassStats(feat_dim=net.fc.in_features, device=self._device,
                                          cov_mode=self.ca_cov_mode)
+
+    def _ca_reset_reservoir(self):
+        # (c) reset the real-feature reservoir at the START of each cycle, so
+        # align_head (called at cycle end) only ever mixes in features that
+        # genuinely came from THIS cycle's own training, never a stale
+        # previous cycle's leftovers. Shared by both harnesses -- see
+        # _ca_lazy_init_stats's docstring for why oracle mode needs its own
+        # call site (models/lora.py::_train, via this class's own _train
+        # override) rather than reusing _stream_begin_chunk.
+        self._ca_real_buffer_feats = None
+        self._ca_real_buffer_labels = None
+        self._ca_real_buffer_n_seen = 0
 
     def _stream_slot(self):
         return RESIDUAL + (self._cur_task % self.svd_period)
@@ -443,13 +472,7 @@ class Learner(LoRALearner):
         self._cur_task += 1
         self._freeze_inactive_blocks()
         if self.ca_real_mix_frac > 0:
-            # (c) reset the real-feature reservoir at the START of each cycle,
-            # so align_head (called at cycle end) only ever mixes in features
-            # that genuinely came from THIS cycle's own training, never a
-            # stale previous cycle's leftovers.
-            self._ca_real_buffer_feats = None
-            self._ca_real_buffer_labels = None
-            self._ca_real_buffer_n_seen = 0
+            self._ca_reset_reservoir()
         super()._stream_begin_chunk(loader)       # freeze_to_task(slot) + fresh optimizer
 
     def _stream_end_chunk(self, loader):
@@ -483,12 +506,21 @@ class Learner(LoRALearner):
 
         # Classifier alignment (impl_plan_7.27.2026 sec 1.3): "after each fold (or
         # each cycle if no fold)" -- runs every cycle, independent of fold timing.
-        # v2 (impl_plan_7.28.2026 sec 2): (d) logit_adjust_only is a STRUCTURALLY
-        # different arm (no head retraining, just an additive bias) -- dispatched
-        # separately, never combined with the ordinary align_head path.
-        if self.classifier_alignment and self.ca_logit_adjust_only:
+        if self.classifier_alignment:
+            self._run_ca_alignment()
+
+    def _run_ca_alignment(self):
+        """Dispatches to whichever CA arm is configured. Shared by both
+        harnesses (streaming's _stream_end_chunk calls this every cycle,
+        unconditionally; the oracle path's _train override -- 2026-08-05 fix,
+        see _ca_lazy_init_stats's docstring -- calls this every task, matching
+        the SAME "every cycle" cadence since a task IS a cycle there).
+        v2 (impl_plan_7.28.2026 sec 2): (d) logit_adjust_only is a STRUCTURALLY
+        different arm (no head retraining, just an additive bias) -- dispatched
+        separately, never combined with the ordinary align_head path."""
+        net = self._network.module if hasattr(self._network, "module") else self._network
+        if self.ca_logit_adjust_only:
             from utils.ca import apply_logit_adjustment
-            net = self._network.module if hasattr(self._network, "module") else self._network
             # *** UNTESTED as of 2026-08-03 *** -- the plan's formula-based
             # accounting (_ce_boundary_macs_this_cycle below) leaves this uncosted
             # by design ("no head retraining ... negligible against a real
@@ -501,9 +533,8 @@ class Learner(LoRALearner):
                     net.fc, self._ca_stats, self.ca_logit_adjust_tau, self._ca_logit_correction)
             logging.info("[CA] cycle {}: logit_adjust_only tau={}".format(
                 self._cur_task, self.ca_logit_adjust_tau))
-        elif self.classifier_alignment:
+        else:
             from utils.ca import align_head
-            net = self._network.module if hasattr(self._network, "module") else self._network
             real_buf = None
             if self.ca_real_mix_frac > 0 and self._ca_real_buffer_feats is not None \
                     and self._ca_real_buffer_feats.shape[0] > 0:
@@ -700,7 +731,26 @@ class Learner(LoRALearner):
     # -- eval runs before after_task) --------------
     def _train(self, train_loader):
         self._freeze_inactive_blocks()   # re-freeze before the optimiser is built
-        super()._train(train_loader)
+        # 2026-08-05 fix: classifier_alignment was DEAD CODE on this (oracle)
+        # path -- its actual effect lived entirely in _stream_end_chunk, a
+        # StreamMixin hook only ever invoked by bounded_memory_mixin.py's/
+        # stream_mixin.py's own drivers, never by models/lora.py's plain
+        # incremental_train->_train() call used here. _ca_stats was therefore
+        # never even constructed and _run_ca_alignment never ran -- confirmed
+        # by exactsvd_ca producing byte-identical accuracy curves to exactsvd
+        # on every seed of sketchlora_ablations_imagenetr20t (see that
+        # campaign's memory/results). Mirrors bounded_memory's own cadence: a
+        # "cycle" there is a chunk; here a task IS the cycle (svd_period=1 in
+        # every production/ablation config), so per-task is the correct analog
+        # of "every cycle" for both the reservoir reset (start) and alignment
+        # (end).
+        if self.classifier_alignment:
+            self._ca_lazy_init_stats()
+            if self.ca_real_mix_frac > 0:
+                self._ca_reset_reservoir()
+            self._train_with_ca(train_loader)
+        else:
+            super()._train(train_loader)
         at_period_boundary = (self._cur_task + 1) % self.svd_period == 0
         at_last_task = (self._cur_task + 1) >= self._n_run_effective
         if at_period_boundary or at_last_task:
@@ -718,6 +768,63 @@ class Learner(LoRALearner):
             # happens, so this never leaks into the next task's training routing.
             net = self._network.module if hasattr(self._network, "module") else self._network
             net.default_task = SKETCH
+        # Classifier alignment runs every task (== every cycle here), same
+        # "after each fold (or each cycle if no fold)" semantics as
+        # _stream_end_chunk -- independent of the compress gate above, placed
+        # after it to match that method's structural ordering (align_head
+        # operates purely on net.fc via _ca_stats, so the relative order vs.
+        # compress has no functional effect either way).
+        if self.classifier_alignment:
+            self._run_ca_alignment()
+
+    def _train_with_ca(self, train_loader):
+        """Oracle-path counterpart to _bounded_train_epoch's CA-aware loop.
+        Reimplements models/lora.py::_train's multi-epoch loop (rather than
+        delegating to super()) so the SAME forward pass already computed for
+        the training loss also yields "features" fed to ClassStats/the
+        reservoir -- no extra forward, exactly matching _bounded_train_epoch's
+        own design, just spanning every epoch of one task instead of a single
+        streaming epoch."""
+        self._network.to(self._device)
+        params = self._optimizer_param_groups()
+        optimizer = optim.AdamW(params, lr=self.init_lr, weight_decay=self.weight_decay)
+        scheduler = optim.lr_scheduler.CosineAnnealingLR(
+            optimizer, T_max=self.epochs, eta_min=self.min_lr) if self.lr_anneal else None
+
+        lo, hi = self._ce_slice()
+        prog_bar = tqdm(range(self.epochs))
+        for _, epoch in enumerate(prog_bar):
+            self._network.train()
+            losses, correct, total = 0.0, 0, 0
+            for _, inputs, targets in train_loader:
+                inputs, targets = inputs.to(self._device), targets.to(self._device)
+                output = self._network(inputs, task=self._train_adapter(), merge=self.train_merge)
+                logits = output["logits"]
+                local_logits = logits[:, lo:hi]
+                local_targets = targets - lo
+                loss = F.cross_entropy(local_logits, local_targets)
+
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+                losses += loss.item()
+
+                with ce_region("sketchlora/ca_class_stats_update"):
+                    self._ca_stats.update(output["features"], targets)
+                if self.ca_real_mix_frac > 0:
+                    with ce_region("sketchlora/ca_reservoir_update"):
+                        self._ca_buffer_update(output["features"].detach(), targets.detach())
+
+                preds = local_logits.argmax(dim=1)
+                correct += preds.eq(local_targets).cpu().sum()
+                total += len(targets)
+            if scheduler is not None:
+                scheduler.step()
+            train_acc = np.around(tensor2numpy(correct) * 100 / total, decimals=2)
+            prog_bar.set_description(
+                "Task {}, Epoch {}/{} => Loss {:.3f}, Train_accy {:.2f}".format(
+                    self._cur_task, epoch + 1, self.epochs, losses / len(train_loader), train_acc))
+        logging.info("Task {} finished. Train_accy {:.2f}".format(self._cur_task, train_acc))
 
     @torch.no_grad()
     def _compress(self):
