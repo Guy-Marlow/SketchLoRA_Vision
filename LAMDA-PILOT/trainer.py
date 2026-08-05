@@ -182,10 +182,28 @@ def _train(args):
         # whether that specific method still warrants sampling on very long
         # campaigns). Still overridable via ce_profile_every for a campaign
         # that wants coarser sampling.
-        ce_ledger = OpsLedger(os.path.join("run_logs", "final", args["model_name"]), _tag)
-        ce_boundary_ctrl = CEProfileController(
-            model._device, profile_every=int(args.get("ce_profile_every", 1)),
-            enabled=True)
+        # CE/R2 measurement is LoRA-scaffold-specific: the R2 probe below reads
+        # model._train_adapter()/model.train_merge directly (which adapter slot,
+        # whether slots get summed) -- concepts that only exist on models/lora.py's
+        # Learner and its subclasses (SeqLoRA/O-LoRA/InfLoRA/TreeLoRA/SketchLoRA).
+        # TUNA/EASE/CL-LoRA/RainbowPrompt (and any other non-LoRA architecture)
+        # have neither attribute and previously hard-crashed here with
+        # AttributeError the first time any of them ran with final_metrics=True
+        # after the R2 rework landed (2026-08-05, user-caught via a TUNA smoke
+        # test). Skip CE/ops-ledger measurement entirely for those methods rather
+        # than crash -- persistent memory/FLOPs/accuracy (mlog, above) are a
+        # completely separate code path and unaffected.
+        if hasattr(model, "_train_adapter"):
+            ce_ledger = OpsLedger(os.path.join("run_logs", "final", args["model_name"]), _tag)
+            ce_boundary_ctrl = CEProfileController(
+                model._device, profile_every=int(args.get("ce_profile_every", 1)),
+                enabled=True)
+        else:
+            logging.info(
+                "[CE metric] {} has no _train_adapter/train_merge (non-LoRA "
+                "architecture) -- skipping CE/ops-ledger measurement for this run; "
+                "persistent memory/FLOPs/accuracy logging is unaffected.".format(
+                    args["model_name"]))
 
     for task in range(_n_run):
         if args.get("boundary_mode") == "budget":

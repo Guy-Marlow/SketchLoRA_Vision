@@ -233,6 +233,16 @@ def get_backbone(args, pretrained=False):
                 raise NotImplementedError("Unknown type {}".format(name))
             return model
     elif '_tuna' in name:
+        # REVERTED 2026-08-05: briefly made this config-driven (matching EASE/
+        # CL-LoRA's args["ffn_num"] pattern) on the assumption it controlled
+        # TUNA's adapter width the same way it does for those two methods.
+        # Traced it through backbone/vit_tuna.py instead of assuming: TUNA's
+        # actual adapter bottleneck comes from `r` (Adapter(..., bottleneck=
+        # self.r, ...) at vit_tuna.py:347), NOT config.ffn_num -- ffn_num is
+        # carried in tuning_config only for shape-parity with EASE/CL-LoRA's
+        # template and is never read anywhere in vit_tuna.py's adapter
+        # construction. Making it configurable would have been dead, misleading
+        # config -- back to the literal so nothing implies it does anything.
         ffn_num = 16
         from backbone import vit_tuna
         from easydict import EasyDict

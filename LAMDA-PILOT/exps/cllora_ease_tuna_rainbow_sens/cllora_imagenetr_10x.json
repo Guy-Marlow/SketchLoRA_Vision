@@ -1,0 +1,68 @@
+{
+  "dataset": "imagenetr",
+  "memory_size": 0,
+  "memory_per_class": 0,
+  "fixed_memory": false,
+  "shuffle": true,
+  "init_cls": 10,
+  "increment": 10,
+  "stop_after_tasks": 5,
+  "seed": [
+    1993
+  ],
+  "scenario": "cil",
+  "pretrained": true,
+  "final_metrics": false,
+  "print_forget": false,
+  "batch_size": 48,
+  "weight_decay": 0.0001,
+  "min_lr": 0,
+  "model_name": "cllora",
+  "backbone_type": "vit_base_patch16_224_cllora",
+  "device": [
+    "0"
+  ],
+  "prefix": "lr_sweep_cllora_imagenetr_10x",
+  "init_epochs": 20,
+  "later_epochs": 20,
+  "init_lr": 0.3,
+  "later_lr": 0.3,
+  "optimizer": "sgd",
+  "scheduler": "cosine",
+  "vpt_type": "Deep",
+  "prompt_token_num": 5,
+  "ffn_num": 10,
+  "use_diagonal": false,
+  "recalc_sim": true,
+  "alpha": 0.0,
+  "use_init_ptm": false,
+  "beta": 0,
+  "use_old_data": false,
+  "use_reweight": true,
+  "moni_adam": false,
+  "adapter_num": -1,
+  "msa_adapt": true,
+  "use_distillation": true,
+  "use_block_weight": true,
+  "msa": [
+    1,
+    0,
+    1
+  ],
+  "general_pos": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5
+  ],
+  "specfic_pos": [
+    6,
+    7,
+    8,
+    9,
+    10,
+    11
+  ]
+}

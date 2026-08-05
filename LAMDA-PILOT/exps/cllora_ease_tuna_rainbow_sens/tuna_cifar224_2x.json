@@ -1,28 +1,33 @@
 {
-  "prefix": "tuna_cifar224_20t",
   "dataset": "cifar224",
   "memory_size": 0,
   "memory_per_class": 0,
   "fixed_memory": false,
   "shuffle": true,
-  "init_cls": 5,
-  "increment": 5,
+  "init_cls": 10,
+  "increment": 10,
+  "stop_after_tasks": 3,
+  "seed": [
+    1993
+  ],
+  "scenario": "cil",
+  "pretrained": true,
+  "final_metrics": false,
+  "print_forget": false,
+  "batch_size": 48,
+  "weight_decay": 0.0005,
+  "min_lr": 0,
   "model_name": "tuna",
   "backbone_type": "vit_base_patch16_224_tuna",
   "device": [
     "0"
   ],
-  "seed": [
-    1993
-  ],
-  "scenario": "cil",
+  "prefix": "lr_sweep_tuna_cifar224_2x",
   "tuned_epoch": 20,
-  "init_lr": 0.0005,
-  "batch_size": 48,
-  "weight_decay": 0.0005,
-  "min_lr": 0,
+  "init_lr": 0.001,
   "optimizer": "adamw",
   "scheduler": "cosine",
+  "r": 10,
   "reinit_optimizer": true,
   "init_milestones": [
     10
@@ -38,11 +43,8 @@
     "variance"
   ],
   "decay": false,
-  "pretrained": true,
   "drop": 0.0,
   "drop_path": 0.0,
-  "r": 10,
   "scale": 20.0,
-  "m": 0.0,
-  "final_metrics": true
+  "m": 0.0
 }

@@ -126,7 +126,8 @@ class Learner(LoRALearner):
         # residual reset, diagnostics) untouched. "randsvd" (default) is the original, unmodified
         # behaviour above.
         self.merge_op = args.get("merge_op", "randsvd")
-        assert self.merge_op in ("randsvd", "exactsvd", "countsketch", "naive_sum", "nocompress")
+        assert self.merge_op in ("randsvd", "exactsvd", "countsketch", "naive_sum",
+                                  "nocompress", "reduce_merge")
         # -- FD shrinkage bolt-on (impl_plan_7.27.2026 sec 1.1). Only meaningful for
         # SVD-truncation merge_ops -- "Sigma[l]" (the first discarded singular value)
         # has no analogue for naive_sum (no SVD) or countsketch (hashed, not truncated),
@@ -151,6 +152,17 @@ class Learner(LoRALearner):
                 "bounded_eviction/floor are rank-SELECTION refinements of adaptive " \
                 "(energy_target) mode -- nothing to bound in fixed-rank mode, where svd_rank " \
                 "already pins the rank every merge. Set svd_energy_target to use it."
+        # reduce_merge (2026-08-05, "reduce then merge" ablation -- see _compress)
+        # never evicts anything from the existing sketch (only ever adds to it,
+        # then re-expresses the sum losslessly), so admission_rule's whole
+        # question -- "how much of the EXISTING sketch to evict this merge" --
+        # doesn't apply to it. Same warning pattern as fd_shrinkage's merge_op
+        # compatibility check above.
+        if self.merge_op == "reduce_merge" and self.admission_rule != "global_eps":
+            logging.warning(
+                "[SketchLoRA] merge_op=reduce_merge ignores sketchlora_admission=%s -- "
+                "this merge_op never evicts from the existing sketch, so the admission "
+                "rule has no effect for this run.", self.admission_rule)
         # -- admission rule v2: floor + cap-turnover (impl_plan_7.28.2026 sec 1).
         # Single codepath REPLACING the two 2026-07-28-direction ablations
         # guaranteed_admission (reserved-slot protection, no floor-survives-cap
@@ -291,10 +303,13 @@ class Learner(LoRALearner):
             assert self.svd_rank == self.lora_rank, \
                 "naive_sum keeps rank fixed at the residual rank (no SVD) -- svd_rank must equal " \
                 "lora_rank, per Experiments_Timeline.pdf sec 1.b.iii.3"
-        if self.merge_op == "nocompress":
+        if self.merge_op in ("nocompress", "reduce_merge"):
             # numerical-rank threshold for "keep everything" (Experiments_Timeline.pdf sec
             # 1.b.iii.4): sigma_i kept iff sigma_i > max(dim) * eps * sigma_1, the standard
             # numerical-rank convention (same one torch/numpy matrix_rank uses internally).
+            # reduce_merge's final re-expression step uses the SAME convention (its sum-of-
+            # two-low-rank-matrices reconstruction is only lossless up to this same
+            # numerical-rank threshold).
             self.nocompress_eps = args.get("nocompress_eps", 1e-7)
         # last-task detection for _train's compress gate: mirrors trainer.py's own
         # `_n_run = min(stop_after_tasks or nb_tasks, nb_tasks)` exactly, so a forced
@@ -344,14 +359,34 @@ class Learner(LoRALearner):
         # overwrite each other's reconstruction-error diagnostics. Dataset name
         # is now part of the tag; old filenames (pre-fix) are left untouched on
         # disk, this only changes what NEW runs write.
-        dataset_tag = args.get("dataset", "unknown")
-        if self.energy_target is not None:
-            tag = "{}_adapt{}_b{}_{}".format(dataset_tag, self.energy_target, self.n_lora_blocks or "all", split)
+        # FIXED 2026-08-05 (cross-CAMPAIGN collision, not just cross-dataset):
+        # even with dataset in the tag, two INDEPENDENT campaigns running
+        # concurrently (different SLURM jobs, no shared coordination) still
+        # collide whenever they happen to match on (dataset, eps, split, seed)
+        # -- e.g. wave1_final and sketchlora_ablations_and_sens both running
+        # SketchLoRA on ImageNet-R at eps=0.01 at the same time. A post-hoc
+        # "write then move" can't fix this: the window between write and move
+        # is exactly when the other job's write can land on the same path.
+        # sketchlora_diag_dir (opt-in, config key) sidesteps the whole
+        # tag-uniqueness problem: point each campaign at its OWN directory and
+        # key the filename on this run's own `prefix` (already unique
+        # project-wide by convention) instead of a descriptive tag that's only
+        # unique WITHIN one campaign. Unset (every existing campaign) is
+        # byte-identical to the old shared-path/tag-based behavior -- nothing
+        # currently running or already collected is affected.
+        diag_dir = args.get("sketchlora_diag_dir")
+        if diag_dir is not None:
+            prefix = args.get("prefix") or "sketchlora"
+            self._diag_path = os.path.join(diag_dir, "sketchlora_diag_{}_seed{}.json".format(prefix, seed))
         else:
-            tag = "{}_r{}_b{}_{}".format(dataset_tag, self.svd_rank, self.n_lora_blocks or "all", split)
-        self._diag_path = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-            "run_logs", "sketchlora_diag_{}_seed{}.json".format(tag, seed))
+            dataset_tag = args.get("dataset", "unknown")
+            if self.energy_target is not None:
+                tag = "{}_adapt{}_b{}_{}".format(dataset_tag, self.energy_target, self.n_lora_blocks or "all", split)
+            else:
+                tag = "{}_r{}_b{}_{}".format(dataset_tag, self.svd_rank, self.n_lora_blocks or "all", split)
+            self._diag_path = os.path.join(
+                os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                "run_logs", "sketchlora_diag_{}_seed{}.json".format(tag, seed))
 
     # -- which attention blocks carry LoRA (all, or the first n) --------
     def _all_attns(self):
@@ -911,6 +946,17 @@ class Learner(LoRALearner):
         - ``nocompress``: keep every singular direction above the numerical-rank threshold
           (grows the sketch's rank every boundary; the sketch slot is variable-width like
           adaptive mode).
+        - ``reduce_merge``: inverts the order of every merge_op above (reduce THEN merge,
+          not merge then reduce). Truncates the TRANSIENT residual's own spectrum first
+          (randomized probe, same energy_target/svd_rank rule as randsvd/exactsvd applied
+          to the residual alone), sums the truncated residual with the UNTOUCHED existing
+          sketch, then re-expresses that sum via an EXACT (not randomized) SVD, keeping
+          every direction above the numerical-rank threshold -- since the sum of two
+          low-rank matrices is itself already low-rank (<= sketch rank + residual's
+          truncated rank), this second step is a lossless re-expression, not a further
+          compression. Ignores ``sketchlora_admission`` entirely (see the __init__
+          warning) -- nothing is ever evicted from the existing sketch in this algorithm,
+          only added to; ``sketchlora_rank_cap`` still applies as a hard ceiling.
 
         Rank selection: fixed mode (``energy_target`` unset) truncates to ``svd_rank`` (the
         fixed-rank sensitivity sweep sets this to the FULL target rank R; with P residuals of
@@ -1058,6 +1104,103 @@ class Learner(LoRALearner):
                                 p.requires_grad = False
                             A_list[SKETCH] = newA
                             B_list[SKETCH] = newB
+                    module_idx += 1
+                    continue
+
+                if self.merge_op == "reduce_merge":
+                    # "Reduce THEN merge" ablation (2026-08-05 user request), inverting
+                    # every other merge_op's order (merge then reduce): truncate the
+                    # TRANSIENT per-task update's own spectrum BEFORE it ever combines
+                    # with the sketch, then re-express the sum losslessly (exact SVD,
+                    # no further truncation) instead of truncating the combined sum the
+                    # way randsvd/exactsvd do. Self-contained (own S/B_hat/A_hat/
+                    # final_rank), falls through to the shared diagnostics/slot-realloc/
+                    # residual-reset tail below, same pattern as the admission_rule==
+                    # "floor" branch above. admission_rule is ignored here (see the
+                    # __init__ warning) -- there is no eviction step in this algorithm,
+                    # only addition, so "how much of the existing sketch to evict"
+                    # never arises.
+                    with ce_region("sketchlora/fold_merge_reduce_merge"):
+                        # 1-3: reduce the residual ALONE, before it sees the sketch --
+                        # sum just the residual slots (NOT B_s@A_s), randomized-probe-
+                        # decompose, truncate by the SAME energy_target/svd_rank rule
+                        # every other adaptive merge_op uses, just applied to the
+                        # residual's own spectrum instead of the full composite's.
+                        R = None
+                        for slot in residual_slots:
+                            A_r, B_r = A_list[slot].weight, B_list[slot].weight
+                            term = (B_r @ A_r).float()
+                            R = term if R is None else R + term
+                        residual_total = sum(A_list[slot].weight.shape[0] for slot in residual_slots)
+                        U_r, S_r, Vh_r = rand_svd_probe(R, residual_total, self.oversampling)
+                        if self.energy_target is not None:
+                            total_r = S_r.pow(2).sum()
+                            if total_r > 0:
+                                cum_r = torch.cumsum(S_r.pow(2), 0) / total_r
+                                r_low = int((cum_r < (1.0 - self.energy_target)).sum().item()) + 1
+                            else:
+                                r_low = 1
+                            r_low = max(1, min(r_low, residual_total))
+                        else:
+                            r_low = min(self.svd_rank, residual_total)
+
+                        # 4-5 COLLAPSED (user simplification, 2026-08-05): B_low @ A_low
+                        # is exactly U_r[:,:r_low] @ diag(S_r[:r_low]) @ Vh_r[:r_low,:] --
+                        # the standard truncated-SVD reconstruction formula -- so there's
+                        # no need to materialize B_low/A_low as separate LoRA factors
+                        # just to immediately multiply them back together; build the
+                        # [d,d] product directly from the probe's U/S/Vh instead.
+                        reduced_residual = U_r[:, :r_low] @ (S_r[:r_low].unsqueeze(1) * Vh_r[:r_low, :])
+
+                        # 6: sum with the UNTOUCHED existing sketch -- nothing evicted,
+                        # only added.
+                        merged = (B_s.float() @ A_s.float()) + reduced_residual
+
+                        # 7-8: EXACT (not randomized) SVD of the sum, re-expressed
+                        # WITHOUT further truncation -- merged's TRUE rank is already
+                        # <= r_hat(sketch) + r_low (a sum of two low-rank matrices), so
+                        # keeping every direction above the standard numerical-rank
+                        # threshold (same nocompress_eps convention "nocompress" already
+                        # uses) is a LOSSLESS re-expression, not a third round of
+                        # compression. rank_cap still applies as a hard ceiling (A5.1's
+                        # plain clamp, same as every other merge_op) so this can't grow
+                        # unboundedly if r_low doesn't shrink fast enough on its own.
+                        U, S, Vh = torch.linalg.svd(merged)
+                        thresh = max(merged.shape) * self.nocompress_eps * (S[0].item() if S.numel() else 0.0)
+                        final_rank = max(1, int((S > thresh).sum().item()))
+                        if self.rank_cap is not None:
+                            final_rank = min(final_rank, self.rank_cap)
+                        root_S = S[:final_rank].sqrt()
+                        B_hat = (U[:, :final_rank] * root_S.unsqueeze(0)).to(dt)
+                        A_hat = (root_S.unsqueeze(1) * Vh[:final_rank, :]).to(dt)
+                    B_hat, A_hat = B_hat.to(dev, dt), A_hat.to(dev, dt)
+
+                    if self.sketch_diag:
+                        with ce_region("_excluded/sketch_diag"):
+                            recon_err = (delta_W.float() - (B_hat.float() @ A_hat.float())).norm()
+                            fro_delta = delta_W.float().norm()
+                            retained.append(1.0 - (recon_err / fro_delta).item() ** 2 if fro_delta > 0 else 1.0)
+                            sigma_next.append(S[final_rank].item() if S.numel() > final_rank else 0.0)
+                            fro.append(fro_delta.item())
+                            rhat.append(final_rank)
+
+                    with ce_region("sketchlora/fold_slot_realloc"):
+                        if final_rank == B_s.shape[1]:
+                            B_s.data.copy_(B_hat)
+                            A_s.data.copy_(A_hat)
+                        else:
+                            newA = nn.Linear(delta_W.shape[0], final_rank, bias=False).to(dev, dt)
+                            newB = nn.Linear(final_rank, delta_W.shape[0], bias=False).to(dev, dt)
+                            newA.weight.data.copy_(A_hat)
+                            newB.weight.data.copy_(B_hat)
+                            for p in list(newA.parameters()) + list(newB.parameters()):
+                                p.requires_grad = False
+                            A_list[SKETCH] = newA
+                            B_list[SKETCH] = newB
+                    with ce_region("sketchlora/fold_residual_reset"):
+                        for slot in residual_slots:
+                            nn.init.kaiming_uniform_(A_list[slot].weight, a=math.sqrt(5))
+                            nn.init.zeros_(B_list[slot].weight)
                     module_idx += 1
                     continue
 
