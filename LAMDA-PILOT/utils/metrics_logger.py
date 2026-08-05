@@ -200,7 +200,9 @@ class MetricsLogger:
             "eval_seconds": round(eval_s, 3) if eval_s is not None else None,
             "boundary_seconds": round(boundary_seconds, 4),
             "cil_top1": cnn_accy["top1"] if cnn_accy else None,
+            "cil_top5": cnn_accy["top5"] if cnn_accy else None,
             "til_top1": til_accy["top1"] if til_accy else None,
+            "til_top5": til_accy["top5"] if til_accy else None,
             # "trainable" = currently-unfrozen parameter count at this task's own
             # training time (a per-task snapshot, distinct from "persistent" below,
             # which is the method's permanently-carried-forward state).

@@ -92,6 +92,7 @@ class OpsLedger:
     def record_unit(self, unit_idx, steps_per_epoch, n_epochs, step_macs_fwd, step_macs_bwd,
                      aux_macs_per_step=0.0, boundary_macs=None, auxiliary_pass_macs=None,
                      measured_step_regions=None, measured_boundary_regions=None,
+                     measured_per_epoch_regions=None,
                      baseline_step_macs_fwd=None, baseline_step_macs_bwd=None,
                      profile_provenance=None, nearest_latent_task=None):
         """One record per cycle/task.
@@ -111,6 +112,21 @@ class OpsLedger:
         measured_step_regions / measured_boundary_regions: {label: {"macs",
           "device_seconds", "host_seconds", "sync_ops", "n_calls"}} from
           utils/ce_profiler.py. Step regions are already normalised to PER-STEP.
+        measured_per_epoch_regions: 2026-08-05 addition (docs/
+          ce_step_boundary_isolation_plan.md sec 2/12) -- a THIRD recurrence
+          category, for costs that fire once per EPOCH, not once per step (e.g.
+          TreeLoRA's `all_grad` rebuild, guarded by new_epoch_init()'s per-epoch
+          reset) and not once per task/cycle like boundary_macs. Unlike
+          measured_step_regions, this is the RAW, UNDIVIDED epoch-0 total (not
+          divided by steps_per_epoch) -- scaled by n_epochs alone below. Lumping a
+          per-epoch cost into measured_step_regions and scaling it by
+          n_epochs*steps_per_epoch (as if it recurred every step) overcounts it by
+          a factor of n_epochs; that was a real, live bug for O-LoRA's
+          orth_prev_cache_rebuild (a per-TASK cost previously captured the same
+          way) -- see the plan doc's worked example for the exact arithmetic.
+          Produced by utils/ce_profiler.py::split_by_recurrence, which partitions a
+          single epoch-0 harvest by tag naming convention (second path segment
+          "per_epoch") rather than requiring a second profiled pass.
         baseline_step_macs_fwd/bwd: the shared SeqLoRA-equivalent (single-slot,
           merge=False) step cost -- plan convention R2. Using this as the CE
           numerator instead of each method's own forward stops a method's extra
@@ -170,28 +186,41 @@ class OpsLedger:
         rec["ops_fb"] = ops_fb
         rec["ops_total"] = ops_total
 
-        # ---- measured-CE extension (2026-08-03) ----
-        if measured_step_regions is not None or measured_boundary_regions is not None:
+        # ---- measured-CE extension (2026-08-03; per-epoch category added 2026-08-05) ----
+        if (measured_step_regions is not None or measured_boundary_regions is not None
+                or measured_per_epoch_regions is not None):
             from utils.ce_profiler import charged_macs, charged_seconds
             rec["measured_step_regions"] = measured_step_regions or {}
             rec["measured_boundary_regions"] = measured_boundary_regions or {}
+            rec["measured_per_epoch_regions"] = measured_per_epoch_regions or {}
             rec["profile_provenance"] = profile_provenance or {}
             # charged_macs excludes "_excluded/..." labels -- our own diagnostic
             # apparatus must never be charged to the method (plan convention R3).
             aux_measured = charged_macs(measured_step_regions)
             boundary_measured = charged_macs(measured_boundary_regions)
+            per_epoch_measured = charged_macs(measured_per_epoch_regions)
             rec["aux_macs_per_step_measured"] = aux_measured
             rec["boundary_macs_measured"] = boundary_measured
+            rec["per_epoch_macs_measured"] = per_epoch_measured
             rec["aux_seconds_per_step_measured"] = charged_seconds(measured_step_regions)
             rec["boundary_seconds_measured"] = charged_seconds(measured_boundary_regions)
+            rec["per_epoch_seconds_measured"] = charged_seconds(measured_per_epoch_regions)
             rec["aux_sync_ops_per_step"] = sum(
                 v.get("sync_ops", 0) for k, v in (measured_step_regions or {}).items()
                 if not k.startswith("_excluded/"))
             rec["boundary_sync_ops"] = sum(
                 v.get("sync_ops", 0) for k, v in (measured_boundary_regions or {}).items()
                 if not k.startswith("_excluded/"))
+            rec["per_epoch_sync_ops"] = sum(
+                v.get("sync_ops", 0) for k, v in (measured_per_epoch_regions or {}).items()
+                if not k.startswith("_excluded/"))
+            # per-epoch cost scaled by n_epochs ALONE -- see this method's own
+            # docstring above and the plan doc's worked example for why this must
+            # be a separate term from the (n_epochs*steps_per_epoch)-scaled step
+            # term, not folded into it.
             rec["ops_total_measured"] = (
                 total_steps * (step_macs_fwd + step_macs_bwd + aux_measured)
+                + n_epochs * per_epoch_measured
                 + boundary_measured)
         if baseline_step_macs_fwd is not None:
             # Plan convention R2: the shared, method-independent numerator. The

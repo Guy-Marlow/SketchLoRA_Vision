@@ -26,7 +26,7 @@ from utils.toolkit import tensor2numpy
 # *** UNTESTED as of 2026-08-03 *** -- measured-CE region tagging
 # (docs/ce_profiling_implementation_plan.md sec 4.2). No-op unless a profiling
 # session is active (utils/ce_profiler.py).
-from utils.ce_profiler import ce_region
+from utils.ce_profiler import ce_region, run_boundary, run_step_narrow
 
 
 class Learner(LoRALearner):
@@ -73,6 +73,11 @@ class Learner(LoRALearner):
         for p in self._network.fc.parameters():
             p.requires_grad = True
         self._stream_new_optimizer()
+        # Called from inside models/bounded_memory_mixin.py's _stream_begin_chunk
+        # call site, which the driver already wraps in a "boundary_begin"
+        # profiling session end-to-end -- no separate wrap needed here (unlike
+        # the oracle _train() override below, which has no such outer wrap).
+        self._refresh_orth_cache()
 
     def _stream_extra_loss(self, lo, hi):
         orth, l2 = self._orth_and_l2()
@@ -101,15 +106,65 @@ class Learner(LoRALearner):
         rank = net.attn_modules()[0].rank
         return olora_aux_macs_per_step(slot_count, rank=rank)
 
+    def _refresh_orth_cache(self):
+        """Rebuild the per-(block,proj) concatenated frozen-A cache used by the
+        orthogonality penalty, one [t*r, dim] matrix per (block, projection).
+
+        MOVED here 2026-08-05 (docs/ce_step_boundary_isolation_plan.md sec 3),
+        out of a lazy, per-step-guarded rebuild that used to live inside
+        _orth_and_l2() (guarded by `if getattr(attn, task_attr, None) != t`,
+        checked on every training step). Functionally identical -- same cache
+        contents, same values, same construction -- but now fires exactly once,
+        explicitly, at task/cycle start, instead of being triggered
+        opportunistically on whichever step happens to notice `_cur_task`
+        changed. Two reasons this is not just a cosmetic move:
+
+        1. CORRECTNESS: this rebuild is a genuinely once-per-TASK cost (t only
+           changes across tasks/cycles, never across epochs within one task) --
+           but it used to be captured inside the SAME profiling session as the
+           genuinely-per-STEP orth_penalty_matmul/orth_l2_norms costs, both
+           landing in `aux_macs_per_step`, which downstream gets scaled by
+           n_epochs*steps_per_epoch. That overstates this rebuild's true
+           contribution to Ops_total by a factor of n_epochs (~20x at
+           tuned_epoch=20) -- see the plan doc's worked example. Making it an
+           explicit, separate boundary call lets it be measured and charged
+           ONCE per task, not (n_epochs times too many).
+        2. PERFORMANCE: removes a per-step attribute-lookup + int-comparison
+           from every step for the rest of the task (net improvement, every
+           run, profiled or not -- no behavior/cost added to the unprofiled
+           path).
+
+        No-op on task 0 (nothing to compare against yet, matching
+        _orth_and_l2's own `if t > 0` guard) and a no-op on any later call this
+        same task (matches the original guard's idempotence within a task)."""
+        t = self._cur_task
+        if t <= 0:
+            return
+        for attn in self._network.attn_modules():
+            for proj, A_list in (("q", attn.lora_A_q), ("v", attn.lora_A_v)):
+                cache_attr, task_attr = "_orth_prev_" + proj, "_orth_prev_task_" + proj
+                if getattr(attn, task_attr, None) != t:
+                    # plan sec 4.2 "orth_prev_cache_rebuild": at t=484 this
+                    # concatenates a [4840,768] matrix per (block,proj) -- 24
+                    # pairs total -- ~357MB of copies (t*rank*dim*4 bytes *
+                    # n_blocks*n_proj). Bandwidth-bound, invisible to MACs (R5).
+                    with ce_region("olora/orth_prev_cache_rebuild"):
+                        stacked = torch.cat([A_list[s].weight.detach() for s in range(t)], dim=0)
+                    setattr(attn, cache_attr, stacked)
+                    setattr(attn, task_attr, t)
+
     def _orth_and_l2(self):
         """Orthogonality penalty (current vs all previous tasks) + L2 on the
-        current task's LoRA, summed over all attention blocks.
+        current task's LoRA, summed over all attention blocks. Assumes
+        _refresh_orth_cache() has already been called this task/cycle (see
+        incremental_train's caller / _stream_begin_chunk / _train below) --
+        this method no longer rebuilds the cache itself (2026-08-05, see
+        _refresh_orth_cache's own docstring for why).
 
         Vectorised (mirrors svd_sketching_language/tokmem/atomic/multislot_lora.py::
         orthogonality_penalty): the frozen A_{<t} for a given (block, projection) are
-        stacked into one [t*r, dim] matrix once per task -- cached on the attention
-        module, invalidated when _cur_task advances -- so the cross-term is a SINGLE
-        matmul+abs+sum instead of a per-s loop. Numerically identical: for the
+        stacked into one [t*r, dim] matrix once per task, so the cross-term is a
+        SINGLE matmul+abs+sum instead of a per-s loop. Numerically identical: for the
         concatenation Y = [Y_0; Y_1; ...; Y_{t-1}] (stacked along dim 0), X @ Y^T
         stacks the individual X @ Y_s^T blocks along dim 1 (columns), and abs() is
         elementwise, so |X @ Y^T|.sum() == sum_s |X @ Y_s^T|.sum() exactly. Dominant
@@ -121,60 +176,19 @@ class Learner(LoRALearner):
             for proj, (A_list, B_list) in (("q", (attn.lora_A_q, attn.lora_B_q)),
                                            ("v", (attn.lora_A_v, attn.lora_B_v))):
                 A_t = A_list[t].weight                       # [r, dim]
-                # *** UNTESTED as of 2026-08-03 *** -- plan sec 4.2: previously
-                # UNCOUNTED (small on its own, but real -- two torch.norm calls
-                # per block-projection, every step).
+                # plan sec 4.2: two torch.norm calls per block-projection, every
+                # step -- genuinely per-step, no cache/rebuild involved.
                 with ce_region("olora/orth_l2_norms"):
                     l2 = l2 + torch.norm(A_t, p=2) + torch.norm(B_list[t].weight, p=2)
                 if t > 0:
-                    cache_attr, task_attr = "_orth_prev_" + proj, "_orth_prev_task_" + proj
-                    if getattr(attn, task_attr, None) != t:
-                        # *** UNTESTED as of 2026-08-03 *** -- plan sec 4.2
-                        # "orth_prev_cache_rebuild": previously UNCOUNTED entirely.
-                        # At t=484 this concatenates a [4840,768] matrix per
-                        # (block,proj) -- 24 pairs total (12 blocks x {q,v}) --
-                        # ~357MB of copies (CORRECTED 2026-08-03: the plan
-                        # document's original "~714MB" figure was off by ~2x;
-                        # recomputed by hand as t*rank*dim*4 bytes *
-                        # n_blocks*n_proj = 484*10*768*4*24 = 356,843,520 bytes).
-                        # Bandwidth-bound, invisible to MACs (R5). IMPORTANT
-                        # CAVEAT, not silently resolved: this
-                        # rebuild fires ONCE PER CYCLE (guarded by task_attr,
-                        # which only changes when _cur_task advances between
-                        # cycles -- NOT once per epoch, unlike TreeLoRA's
-                        # analogous per-epoch cache in tree_search). The driver
-                        # (models/bounded_memory_mixin.py) profiles epoch 0 of a
-                        # sampled cycle and scales by 1/steps_per_epoch, then
-                        # Ops_total's formula multiplies back by
-                        # n_epochs*steps_per_epoch -- correct for a cost that
-                        # truly recurs every epoch, but this one does NOT: it
-                        # fires on epoch 0's first step and never again for
-                        # epochs 1..19 of the same cycle. Piped through the
-                        # standard per-step pipeline, this region's contribution
-                        # to Ops_total would be overstated by roughly a factor of
-                        # n_epochs (~20x). Flagged rather than silently
-                        # "corrected" by an invented scaling rule -- whether to
-                        # special-case this region (e.g. a third ledger category
-                        # for "once per cycle, not once per epoch") or accept the
-                        # overstatement as negligible in absolute terms is an
-                        # open question for whoever validates this against a
-                        # live run, not resolved here.
-                        with ce_region("olora/orth_prev_cache_rebuild"):
-                            stacked = torch.cat([A_list[s].weight.detach() for s in range(t)], dim=0)
-                        setattr(attn, cache_attr, stacked)
-                        setattr(attn, task_attr, t)
+                    cache_attr = "_orth_prev_" + proj
                     A_prev = getattr(attn, cache_attr)       # [(t*r), dim] (frozen)
-                    # *** UNTESTED as of 2026-08-03 *** -- plan sec 4.2
-                    # "orth_penalty_matmul": the FORWARD computation only.
-                    # Whether torch.profiler's record_function correctly
-                    # attributes the LATER loss.backward() pass (called once,
-                    # combining this term with cross-entropy, in the base
-                    # BoundedMemoryMixin._bounded_train_epoch loop this method
-                    # does not override) back to this scope is UNVERIFIED --
-                    # not assumed true. Backward's true cost is exactly the gap
-                    # the plan's sec 3.3 differential check exists to resolve;
-                    # this tag alone gives only a measured FORWARD floor, not
-                    # the "~2x for backward" the old formula assumed.
+                    # plan sec 4.2 "orth_penalty_matmul": FORWARD only.
+                    # Backward attribution decision (docs/ce_step_boundary_
+                    # isolation_plan.md sec 4.2/11.1, resolved 2026-08-05):
+                    # forward-only floor, not a throwaway isolated-backward
+                    # measurement -- report this as a conservative floor on
+                    # the true (forward+backward) cost of this term.
                     with ce_region("olora/orth_penalty_matmul"):
                         orth = orth + torch.abs(A_t @ A_prev.t()).sum()
         return orth, l2
@@ -235,6 +249,16 @@ class Learner(LoRALearner):
                              "current_slot": cur_slot_bytes, "fc": fc_bytes}}
 
     def _train(self, train_loader):
+        # oracle-mode boundary bookkeeping (docs/ce_step_boundary_isolation_plan.md
+        # sec 7): trainer.py has no visibility inside incremental_train(), so this
+        # method wraps its OWN boundary call using whatever controller trainer.py
+        # attached to `self` this task (None when final_metrics/CE-logging is off,
+        # in which case run_boundary just calls _refresh_orth_cache() directly --
+        # zero added cost on the unprofiled path). Under bounded_memory streaming
+        # this call site isn't used at all -- _stream_begin_chunk (above) already
+        # calls _refresh_orth_cache() from inside the driver's own outer session.
+        run_boundary(getattr(self, "_ce_boundary_ctrl", None), "boundary", self._refresh_orth_cache)
+
         self._network.to(self._device)
         params = [p for p in self._network.parameters() if p.requires_grad]
         optimizer = optim.AdamW(params, lr=self.init_lr, weight_decay=self.weight_decay)
@@ -245,6 +269,14 @@ class Learner(LoRALearner):
         prog_bar = tqdm(range(self.epochs))
         for _, epoch in enumerate(prog_bar):
             self._network.train()
+            # Step-type measurement (docs/ce_step_boundary_isolation_plan.md sec
+            # 1a/2/7): only wrap the isolated _orth_and_l2() call -- not the
+            # surrounding forward/backward/optimizer.step() -- and only on epoch
+            # 0. `step_acc` is a fresh-per-task NarrowAuxAccumulator trainer.py
+            # attaches to `self` this task (None when off); run_step_narrow falls
+            # back to a direct, unprofiled call otherwise, so epochs 1..N-1 and
+            # every unprofiled run are completely unaffected either way.
+            step_acc = getattr(self, "_ce_step_acc", None) if epoch == 0 else None
             losses, ce_run, orth_run, correct, total = 0.0, 0.0, 0.0, 0, 0
             for _, inputs, targets in train_loader:
                 inputs, targets = inputs.to(self._device), targets.to(self._device)
@@ -253,7 +285,7 @@ class Learner(LoRALearner):
                 local_targets = targets - lo
                 ce = F.cross_entropy(local_logits, local_targets)
 
-                orth, l2 = self._orth_and_l2()
+                orth, l2 = run_step_narrow(step_acc, "olora_step", self._orth_and_l2)
                 loss = ce + self.lamda_1 * orth + self.lamda_2 * l2
 
                 optimizer.zero_grad()

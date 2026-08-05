@@ -73,7 +73,8 @@ from torch.utils.data import DataLoader
 
 from utils.metrics_logger import MetricsLogger
 from utils.ops_ledger import OpsLedger, measure_step_macs
-from utils.ce_profiler import CEProfileController, measure_baseline_and_actual
+from utils.ce_profiler import (CEProfileController, measure_baseline_and_actual,
+                                NarrowAuxAccumulator, split_by_recurrence, run_step_narrow)
 
 num_workers = 8
 BYTES_PER_IMAGE = 224 * 224 * 3   # same accounting convention as budget_stream.py / stream_mixin.py
@@ -212,7 +213,7 @@ class BoundedMemoryMixin:
             self._stream_optim, T_max=self.epochs, eta_min=self.min_lr) \
             if getattr(self, "lr_anneal", True) else None
 
-    def _bounded_train_epoch(self, loader, optimizer, scheduler, cycle_class_mask):
+    def _bounded_train_epoch(self, loader, optimizer, scheduler, cycle_class_mask, step_acc=None):
         """One epoch over a FIXED memory cycle's contents. Round-2 §1.1 fix:
         loss is now MASKED cross-entropy, restricted to the union of classes
         actually present in THIS CYCLE's own training data (cycle_class_mask,
@@ -229,7 +230,16 @@ class BoundedMemoryMixin:
         with every other local-CE convention already in this codebase
         (stream_run, budget_stream, the plain per-task loop all mask to the
         current batch/chunk's own class content) -- see docs/plan_c_
-        bounded_memory_harness.md for the recorded choice."""
+        bounded_memory_harness.md for the recorded choice.
+
+        step_acc: 2026-08-05 addition (docs/ce_step_boundary_isolation_plan.md
+        sec 1a/7/8) -- an optional NarrowAuxAccumulator, passed by the driver
+        only for epoch 0 of a profiled cycle (None every other epoch/cycle).
+        Only the isolated _stream_extra_loss() call is narrow-wrapped -- NOT
+        the surrounding forward/backward/optimizer.step() -- which is what
+        keeps profiling literally every step of epoch 0 affordable (the driver
+        used to wrap this entire method instead, tracing the whole ViT step
+        just to extract a few small matmuls' worth of aux cost)."""
         self._network.train()
         slot, merge = self._stream_slot(), self._stream_train_merge()
         for _, inputs, targets in loader:
@@ -237,7 +247,8 @@ class BoundedMemoryMixin:
             logits = self._network(inputs, task=slot, merge=merge)["logits"]
             masked_logits = logits + cycle_class_mask
             loss = F.cross_entropy(masked_logits, targets)
-            extra = self._stream_extra_loss(0, logits.shape[1])
+            extra = run_step_narrow(step_acc, "bounded_step_extra",
+                                    lambda: self._stream_extra_loss(0, logits.shape[1]))
             if not (isinstance(extra, float) and extra == 0.0):
                 loss = loss + extra
             optimizer.zero_grad()
@@ -494,24 +505,32 @@ class BoundedMemoryMixin:
                 _ce_step_macs = (_actual_fwd, _actual_bwd)
                 self._network.zero_grad()
 
-            # *** UNTESTED as of 2026-08-03 *** -- measured-CE region profiling
-            # (plan sec 1b item 5): profile epoch 0 only of a sampled cycle (whole
-            # epoch, not individual steps -- captures per-epoch-amortised costs like
-            # TreeLoRA's once-per-epoch tree_search stack rebuild correctly, which
-            # per-step sampling would misattribute), normalise to per-step by
-            # dividing by steps_per_epoch. ce_profile_controller.session("step")
-            # itself no-ops (returns a null context) on un-sampled cycles, and
-            # .commit() on a null/unsuccessful session just returns the held value
-            # from the last profiled cycle -- so this unconditional call is safe on
-            # every cycle, not just profiled ones.
+            # Measured-CE region profiling, epoch 0 only of a profiled cycle
+            # (docs/ce_step_boundary_isolation_plan.md sec 1a/2/7/8, REWORKED
+            # 2026-08-05 -- was: wrap the ENTIRE _bounded_train_epoch call under
+            # torch.profiler, tracing every op of every batch's full ViT
+            # forward+backward+optimizer.step() just to extract a few small
+            # tagged matmuls. NarrowAuxAccumulator instead lets the method wrap
+            # ONLY its own isolated aux call, every step of epoch 0 -- the
+            # profiler now only ever instruments the small aux computation, not
+            # the (much larger, shared-with-every-method, already-measured-
+            # separately-via-R2-above) base training step. step_acc accumulates
+            # the RAW (undivided) sum across all of epoch 0's steps;
+            # split_by_recurrence below separates genuinely-per-step tags from
+            # per-epoch ones (e.g. TreeLoRA's tree_search_first_call, which
+            # fires once per epoch not once per step -- see that module) BEFORE
+            # applying the per-step average scaling, so a per-epoch cost is
+            # never diluted-then-wrongly-rescaled the way it would be if lumped
+            # into the per-step bucket blindly.
+            step_acc = NarrowAuxAccumulator(self._device, enabled=ce_profile_controller.profiling_this_cycle)
             for _ep in range(epochs):
                 if _ep == 0:
-                    with ce_profile_controller.session("step") as _step_sess:
-                        self._bounded_train_epoch(loader, optimizer, scheduler, cycle_class_mask)
-                    ce_profile_controller.commit(
-                        _step_sess, "step", scale=1.0 / max(len(loader), 1))
+                    self._bounded_train_epoch(loader, optimizer, scheduler, cycle_class_mask,
+                                              step_acc=step_acc)
                 else:
                     self._bounded_train_epoch(loader, optimizer, scheduler, cycle_class_mask)
+            _measured_step, _measured_per_epoch = split_by_recurrence(
+                step_acc.totals(), step_scale=1.0 / max(len(loader), 1))
 
             # *** UNTESTED as of 2026-08-03 *** -- R7 fix (plan sec 6 item 1): the
             # formula-based aux cost must be snapshotted BEFORE _stream_end_chunk
@@ -557,13 +576,14 @@ class BoundedMemoryMixin:
                 aux_macs_per_step=_ce_aux_macs_formula,
                 boundary_macs=self._ce_boundary_macs_this_cycle(
                     len(chunk_data), macs_per_image_fwd=_ce_step_macs[0] / self.batch_size),
-                measured_step_regions=ce_profile_controller.current("step"),
+                measured_step_regions=_measured_step,
+                measured_per_epoch_regions=_measured_per_epoch,
                 measured_boundary_regions=_measured_boundary,
                 baseline_step_macs_fwd=_ce_baseline_step_macs[0],
                 baseline_step_macs_bwd=_ce_baseline_step_macs[1],
                 nearest_latent_task=_nearest_latent_task,
                 profile_provenance={
-                    "step": ce_profile_controller.provenance("step"),
+                    "step": {"profiled": bool(ce_profile_controller.profiling_this_cycle)},
                     "boundary_begin": ce_profile_controller.provenance("boundary_begin"),
                     "boundary_end": ce_profile_controller.provenance("boundary_end"),
                 })

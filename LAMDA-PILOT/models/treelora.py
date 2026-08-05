@@ -29,7 +29,7 @@ from utils.toolkit import tensor2numpy
 # *** UNTESTED as of 2026-08-03 *** -- measured-CE region tagging
 # (docs/ce_profiling_implementation_plan.md sec 4.4). No-op unless a profiling
 # session is active (utils/ce_profiler.py).
-from utils.ce_profiler import ce_region
+from utils.ce_profiler import ce_region, run_boundary, run_step_narrow
 
 
 class Learner(LoRALearner):
@@ -78,6 +78,15 @@ class Learner(LoRALearner):
         for _, epoch in enumerate(prog_bar):
             self._network.train()
             self.tree.new_epoch_init(len(train_loader))
+            # Step-type measurement (docs/ce_step_boundary_isolation_plan.md sec
+            # 1a/2/7): only wrap the isolated tree-regularizer block below (not the
+            # surrounding forward/backward/optimizer.step()), only on epoch 0. The
+            # SAME epoch-0 harvest also captures tree_search's per-epoch
+            # `all_grad` rebuild (tagged "treelora/per_epoch/...", see
+            # utils/kd_tree.py) alongside the genuinely per-step tags -- both are
+            # accumulated together here and split apart downstream by
+            # utils.ce_profiler.split_by_recurrence, not here.
+            step_acc = getattr(self, "_ce_step_acc", None) if epoch == 0 else None
             losses, reg_run, correct, total = 0.0, 0.0, 0, 0
             for _, inputs, targets in train_loader:
                 if self.reg > 0:
@@ -89,11 +98,15 @@ class Learner(LoRALearner):
                 loss = F.cross_entropy(local_logits, local_targets)
 
                 if self.reg > 0:
-                    grad_current = self._stacked_A()
-                    self.tree.insert_grad(grad_current)
-                    if t > 0:
-                        prev_id_matrix = self.tree.tree_search(t, self._device)
-                        reg_loss = self.tree.get_loss(grad_current, loss, prev_id_matrix)
+                    def _tree_regularizer(_loss=loss):
+                        grad_current = self._stacked_A()
+                        self.tree.insert_grad(grad_current)
+                        if t > 0:
+                            prev_id_matrix = self.tree.tree_search(t, self._device)
+                            return self.tree.get_loss(grad_current, _loss, prev_id_matrix)
+                        return None
+                    reg_loss = run_step_narrow(step_acc, "treelora_step", _tree_regularizer)
+                    if reg_loss is not None:
                         loss = loss - reg_loss
                         reg_run += float(reg_loss)
 
@@ -114,7 +127,14 @@ class Learner(LoRALearner):
                     reg_run / len(train_loader), train_acc))
         logging.info("[TreeLoRA] Task {} done. Acc {:.2f}".format(t, train_acc))
         if self.reg > 0:
-            self.tree.end_task(t)
+            # oracle-mode boundary bookkeeping (docs/ce_step_boundary_isolation_
+            # plan.md sec 7): end_task's tree-build genuinely grows with task
+            # count (see utils/kd_tree.py) -- wrap it so that growth is visible
+            # per-task, not averaged away. Under bounded_memory streaming this
+            # call site isn't used (_stream_end_chunk, below, is already wrapped
+            # end-to-end by the driver's own boundary_end session).
+            run_boundary(getattr(self, "_ce_boundary_ctrl", None), "boundary",
+                         lambda: self.tree.end_task(t))
 
     # *** UNTESTED as of 2026-08-03 *** -- local GPUs were unavailable
     # (thermal/damage risk) at fix time, so this has NOT been exercised on a
@@ -219,7 +239,7 @@ class Learner(LoRALearner):
         rank = net.attn_modules()[0].rank
         return treelora_aux_macs_per_step(rank=rank)
 
-    def _bounded_train_epoch(self, loader, optimizer, scheduler, cycle_class_mask):
+    def _bounded_train_epoch(self, loader, optimizer, scheduler, cycle_class_mask, step_acc=None):
         """bounded_memory_mixin.py's own driver never calls _stream_train_epoch
         below (that hook only exists on the stream_run path, models/stream_mixin.py) --
         it inlines a generic loop (BoundedMemoryMixin._bounded_train_epoch) that only
@@ -245,11 +265,20 @@ class Learner(LoRALearner):
             masked_logits = logits + cycle_class_mask
             loss = F.cross_entropy(masked_logits, targets)
             if self.reg > 0:
-                grad_current = self._stacked_A()
-                self.tree.insert_grad(grad_current)
-                if t > 0:
-                    prev_id_matrix = self.tree.tree_search(t, self._device)
-                    reg_loss = self.tree.get_loss(grad_current, loss, prev_id_matrix)
+                # Step-type measurement (docs/ce_step_boundary_isolation_plan.md
+                # sec 1a/2/7/8): same narrow-wrap-the-isolated-block pattern as
+                # the oracle _train() override above -- step_acc is non-None
+                # only during epoch 0 of a profiled cycle (see
+                # bounded_memory_mixin.py's driver).
+                def _tree_regularizer(_loss=loss):
+                    grad_current = self._stacked_A()
+                    self.tree.insert_grad(grad_current)
+                    if t > 0:
+                        prev_id_matrix = self.tree.tree_search(t, self._device)
+                        return self.tree.get_loss(grad_current, _loss, prev_id_matrix)
+                    return None
+                reg_loss = run_step_narrow(step_acc, "treelora_step", _tree_regularizer)
+                if reg_loss is not None:
                     loss = loss - reg_loss
             optimizer.zero_grad()
             loss.backward()

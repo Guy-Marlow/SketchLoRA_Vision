@@ -91,7 +91,7 @@ from utils.admission import floor_admission_merge
 # these tags are safe to leave in permanently and do not change any computed
 # value -- only what utils/ops_ledger.py's measured_step_regions/
 # measured_boundary_regions record.
-from utils.ce_profiler import ce_region
+from utils.ce_profiler import ce_region, run_boundary, run_step_narrow
 
 # fixed-slot convention: 0 = frozen sketch, 1 = trainable residual
 SKETCH = 0
@@ -336,10 +336,19 @@ class Learner(LoRALearner):
         # include the task split (init_cls/increment) so 10-task vs 20-task runs
         # write distinct diagnostic files instead of clobbering each other
         split = "ic{}i{}".format(args.get("init_cls"), args.get("increment"))
+        # FIXED 2026-08-05 (collision confirmed in practice, context.md §8.7):
+        # the split alone is not enough to disambiguate -- multiple DATASETS can
+        # share the same (init_cls, increment) shape (e.g. cifar224/imagenetr/
+        # omnibenchmark1k all use 10/10 in the wave1_final convention), which
+        # previously made same-seed runs on different datasets silently
+        # overwrite each other's reconstruction-error diagnostics. Dataset name
+        # is now part of the tag; old filenames (pre-fix) are left untouched on
+        # disk, this only changes what NEW runs write.
+        dataset_tag = args.get("dataset", "unknown")
         if self.energy_target is not None:
-            tag = "adapt{}_b{}_{}".format(self.energy_target, self.n_lora_blocks or "all", split)
+            tag = "{}_adapt{}_b{}_{}".format(dataset_tag, self.energy_target, self.n_lora_blocks or "all", split)
         else:
-            tag = "r{}_b{}_{}".format(self.svd_rank, self.n_lora_blocks or "all", split)
+            tag = "{}_r{}_b{}_{}".format(dataset_tag, self.svd_rank, self.n_lora_blocks or "all", split)
         self._diag_path = os.path.join(
             os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
             "run_logs", "sketchlora_diag_{}_seed{}.json".format(tag, seed))
@@ -611,14 +620,15 @@ class Learner(LoRALearner):
                     products.append((B_r @ A_r).float())
         return products
 
-    def _bounded_train_epoch(self, loader, optimizer, scheduler, cycle_class_mask):
+    def _bounded_train_epoch(self, loader, optimizer, scheduler, cycle_class_mask, step_acc=None):
         """Identical to the base (bounded_memory_mixin.py) generic loop when
         classifier_alignment is off -- delegates straight to super(), so the
         off-path is bit-for-bit the base class's own method, not a reimplementation
         of it. When on, the SAME forward pass already computed for the training
         loss also yields "features" (no extra forward), fed to ClassStats."""
         if not self.classifier_alignment:
-            return super()._bounded_train_epoch(loader, optimizer, scheduler, cycle_class_mask)
+            return super()._bounded_train_epoch(loader, optimizer, scheduler, cycle_class_mask,
+                                                step_acc=step_acc)
         self._network.train()
         slot, merge = self._stream_slot(), self._stream_train_merge()
         for _, inputs, targets in loader:
@@ -627,24 +637,26 @@ class Learner(LoRALearner):
             logits = output["logits"]
             masked_logits = logits + cycle_class_mask
             loss = F.cross_entropy(masked_logits, targets)
-            extra = self._stream_extra_loss(0, logits.shape[1])
+            extra = run_step_narrow(step_acc, "sketchlora_extra",
+                                    lambda: self._stream_extra_loss(0, logits.shape[1]))
             if not (isinstance(extra, float) and extra == 0.0):
                 loss = loss + extra
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-            # *** UNTESTED as of 2026-08-03 *** -- these two run every training
-            # step whenever classifier_alignment is on (plan sec 4.1: previously
-            # UNCOUNTED entirely). ClassStats.update is a per-SAMPLE Python loop
-            # with Welford updates, and in cov_mode="shared_full" it also does a
-            # [feat_dim,feat_dim] outer product per sample -- potentially large,
-            # and invisible to the analytic formula, which only ever models
-            # align_head's boundary-time cost, never this per-step bookkeeping.
-            with ce_region("sketchlora/ca_class_stats_update"):
-                self._ca_stats.update(output["features"], targets)
-            if self.ca_real_mix_frac > 0:
-                with ce_region("sketchlora/ca_reservoir_update"):
-                    self._ca_buffer_update(output["features"].detach(), targets.detach())
+            # ClassStats.update is a per-SAMPLE Python loop with Welford
+            # updates, and in cov_mode="shared_full" it also does a
+            # [feat_dim,feat_dim] outer product per sample -- real, genuinely
+            # per-step cost. Narrow-wrapped, epoch 0 only, same as elsewhere;
+            # operates on output["features"], already computed above, so this
+            # doesn't re-run any forward compute.
+            def _ca_step_update(_feats=output["features"], _targets=targets):
+                with ce_region("sketchlora/ca_class_stats_update"):
+                    self._ca_stats.update(_feats, _targets)
+                if self.ca_real_mix_frac > 0:
+                    with ce_region("sketchlora/ca_reservoir_update"):
+                        self._ca_buffer_update(_feats.detach(), _targets.detach())
+            run_step_narrow(step_acc, "sketchlora_ca_step", _ca_step_update)
         if scheduler is not None:
             scheduler.step()
 
@@ -751,10 +763,35 @@ class Learner(LoRALearner):
             self._train_with_ca(train_loader)
         else:
             super()._train(train_loader)
+
+        # R2 baseline-vs-actual, SELF-measured here (docs/ce_step_boundary_
+        # isolation_plan.md sec 6.6), BEFORE _compress() runs. Fixes a real
+        # timing bug: trainer.py's own generic post-incremental_train() R2 probe
+        # (used by every other method, correctly -- see below) would read the
+        # sketch's POST-fold state for SketchLoRA specifically, since
+        # _compress() runs inside THIS method, before incremental_train()
+        # returns -- i.e. it would measure the rank that's about to be used
+        # NEXT task, not the rank that was actually in effect while the steps
+        # that just ran were training. r_hat is constant for the whole task
+        # (only _compress() changes it, and that hasn't happened yet at this
+        # point), so one measurement here suffices -- no need to repeat this
+        # every epoch. O-LoRA/InfLoRA/TreeLoRA don't need this: their fold
+        # state (frozen_delta_q/v) is set by freeze_to_task()/fold_up_to()
+        # BEFORE _train() runs, not after, so trainer.py's generic post-hoc
+        # timing already reads the correct, in-effect-during-training state for
+        # them (confirmed by tracing backbone/vit_lora.py::freeze_to_task).
+        if getattr(self, "_ce_boundary_ctrl", None) is not None:
+            self._ce_pre_boundary_probe(train_loader)
+
         at_period_boundary = (self._cur_task + 1) % self.svd_period == 0
         at_last_task = (self._cur_task + 1) >= self._n_run_effective
         if at_period_boundary or at_last_task:
-            self._compress()
+            # oracle-mode boundary bookkeeping (docs/ce_step_boundary_isolation_
+            # plan.md sec 7): under bounded_memory streaming this call site isn't
+            # used -- _stream_end_chunk (above) is already wrapped end-to-end by
+            # the driver's own boundary_end session.
+            run_boundary(getattr(self, "_ce_boundary_ctrl", None), "sketchlora_compress",
+                        self._compress)
             # Eval (CIL's bare net(inputs), routed via LoRAVitNet.default_task -- see
             # utils/inc_net.py's _resolve) runs after this returns, before after_task().
             # _compress() just reset every residual slot to (kaiming A, zero B) -- a
@@ -775,7 +812,29 @@ class Learner(LoRALearner):
         # operates purely on net.fc via _ca_stats, so the relative order vs.
         # compress has no functional effect either way).
         if self.classifier_alignment:
-            self._run_ca_alignment()
+            run_boundary(getattr(self, "_ce_boundary_ctrl", None), "sketchlora_ca",
+                        self._run_ca_alignment)
+
+    def _ce_pre_boundary_probe(self, train_loader):
+        """R2 baseline-vs-actual, measured here rather than by trainer.py's
+        generic fallback -- see the timing-bug explanation in _train() above.
+        Single-batch, two profiled calls (measure_baseline_and_actual already
+        keeps this cheap) -- run once per task, right before _compress(), never
+        repeated within a task since r_hat can't change until the fold below."""
+        from utils.ce_profiler import measure_baseline_and_actual
+        _probe_inputs, _probe_targets = next(iter(train_loader))[1:]
+        _probe_inputs = _probe_inputs.to(self._device)
+        _probe_targets = _probe_targets.to(self._device)
+        _lo, _hi = self._ce_slice()
+
+        def _loss_fn(logits):
+            return F.cross_entropy(logits[:, _lo:_hi], _probe_targets - _lo)
+
+        baseline_fwd, baseline_bwd, actual_fwd, actual_bwd = measure_baseline_and_actual(
+            self._network, _probe_inputs, _probe_targets, _loss_fn,
+            self._train_adapter(), self.train_merge, self._device)
+        self._network.zero_grad()
+        self._ce_pre_boundary_r2 = (baseline_fwd, baseline_bwd, actual_fwd, actual_bwd)
 
     def _train_with_ca(self, train_loader):
         """Oracle-path counterpart to _bounded_train_epoch's CA-aware loop.
@@ -795,6 +854,12 @@ class Learner(LoRALearner):
         prog_bar = tqdm(range(self.epochs))
         for _, epoch in enumerate(prog_bar):
             self._network.train()
+            # Step-type measurement (docs/ce_step_boundary_isolation_plan.md sec
+            # 1a/7): CA's per-step bookkeeping operates on output["features"],
+            # already computed by the forward pass above -- narrow-wrapping it
+            # doesn't re-run any forward compute, just isolates the Welford
+            # update/reservoir-sampling logic itself. Epoch 0 only, as elsewhere.
+            step_acc = getattr(self, "_ce_step_acc", None) if epoch == 0 else None
             losses, correct, total = 0.0, 0, 0
             for _, inputs, targets in train_loader:
                 inputs, targets = inputs.to(self._device), targets.to(self._device)
@@ -809,11 +874,13 @@ class Learner(LoRALearner):
                 optimizer.step()
                 losses += loss.item()
 
-                with ce_region("sketchlora/ca_class_stats_update"):
-                    self._ca_stats.update(output["features"], targets)
-                if self.ca_real_mix_frac > 0:
-                    with ce_region("sketchlora/ca_reservoir_update"):
-                        self._ca_buffer_update(output["features"].detach(), targets.detach())
+                def _ca_step_update(_feats=output["features"], _targets=targets):
+                    with ce_region("sketchlora/ca_class_stats_update"):
+                        self._ca_stats.update(_feats, _targets)
+                    if self.ca_real_mix_frac > 0:
+                        with ce_region("sketchlora/ca_reservoir_update"):
+                            self._ca_buffer_update(_feats.detach(), _targets.detach())
+                run_step_narrow(step_acc, "sketchlora_ca_step", _ca_step_update)
 
                 preds = local_logits.argmax(dim=1)
                 correct += preds.eq(local_targets).cpu().sum()

@@ -27,6 +27,24 @@ earlier 10-epoch-short/15-epoch-Omni split).
 Canonical splits (Plan A §A1): CIFAR-100 B0Inc10(10T); ImageNet-R B0Inc10(20T);
 Food101 B6Inc5(20T); SUN397 B37Inc40(10T); OmniBenchmark-1K B0Inc10(100T).
 Batch 48 uniform.
+
+EXTENDED 2026-08-05 (user request): added SketchLoRA. Unlike the four methods
+above, SketchLoRA does NOT get a CIFAR-propagates-to-Food/SUN/Omni lr rule --
+per explicit user instruction, it uses ONE uniform lr (0.001) across all five
+datasets, taken directly from its own already-completed 100-task OmniBenchmark-1k
+run (exps/round2_slurm_grid/sketchlora_100mb_s1993.json, init_lr=0.001 --
+despite that file's leftover "omni30t" prefix from an earlier naming convention,
+it is actually stop_after_tasks=100/init_cls=10/increment=10, i.e. the 100-task
+oracle-CIL split, not a 30-task bounded-memory run) and its ImageNet-R oracle
+config (exps/sketchlora_ablations_imagenetr20t/sketchlora_current_s*.json),
+which already independently used the same 0.001 -- confirmed consistent, not
+an arbitrary transplant. All other SketchLoRA hyperparameters (rank=10,
+merge_op=randsvd, svd_energy_target=0.01, sketchlora_admission=bounded_eviction,
+rank_cap=128) are unchanged from that current/live ImageNet-R config -- the user
+did not ask to retune those, only to extend the lr choice to the other 4
+datasets. cifar224/food101/sun397/imagenetr configs written by a prior manual
+pass on 2026-08-05 are superseded by (byte-for-byte reproduced via) this
+generator on the same day, for provenance consistency with the other 4 methods.
 """
 import json
 import os
@@ -51,6 +69,15 @@ METHOD_CFG = {
     "treelora": dict(model_name="treelora", backbone_type="vit_base_patch16_224_lora",
                        lora_rank=10, lora_alpha=None, reg=0.1,
                        lr_cifar=0.001, lr_imagenetr=0.001),
+    "sketchlora": dict(model_name="sketchlora", backbone_type="vit_base_patch16_224_lora",
+                         lora_rank=10, lora_alpha=None, lora_merge=True,
+                         lora_train_merge=True, svd_rank=10, svd_oversampling=10,
+                         lora_n_slots=2, sketch_diag=True, merge_op="randsvd",
+                         svd_energy_target=0.01, sketchlora_admission="bounded_eviction",
+                         sketchlora_rank_cap=128, sketchlora_lora_wd=0.0,
+                         sketchlora_eviction_reading="conformant",
+                         # uniform across all 5 datasets -- see module docstring
+                         lr_cifar=0.001, lr_imagenetr=0.001),
 }
 
 DATASET_CFG = {
@@ -94,6 +121,24 @@ def main():
                     cfg["lame"] = mcfg["lame"]
                 if method == "treelora":
                     cfg["reg"] = mcfg["reg"]
+                if method == "sketchlora":
+                    # sketchlora_lora_wd=0.0 (below) already zeroes weight decay on the
+                    # LoRA/sketch param group specifically (models/sketchlora.py::
+                    # _optimizer_param_groups splits LoRA params into their own
+                    # zero-decay group once sketchlora_lora_wd is set) -- that's the
+                    # ONLY thing that needed zeroing (2026-08-05 user request: "we just
+                    # don't want the sketch decaying"). The classifier head correctly
+                    # keeps the generic top-level weight_decay=0.0005 (same as every
+                    # other method) via that same override's "other_params" group --
+                    # a 2026-08-05 attempt to also zero the head's decay was REVERTED
+                    # same day per direct user correction: head decay was already
+                    # intentional, not a gap to close.
+                    for k in ("lora_train_merge", "svd_rank", "svd_oversampling",
+                              "lora_n_slots", "sketch_diag", "merge_op",
+                              "svd_energy_target", "sketchlora_admission",
+                              "sketchlora_rank_cap", "sketchlora_lora_wd",
+                              "sketchlora_eviction_reading"):
+                        cfg[k] = mcfg[k]
 
                 path = os.path.join(OUT_DIR, "{}_{}_s{}.json".format(method, dataset, seed))
                 json.dump(cfg, open(path, "w"), indent=2)

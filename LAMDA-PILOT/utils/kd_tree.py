@@ -153,17 +153,26 @@ class KD_LoRA_Tree:
                 self.current_grad = self.current_grad + _grad_current.detach() * frac
 
     def tree_search(self, task_id, device):
-        # *** UNTESTED as of 2026-08-03 *** -- plan sec 4.4 "tree_search_first_call":
-        # fires on the FIRST call each EPOCH (new_epoch_init resets
-        # self.all_grad = None every epoch -- confirmed by tracing
-        # models/treelora.py's _bounded_train_epoch, which calls
-        # tree.new_epoch_init(len(loader)) once per epoch). torch.stack of
+        # plan sec 4.4 "tree_search_first_call": fires on the FIRST call each
+        # EPOCH (new_epoch_init resets self.all_grad = None every epoch --
+        # confirmed by tracing models/treelora.py's _bounded_train_epoch, which
+        # calls tree.new_epoch_init(len(loader)) once per epoch). torch.stack of
         # task_id x [24, dim*rank] tensors -- at task_id=484 this is ~357MB
-        # allocated and copied, 20x per cycle (once per epoch). Previously
-        # UNCOUNTED; the old formula (treelora_aux_macs_per_step) is a flat
-        # constant that ignores task_id entirely.
+        # allocated and copied, 20x per cycle (once per epoch).
+        #
+        # NAMESPACED "per_epoch/" (2026-08-05, docs/ce_step_boundary_isolation_
+        # plan.md sec 2/12): this is the region that motivated adding a THIRD
+        # ledger recurrence category. It fires once per EPOCH, not once per step
+        # (unlike tree_search_ucb/tree_insert_grad/tree_get_loss/
+        # tree_update_similarity below, all genuinely per-step) and not once per
+        # TASK like O-LoRA's cache rebuild. utils/ce_profiler.py::
+        # split_by_recurrence routes any tag whose second path segment is
+        # "per_epoch" into ops_ledger.py's measured_per_epoch_regions bucket,
+        # scaled by n_epochs alone downstream -- never by n_epochs*steps_per_epoch
+        # (which would overcount it by a factor of steps_per_epoch) and never left
+        # unscaled (which would undercount it by a factor of n_epochs).
         if self.all_grad is None:
-            with ce_region("treelora/tree_search_first_call"):
+            with ce_region("treelora/per_epoch/tree_search_first_call"):
                 self.all_grad = torch.stack(self.all_accumulate_grads[:task_id], dim=0).to(device, non_blocking=True)
                 self.all_grad_device = self.all_grad
                 if self.sim is None:

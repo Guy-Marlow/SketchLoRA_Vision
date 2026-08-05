@@ -8,7 +8,8 @@ from utils.data_manager import DataManager
 from utils.toolkit import count_parameters
 from utils.metrics_logger import MetricsLogger
 from utils.ops_ledger import OpsLedger, measure_step_macs, compute_ce_report
-from utils.ce_profiler import CEProfileController, measure_baseline_and_actual
+from utils.ce_profiler import (CEProfileController, measure_baseline_and_actual,
+                                NarrowAuxAccumulator, split_by_recurrence)
 import os
 import numpy as np
 
@@ -140,62 +141,51 @@ def _train(args):
     # printed/logged output.
     mlog = None
     ce_ledger = None
-    ce_profile_controller = None
+    ce_boundary_ctrl = None
     if args.get("final_metrics"):
         _tag = "{}_{}_{}_s{}".format(
             args["model_name"], args["dataset"],
             args.get("prefix") or (args.get("boundary_mode") or "task"), args["seed"])
         mlog = MetricsLogger(os.path.join("run_logs", "final", args["model_name"]), _tag, args)
-        # *** UNTESTED as of 2026-08-03 *** -- measured-CE for the ORACLE (real
-        # task-boundary) path (docs/ce_profiling_implementation_plan.md), added
-        # for the CE smoke test (user correction 2026-08-03: the smoke test runs
-        # here, NOT through models/bounded_memory_mixin.py -- that driver's
-        # CEProfileController/OpsLedger wiring never touches this codepath at
-        # all). Same OpsLedger/ce_region tags as bounded_memory (every tag lives
-        # inside the actual method code -- _orth_and_l2, _init_lora_A,
-        # update_DualGPM, _compress, tree_search, backbone/vit_lora.py's
-        # _lora_delta -- which is called identically by BOTH the oracle
-        # incremental_train() path and the bounded_memory driver, so the SAME
-        # tags fire correctly here with no method-file changes needed), gated
-        # behind the same "final_metrics" opt-in as MetricsLogger above so every
-        # other experiment track sharing this trainer.py (icarl/der/foster/...)
-        # is unaffected.
+        # Measured-CE for the ORACLE (real task-boundary) path (docs/
+        # ce_profiling_implementation_plan.md, REWORKED 2026-08-05 per docs/
+        # ce_step_boundary_isolation_plan.md sec 7 -- was: wrap the ENTIRE
+        # incremental_train() call under one "task" profiler session, which
+        # traces every op of every epoch's every step just to extract a handful
+        # of small tagged regions, and had no boundary/step split at all
+        # (everything landed in measured_boundary_regions, unscaled, which is
+        # only correct because it happened to equal a true one-off measurement
+        # -- coarse and needlessly slow for anything beyond a small smoke test).
         #
-        # STRUCTURAL DIFFERENCE from bounded_memory_mixin.py's wiring, not
-        # papered over: that driver calls _stream_begin_chunk / N x
-        # _bounded_train_epoch / _stream_end_chunk as three SEPARATE, driver-
-        # visible steps, so it can wrap each separately (kinds "boundary_begin"/
-        # "step"/"boundary_end"). incremental_train() is a single opaque call
-        # from trainer.py's perspective -- each method's own _train/
-        # incremental_train override decides internally when to run its
-        # boundary actions (InfLoRA's _init_lora_A/_update_dualgpm, SketchLoRA's
-        # _compress, ...), and trainer.py has no hook into that internal
-        # structure without invasively rewriting every method's oracle-path
-        # training loop, which is NOT part of this fix. So here there is only
-        # ONE controller kind ("task"), wrapping the ENTIRE incremental_train()
-        # call -- every ce_region tag anywhere inside it (whether conceptually
-        # "per-step" like O-LoRA's orth_penalty_matmul, or "boundary" like
-        # InfLoRA's init_lora_A_forward) gets captured together as ONE already-
-        # complete per-task total. That total is passed to record_unit() as
-        # measured_boundary_regions (a one-off cost, added once), NOT
-        # measured_step_regions (which would get MULTIPLIED by n_epochs*
-        # steps_per_epoch downstream and wildly overcount, since profiling the
-        # whole task already includes every epoch's steps). This is coarser
-        # than bounded_memory's split (no separate view of "per-step-only" vs
-        # "boundary-only" cost in oracle mode) but is not double-counted or
-        # mis-scaled -- see this file's own end-of-run comment for the
-        # ops_total_measured reconstruction this implies.
+        # Now: each method wraps its OWN boundary call(s) (InfLoRA's
+        # _init_lora_A/_update_dualgpm, SketchLoRA's _compress/_run_ca_alignment,
+        # O-LoRA's _refresh_orth_cache -- moved out of a lazy per-step guard
+        # specifically to make this possible, TreeLoRA's tree.end_task) using
+        # `ce_boundary_ctrl`, attached to the model instance below so methods
+        # can reach it without trainer.py needing visibility inside
+        # incremental_train() (see each models/*.py file's own oracle-mode
+        # instrumentation). Per-step aux (O-LoRA's orth penalty, TreeLoRA's
+        # tree ops, SketchLoRA-CA's per-step stats) is captured separately via
+        # `model._ce_step_acc`, a fresh NarrowAuxAccumulator each task -- each
+        # method narrow-wraps just its isolated aux call, only on epoch 0,
+        # instead of the whole epoch/task being traced. InfLoRA's
+        # embedded-in-forward fold-branch cost (like O-LoRA's/TreeLoRA's) has
+        # no tag to isolate at all -- it's still captured via the R2
+        # baseline-vs-actual probe below, unchanged in technique, just profiled
+        # every task now instead of being an afterthought.
         #
-        # COST CAVEAT: profiling the WHOLE incremental_train() call (every
-        # epoch, every step, real data) is far heavier than bounded_memory's
-        # epoch-0-only sampling -- fine for a 5-task smoke test at
-        # ce_profile_every=1, but would add real, non-trivial profiler overhead
-        # on a full campaign (e.g. 100 tasks) if used the same way. Not
-        # addressed here; a real campaign should use a larger ce_profile_every.
+        # ce_profile_every now defaults to 1 (see utils/ce_profiler.py) --
+        # profile every task's boundary and step-0 measurement by default,
+        # since narrow scoping makes both cheap for every method except
+        # InfLoRA (whose boundary action is a genuine extra full forward pass,
+        # not a scoping artifact -- see the plan doc's open discussion of
+        # whether that specific method still warrants sampling on very long
+        # campaigns). Still overridable via ce_profile_every for a campaign
+        # that wants coarser sampling.
         ce_ledger = OpsLedger(os.path.join("run_logs", "final", args["model_name"]), _tag)
-        ce_profile_controller = CEProfileController(
-            model._device, profile_every=int(args.get("ce_profile_every", 25)),
-            enabled=int(args.get("ce_profile_every", 25)) > 0)
+        ce_boundary_ctrl = CEProfileController(
+            model._device, profile_every=int(args.get("ce_profile_every", 1)),
+            enabled=True)
 
     for task in range(_n_run):
         if args.get("boundary_mode") == "budget":
@@ -212,39 +202,69 @@ def _train(args):
             "Trainable params: {}".format(count_parameters(model._network, True))
         )
 
-        if ce_profile_controller is not None:
-            ce_profile_controller.begin_cycle(task, is_final=(task == _n_run - 1))
-            with ce_profile_controller.session("task") as _task_sess:
-                model.incremental_train(data_manager)
-            ce_profile_controller.commit(_task_sess, "task", scale=1.0)
-        else:
-            model.incremental_train(data_manager)
+        if ce_boundary_ctrl is not None:
+            ce_boundary_ctrl.begin_cycle(task, is_final=(task == _n_run - 1))
+            # Attached to the model instance so each method's own oracle-mode
+            # instrumentation (models/olora.py, inflora.py, treelora.py,
+            # sketchlora.py) can reach them without trainer.py needing
+            # visibility inside incremental_train() -- see this block's own
+            # setup comment above. step_acc is a FRESH accumulator every task
+            # (so its .totals() reflect only this task); ctrl is the same
+            # instance reused across tasks (begin_cycle() updates its internal
+            # per-cycle state).
+            model._ce_boundary_ctrl = ce_boundary_ctrl
+            model._ce_step_acc = NarrowAuxAccumulator(
+                model._device, enabled=ce_boundary_ctrl.profiling_this_cycle)
+        model.incremental_train(data_manager)
 
         if mlog:
             mlog.mark_train_done()
 
         if ce_ledger is not None:
-            # *** UNTESTED as of 2026-08-03 *** -- R2 baseline/actual probe
-            # (plan sec 2), AFTER incremental_train so model.train_loader (built
-            # inside it) exists and trainability/slot routing match real
-            # training exactly -- same requirement as the bounded_memory
-            # driver's own probe, just necessarily placed after rather than
-            # before the boundary action here (see this block's own note on why
-            # incremental_train can't be split into begin/train/end from
-            # trainer.py's side). zero_grad() after: throwaway measurement,
-            # must not leak into whatever the NEXT task's optimizer does.
-            _probe_inputs, _probe_targets = next(iter(model.train_loader))[1:]
-            _probe_inputs = _probe_inputs.to(model._device)
-            _probe_targets = _probe_targets.to(model._device)
-            _slot, _merge = model._train_adapter(), model.train_merge
-            _lo, _hi = model._known_classes, model._total_classes
+            # R2 baseline/actual probe (plan sec 2). Prefer a method-supplied
+            # pre-boundary snapshot (currently only SketchLoRA sets
+            # `_ce_pre_boundary_r2` -- see models/sketchlora.py's _train()) over
+            # this generic post-incremental_train() measurement: SketchLoRA's
+            # sketch rank r_hat changes via _compress(), which runs INSIDE
+            # _train(), before incremental_train() returns -- so a probe taken
+            # here would read the POST-fold state (next task's rank), not the
+            # state actually in effect while the steps that just ran were
+            # training (docs/ce_step_boundary_isolation_plan.md sec 6.6). Every
+            # other method's fold state (frozen_delta_q/v) is set BEFORE
+            # _train() runs (via freeze_to_task()/fold_up_to()), so this
+            # generic post-hoc timing is correct for them, unchanged from
+            # before. zero_grad() after: throwaway measurement, must not leak
+            # into whatever the NEXT task's optimizer does.
+            _pre_r2 = getattr(model, "_ce_pre_boundary_r2", None)
+            if _pre_r2 is not None:
+                _baseline_fwd, _baseline_bwd, _actual_fwd, _actual_bwd = _pre_r2
+                del model._ce_pre_boundary_r2
+            else:
+                _probe_inputs, _probe_targets = next(iter(model.train_loader))[1:]
+                _probe_inputs = _probe_inputs.to(model._device)
+                _probe_targets = _probe_targets.to(model._device)
+                _slot, _merge = model._train_adapter(), model.train_merge
+                _lo, _hi = model._known_classes, model._total_classes
 
-            def _oracle_loss_fn(logits):
-                return F.cross_entropy(logits[:, _lo:_hi], _probe_targets - _lo)
+                def _oracle_loss_fn(logits):
+                    return F.cross_entropy(logits[:, _lo:_hi], _probe_targets - _lo)
 
-            _baseline_fwd, _baseline_bwd, _actual_fwd, _actual_bwd = measure_baseline_and_actual(
-                model._network, _probe_inputs, _probe_targets, _oracle_loss_fn, _slot, _merge, model._device)
-            model._network.zero_grad()
+                _baseline_fwd, _baseline_bwd, _actual_fwd, _actual_bwd = measure_baseline_and_actual(
+                    model._network, _probe_inputs, _probe_targets, _oracle_loss_fn, _slot, _merge,
+                    model._device)
+                model._network.zero_grad()
+
+            # Boundary regions: union-merge every kind this task's methods
+            # committed to (InfLoRA uses two distinct kinds for its two calls;
+            # everyone else uses one) -- see CEProfileController.all_current's
+            # own docstring for why a plain union is safe here.
+            _measured_boundary = ce_boundary_ctrl.all_current()
+            # Step regions: split the raw (undivided) epoch-0 accumulation into
+            # genuinely-per-step vs per-epoch buckets BEFORE scaling -- see
+            # utils.ce_profiler.split_by_recurrence and the plan doc's worked
+            # example for why this order (split, then scale) matters.
+            _measured_step, _measured_per_epoch = split_by_recurrence(
+                model._ce_step_acc.totals(), step_scale=1.0 / max(len(model.train_loader), 1))
 
             # Formula-based aux/boundary hooks (_ce_aux_macs_per_step /
             # _ce_boundary_macs_this_cycle) are NOT called here, deliberately:
@@ -252,19 +272,24 @@ def _train(args):
             # _ce_aux_macs_per_step reads self._stream_chunk, which _stream_init
             # -- only ever called by stream_run()/bounded_memory_run() -- sets;
             # the oracle path never calls _stream_init at all) and would raise
-            # AttributeError if invoked here. aux_macs_per_step/boundary_macs
-            # are left at record_unit's defaults (0.0/None) for oracle-mode
-            # records -- ce_formula will therefore read ~1.0 for every method in
-            # this mode (expected, not a bug: the formula path simply has
-            # nothing to report here). ce_measured (from measured_boundary_regions
-            # below) is the number that actually reflects oracle-mode overhead.
+            # AttributeError if invoked here. aux_macs_per_step is left at
+            # record_unit's default (0.0) for oracle-mode records -- ce_formula
+            # will therefore read ~1.0 for every method in this mode (expected,
+            # not a bug: the formula path simply has nothing to report here).
+            # ce_measured is the number that actually reflects oracle-mode
+            # overhead.
             ce_ledger.record_unit(
                 unit_idx=task, steps_per_epoch=len(model.train_loader), n_epochs=model.epochs,
                 step_macs_fwd=_actual_fwd, step_macs_bwd=_actual_bwd,
-                measured_boundary_regions=ce_profile_controller.current("task"),
+                measured_step_regions=_measured_step,
+                measured_per_epoch_regions=_measured_per_epoch,
+                measured_boundary_regions=_measured_boundary,
                 baseline_step_macs_fwd=_baseline_fwd, baseline_step_macs_bwd=_baseline_bwd,
                 nearest_latent_task=task,   # exact in oracle mode -- task IS the real task index
-                profile_provenance={"task": ce_profile_controller.provenance("task")})
+                profile_provenance={
+                    "boundary": {"profiled": bool(ce_boundary_ctrl.profiling_this_cycle)},
+                    "step": {"profiled": bool(ce_boundary_ctrl.profiling_this_cycle)},
+                })
 
         # Full prior-CIL eval cadence: every task, EXCEPT OmniBenchmark-1K (by far
         # the longest-running split -- at 100 tasks, a full prior-CIL eval every

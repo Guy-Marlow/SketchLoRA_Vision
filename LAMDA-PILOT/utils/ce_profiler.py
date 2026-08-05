@@ -233,6 +233,119 @@ class CEProfileSession:
         return False
 
 
+class NarrowAuxAccumulator:
+    """Accumulates many small, narrowly-scoped CEProfileSession harvests into one
+    running total -- the epoch-0 step-type measurement technique (docs/
+    ce_step_boundary_isolation_plan.md sec 1a/7/9). Wrapping just the isolated aux
+    call (not the surrounding fwd/bwd/optimizer.step()) keeps each individual
+    session cheap -- a handful of ops traced instead of an entire ViT step -- which
+    is what makes profiling literally every step of epoch 0 affordable. Unlike
+    CEProfileController, which profiles ONE session per cycle/task and holds it
+    between samples, this profiles MANY small sessions within a single epoch and
+    sums them; it has no notion of cadence/sampling at all, callers decide when to
+    open a session (normally: every step, only during epoch 0)."""
+
+    def __init__(self, device, enabled=True):
+        self.device = device
+        self.enabled = bool(enabled)
+        self._totals = {}   # label -> {"macs","device_seconds","host_seconds","sync_ops","n_calls"}
+
+    def session(self, kind="step_narrow"):
+        """A real CEProfileSession if enabled, else the shared no-op. No per-call
+        sampling decision here -- the caller already decided "profile this" by
+        choosing to call this at all (normally gated on epoch == 0)."""
+        if not self.enabled:
+            return _NULL_REGION
+        return CEProfileSession(self.device, kind=kind)
+
+    def accumulate(self, session):
+        """Fold a just-closed session's harvested regions into the running total.
+        No-op for a null/unsuccessful session -- safe to call unconditionally after
+        every `with self.session():` block regardless of whether it was real."""
+        if not isinstance(session, CEProfileSession) or not session.ok:
+            return
+        for label, vals in session.regions.items():
+            agg = self._totals.setdefault(
+                label, {"macs": 0.0, "device_seconds": 0.0, "host_seconds": 0.0,
+                        "sync_ops": 0, "n_calls": 0})
+            agg["macs"] += vals["macs"]
+            agg["device_seconds"] += vals["device_seconds"]
+            agg["host_seconds"] += vals["host_seconds"]
+            agg["sync_ops"] += vals["sync_ops"]
+            agg["n_calls"] += vals["n_calls"]
+
+    def totals(self):
+        """Raw (undivided) sum across every accumulated session for this epoch --
+        callers apply their own per-recurrence-category scaling, see
+        split_by_recurrence below."""
+        return dict(self._totals)
+
+
+def split_by_recurrence(regions, step_scale=1.0):
+    """Partition a harvested region dict by naming convention: a label whose SECOND
+    path segment is "per_epoch" recurs once per EPOCH (docs/
+    ce_step_boundary_isolation_plan.md sec 2 -- e.g. TreeLoRA's `all_grad` rebuild,
+    which only fires on the first tree_search() call after each epoch's
+    new_epoch_init() resets it), not once per step -- e.g.
+    "treelora/per_epoch/tree_search_first_call" vs "treelora/tree_search_ucb".
+    Everything else is treated as genuinely per-step, unchanged from prior
+    behavior. Returns (step_regions, per_epoch_regions):
+      step_regions: scaled by `step_scale` (pass 1/steps_per_epoch to get a
+        per-step average, matching the existing measured_step_regions
+        convention -- utils/ops_ledger.py scales this back up by
+        n_epochs*steps_per_epoch).
+      per_epoch_regions: ALWAYS left at the raw, undivided epoch-0 total --
+        ops_ledger.py scales this by n_epochs ALONE downstream, never by
+        steps_per_epoch. This distinction (not step_scale applying to both
+        halves uniformly) is exactly what fixes O-LoRA's cache-rebuild
+        overcount -- see the plan doc's worked example."""
+    step_regions, per_epoch_regions = {}, {}
+    for label, stats in (regions or {}).items():
+        parts = label.split("/", 2)
+        if len(parts) >= 2 and parts[1] == "per_epoch":
+            per_epoch_regions[label] = stats
+        else:
+            if step_scale != 1.0:
+                stats = {"macs": stats["macs"] * step_scale,
+                         "device_seconds": stats["device_seconds"] * step_scale,
+                         "host_seconds": stats["host_seconds"] * step_scale,
+                         "sync_ops": stats["sync_ops"] * step_scale,
+                         "n_calls": stats["n_calls"]}
+            step_regions[label] = stats
+    return step_regions, per_epoch_regions
+
+
+def run_boundary(ctrl, kind, fn):
+    """Run fn() (no args, return value discarded) inside a `ctrl` profiler session
+    if `ctrl` is not None, committing the harvested regions under `kind`
+    afterward; otherwise just calls fn() directly. Small shared helper (docs/
+    ce_step_boundary_isolation_plan.md sec 7) so every method's own boundary call
+    site is a one-line wrap instead of repeating the open/commit dance. `ctrl` is
+    expected to be a CEProfileController (oracle mode: set once by trainer.py,
+    reused across tasks via begin_cycle(); bounded_memory mode never needs this --
+    its boundary calls already sit inside the driver's own outer session)."""
+    if ctrl is None:
+        fn()
+        return
+    with ctrl.session(kind) as sess:
+        fn()
+    ctrl.commit(sess, kind, scale=1.0)
+
+
+def run_step_narrow(acc, kind, fn):
+    """Run fn() (no args) inside an `acc` (NarrowAuxAccumulator) session if `acc`
+    is not None, folding the harvested regions into its running total afterward;
+    otherwise just calls fn() directly. Unlike run_boundary, fn's return value IS
+    needed here (the aux terms feed into the real training loss) so this returns
+    fn()'s result either way."""
+    if acc is None:
+        return fn()
+    with acc.session(kind) as sess:
+        result = fn()
+    acc.accumulate(sess)
+    return result
+
+
 class CEProfileController:
     """Sampling schedule + hold-between-samples bookkeeping (plan section 3.2).
 
@@ -245,7 +358,18 @@ class CEProfileController:
     interpolate honestly instead of silently treating held values as measured.
     """
 
-    def __init__(self, device, profile_every=25, enabled=True, force_cycles=(0, 1)):
+    def __init__(self, device, profile_every=1, enabled=True, force_cycles=(0, 1)):
+        # default CHANGED 2026-08-05 (docs/ce_step_boundary_isolation_plan.md secs
+        # 0/7/9/11): was 25 (a sampling-cadence safety valve needed only because
+        # sessions used to wrap an entire epoch/task). Now that boundary sessions
+        # wrap just the isolated boundary call (cheap per occurrence -- see the
+        # per-method wiring in models/*.py) and step-type measurement goes through
+        # NarrowAuxAccumulator instead of this controller entirely, there is no
+        # longer a strong reason to hold values between cycles by default. Still
+        # overridable via ce_profile_every for a specific campaign that wants
+        # coarser sampling (e.g. InfLoRA's boundary action is a genuine extra full
+        # forward pass, not just a few small matmuls -- see the plan doc's
+        # discussion of that trade-off).
         self.device = device
         self.profile_every = max(1, int(profile_every))
         self.enabled = bool(enabled)
@@ -311,6 +435,23 @@ class CEProfileController:
             "profiled": bool(self._profiling_this_cycle),
             "held_from_cycle": self._last_profiled_cycle[kind],
         }
+
+    def all_current(self):
+        """Union-merge every kind's currently-held region dict. For callers (e.g.
+        trainer.py's oracle-mode wiring, docs/ce_step_boundary_isolation_plan.md
+        sec 7) where a single method has more than one boundary call site (e.g.
+        InfLoRA's _init_lora_A + _update_dualgpm) and therefore commits under
+        several distinct kind names -- purely to avoid commit()'s per-kind
+        overwrite, not because the two calls are conceptually different -- and just
+        wants "everything committed to this controller so far" at ledger-write
+        time, without the caller needing to know each method's own internal kind
+        names. Safe as long as region LABELS (not kind names) never collide across
+        call sites, which every tag in this codebase already satisfies by
+        construction (each call site has its own unique tag string)."""
+        merged = {}
+        for kind_dict in self._last.values():
+            merged.update(kind_dict)
+        return merged
 
 
 # ---- charged-overhead reduction ------------------------------------------

@@ -396,7 +396,13 @@ Omni-1K** — ahead of only SeqLoRA, below O-LoRA/TreeLoRA/InfLoRA at both budge
 checked so far. This is the current open competitiveness gap; 200MB cells may
 change the picture but are not yet complete.
 
-**H200, ADMISSIBLE, `round2_slurm_grid`: OmniBenchmark-1K, 30 real tasks,
+**H200, ADMISSIBLE, `round2_slurm_grid`: OmniBenchmark-1K, 100 real tasks
+(`init_cls=10`/`increment=10` on the 1000-class set — CORRECTED 2026-08-05,
+was wrongly recorded as "30 real tasks" here; the `omni30t` string baked into
+every config prefix/filename in this campaign is stale leftover naming from
+an earlier plan and does NOT reflect the actual task count actually run,
+confirmed directly against `exps/round2_slurm_grid/*.json`'s own
+`stop_after_tasks: 100`),
 bounded_memory, 3-seed average (1993/1996/1999)** — the H200-cluster
 counterpart grid to the local `round2_anchor`/`imagenetr_grid` numbers above,
 no bolt-ons (plain `bounded_eviction`). Originally 4 methods x {100,200}MB
@@ -451,7 +457,7 @@ already-unbounded bank at every budget, nearly 3x InfLoRA's at 50MB. Both
 O-LoRA and TreeLoRA's memory scales with CYCLE count (one new slot/leaf per
 cycle, not per real task), which is why the footprint is highest at the
 TIGHTEST budget (50MB → smallest chunks → most cycles → most slots/leaves
-accumulated over the same 30-task/1000-class stream) and shrinks
+accumulated over the same 100-task/1000-class stream) and shrinks
 monotonically as budget increases — the same mechanism, just more extreme
 for TreeLoRA's per-leaf storage than O-LoRA's per-slot storage. This
 directly changes SketchLoRA's/InfLoRA's relative positioning in the

@@ -29,7 +29,7 @@ from models.lora import Learner as LoRALearner
 # *** UNTESTED as of 2026-08-03 *** -- measured-CE region tagging
 # (docs/ce_profiling_implementation_plan.md sec 4.3). No-op unless a profiling
 # session is active (utils/ce_profiler.py).
-from utils.ce_profiler import ce_region
+from utils.ce_profiler import ce_region, run_boundary
 
 num_workers = 8
 
@@ -240,10 +240,26 @@ class Learner(LoRALearner):
                                       shuffle=False, num_workers=num_workers)
 
         self._network.to(self._device)
-        self._init_lora_A(self.train_loader)     # DualGPM-projected init of A
+        # oracle-mode boundary bookkeeping (docs/ce_step_boundary_isolation_plan.md
+        # sec 7): InfLoRA has no per-step aux (train_merge=True's fold-branch
+        # overhead is embedded in the ordinary forward and only measurable via R2,
+        # see trainer.py) -- its ENTIRE step-vs-SeqLoRA overhead is these two
+        # boundary calls, each a genuine extra full forward pass over the task's
+        # data. Two DISTINCT kind names (not one shared "boundary") because
+        # CEProfileController.commit() overwrites its held value per kind -- using
+        # two kinds and merging via all_current() at ledger-write time is the same
+        # pattern models/bounded_memory_mixin.py already uses for
+        # boundary_begin/boundary_end. `_ce_boundary_ctrl` is None (and
+        # run_boundary falls back to a direct call) whenever final_metrics/CE-
+        # logging is off, under bounded_memory streaming (that path's own
+        # _stream_begin_chunk/_stream_end_chunk are already wrapped end-to-end by
+        # the driver, see there), and for any other trainer.py track that never
+        # sets this attribute.
+        _ctrl = getattr(self, "_ce_boundary_ctrl", None)
+        run_boundary(_ctrl, "inflora_init_a", lambda: self._init_lora_A(self.train_loader))
         self._log_trainable()
         self._train(self.train_loader)           # train B + head (inherited)
-        self._update_dualgpm(self.train_loader)  # grow feature memory
+        run_boundary(_ctrl, "inflora_dualgpm", lambda: self._update_dualgpm(self.train_loader))
 
     # -- (1)+(2) analytic init of the down-projection A -----------------
     @torch.no_grad()
