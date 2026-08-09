@@ -1,0 +1,33 @@
+{
+  "dataset": "omnibenchmark1k",
+  "memory_size": 0,
+  "memory_per_class": 0,
+  "fixed_memory": false,
+  "shuffle": true,
+  "init_cls": 10,
+  "increment": 10,
+  "scenario": "cil",
+  "pretrained": true,
+  "print_forget": false,
+  "final_metrics": false,
+  "backbone_type": "vit_base_patch16_224_lora",
+  "lora_rank": 10,
+  "lora_alpha": null,
+  "batch_size": 48,
+  "weight_decay": 0.0005,
+  "min_lr": 0.0,
+  "tuned_epoch": 20,
+  "boundary_mode": "bounded_memory",
+  "stop_after_tasks": 100,
+  "device": [
+    "0"
+  ],
+  "model_name": "treelora",
+  "reg": 0.1,
+  "init_lr": 0.001,
+  "seed": [
+    1996
+  ],
+  "bm_budget_mb": 25,
+  "prefix": "round2_slurm_grid_omni30t_25mb_treelora_s1996"
+}

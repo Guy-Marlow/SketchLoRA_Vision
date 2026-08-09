@@ -14,6 +14,15 @@ prior output), so re-running it after this edit rewrites the existing
 100MB/200MB config files with byte-identical content and additionally writes
 the 15 new 50MB ones -- verified via md5sum before/after, not assumed.
 
+25MB and 150MB added 2026-08-10 (user request, filling out the dose-response
+curve between the existing 50/100/200MB points), same idempotent-extension
+pattern as 50MB above -- BASE/METHOD_CFG untouched, existing 50/100/200MB
+config files remain byte-identical on re-run, this just adds two more BUDGETS
+entries -> two more sets of 15 config files. Driven by
+scripts/round2_slurm_grid_25mb_150mb.slurm (separate from the original
+round2_slurm_grid.slurm/round2_slurm_grid_completion_and_50mb.slurm scripts,
+single-GPU, hardcoded 30-job list -- see that script for why).
+
 Per-method HP conventions (identical to exps/round2_grid/ and
 scripts/run_lr_sweep_b2.py's CIFAR-100 sweep winners, propagated per the
 project's own CIFAR-winner -> Omni rule):
@@ -89,7 +98,7 @@ METHOD_CFG = {
 
 # order matters -- METHOD-MAJOR execution order in the .slurm script
 METHODS = ["seqlora", "sketchlora", "olora", "inflora", "treelora"]
-BUDGETS = [50, 100, 200]   # order matters -- outer loop in the .slurm script
+BUDGETS = [25, 50, 100, 150, 200]   # order matters -- outer loop in the .slurm script
 SEEDS = [1993, 1996, 1999]
 
 configs = []
