@@ -30,7 +30,10 @@ from models.stream_mixin import StreamMixin
 from models.bounded_memory_mixin import BoundedMemoryMixin
 from utils.toolkit import tensor2numpy
 
-num_workers = 8
+# 2026-08-10: was 8 (== wave1_final.slurm's --cpus-per-task=8), leaving zero CPU
+# headroom for the main process; dropped to 4 to relieve DataLoader-worker vs.
+# main-process contention (see ce_profiling_methodology memory).
+num_workers = 4
 
 
 class Learner(StreamMixin, BoundedMemoryMixin, TILLearner):

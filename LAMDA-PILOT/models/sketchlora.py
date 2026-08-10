@@ -76,9 +76,10 @@ import numpy as np
 import torch
 from torch import nn, optim
 from torch.nn import functional as F
+from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from models.lora import Learner as LoRALearner
+from models.lora import Learner as LoRALearner, num_workers
 from utils.toolkit import tensor2numpy
 
 # trusted randomized-SVD implementation (vendored into utils/ for self-containment)
@@ -92,6 +93,7 @@ from utils.admission import floor_admission_merge
 # value -- only what utils/ops_ledger.py's measured_step_regions/
 # measured_boundary_regions record.
 from utils.ce_profiler import ce_region, run_boundary, run_step_narrow
+from utils.ce2_profiler import ce2_boundary
 
 # fixed-slot convention: 0 = frozen sketch, 1 = trainable residual
 SKETCH = 0
@@ -296,6 +298,19 @@ class Learner(LoRALearner):
         # (single AdamW group, uniform self.weight_decay for everything, built
         # inline in models/lora.py::_train). See _optimizer_param_groups override.
         self.lora_weight_decay = args.get("sketchlora_lora_wd", None)
+        # -- embedding-drift extraction (t-SNE study, 2026-08-06) -- opt-in, off
+        # by default. When set, at every compress boundary we dump (a) the
+        # current task's OWN test-set embeddings as produced by the just-trained,
+        # not-yet-compressed adapter (sketch_{n-1} frozen + residual_n, exactly
+        # the state training used) and (b) the sketch's embeddings, right after
+        # compression, on every task seen so far (task r <= n) -- isolating
+        # compression-induced drift from later-task drift. Each group is written
+        # to its own .npz file as soon as it's computed (not batched at the end)
+        # so t-SNE tuning can start before training finishes.
+        self.embed_drift_dir = args.get("embed_drift_dir", None)
+        if self.embed_drift_dir is not None:
+            os.makedirs(self.embed_drift_dir, exist_ok=True)
+        self._task_class_ranges = {}   # task idx -> (known, total) class bounds
         self.cs_rank = args.get("cs_rank", self.svd_rank)
         self.cs_seed = args.get("cs_seed", args["seed"] if not isinstance(args.get("seed"), list)
                                  else args["seed"][0])
@@ -774,9 +789,61 @@ class Learner(LoRALearner):
         net = self._network.module if hasattr(self._network, "module") else self._network
         return net(inputs, task=SKETCH, merge=True)
 
+    # -- embedding-drift extraction (t-SNE study) ------------------------
+    def _drift_test_loader(self, task_idx):
+        known, total = self._task_class_ranges[task_idx]
+        dataset = self.data_manager.get_dataset(np.arange(known, total), source="test", mode="test")
+        return DataLoader(dataset, batch_size=self.batch_size, shuffle=False, num_workers=num_workers)
+
+    @torch.no_grad()
+    def _extract_features(self, loader, forward_fn):
+        """forward_fn(net, inputs) -> output dict with a "features" key. Returns
+        (features, labels) as numpy arrays, in loader order (no shuffle)."""
+        net = self._network.module if hasattr(self._network, "module") else self._network
+        net.eval()
+        feats, labels = [], []
+        for _, inputs, targets in loader:
+            inputs = inputs.to(self._device)
+            out = forward_fn(net, inputs)
+            feats.append(out["features"].cpu().numpy())
+            labels.append(targets.numpy())
+        return np.concatenate(feats), np.concatenate(labels)
+
+    def _save_drift_group(self, fname, features, labels, **meta):
+        path = os.path.join(self.embed_drift_dir, fname)
+        np.savez(path, features=features, labels=labels, **meta)
+        logging.info("[embed_drift] wrote {} ({} points)".format(path, features.shape[0]))
+
+    def _maybe_extract_drift_exact(self):
+        """(a) the current task's own test images through the just-trained,
+        uncompressed state -- sketch_{n-1} (frozen) + residual_n (trained),
+        exactly what training used this task. Run BEFORE _compress()."""
+        if self.embed_drift_dir is None:
+            return
+        n = self._cur_task
+        loader = self._drift_test_loader(n)
+        feats, labels = self._extract_features(
+            loader, lambda net, x: net(x, task=self._train_adapter(), merge=self.train_merge))
+        self._save_drift_group("exact_task{}.npz".format(n), feats, labels,
+                                task=n, boundary=n, kind="exact")
+
+    def _maybe_extract_drift_sketch(self):
+        """(b) every task r <= n's test images through the sketch alone, right
+        after this boundary's compression. Run AFTER _compress()."""
+        if self.embed_drift_dir is None:
+            return
+        n = self._cur_task
+        for r in range(n + 1):
+            loader = self._drift_test_loader(r)
+            feats, labels = self._extract_features(
+                loader, lambda net, x: net(x, task=SKETCH, merge=True))
+            self._save_drift_group("sketch_task{}_boundary{}.npz".format(r, n), feats, labels,
+                                    task=r, boundary=n, kind="sketch")
+
     # -- train then compress, but ONLY at a period boundary (or the run's last task)
     # -- eval runs before after_task) --------------
     def _train(self, train_loader):
+        self._task_class_ranges[self._cur_task] = (self._known_classes, self._total_classes)
         self._freeze_inactive_blocks()   # re-freeze before the optimiser is built
         # 2026-08-05 fix: classifier_alignment was DEAD CODE on this (oracle)
         # path -- its actual effect lived entirely in _stream_end_chunk, a
@@ -825,8 +892,11 @@ class Learner(LoRALearner):
             # plan.md sec 7): under bounded_memory streaming this call site isn't
             # used -- _stream_end_chunk (above) is already wrapped end-to-end by
             # the driver's own boundary_end session.
-            run_boundary(getattr(self, "_ce_boundary_ctrl", None), "sketchlora_compress",
-                        self._compress)
+            self._maybe_extract_drift_exact()
+            with ce2_boundary(self):
+                run_boundary(getattr(self, "_ce_boundary_ctrl", None), "sketchlora_compress",
+                            self._compress)
+            self._maybe_extract_drift_sketch()
             # Eval (CIL's bare net(inputs), routed via LoRAVitNet.default_task -- see
             # utils/inc_net.py's _resolve) runs after this returns, before after_task().
             # _compress() just reset every residual slot to (kaiming A, zero B) -- a
@@ -847,8 +917,9 @@ class Learner(LoRALearner):
         # operates purely on net.fc via _ca_stats, so the relative order vs.
         # compress has no functional effect either way).
         if self.classifier_alignment:
-            run_boundary(getattr(self, "_ce_boundary_ctrl", None), "sketchlora_ca",
-                        self._run_ca_alignment)
+            with ce2_boundary(self):
+                run_boundary(getattr(self, "_ce_boundary_ctrl", None), "sketchlora_ca",
+                            self._run_ca_alignment)
 
     def _ce_pre_boundary_probe(self, train_loader):
         """R2 baseline-vs-actual, measured here rather than by trainer.py's

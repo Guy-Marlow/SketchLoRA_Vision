@@ -52,7 +52,8 @@ from torch import optim
 from torch.nn import functional as F
 from torch.utils.data import DataLoader
 
-num_workers = 8
+# 2026-08-10: 8->4, see models/lora.py's identical change for rationale.
+num_workers = 4
 
 
 def _stream_checkpoint_write(args, results, tag="stream", partial=True):

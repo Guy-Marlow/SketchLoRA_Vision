@@ -10,6 +10,7 @@ from utils.metrics_logger import MetricsLogger
 from utils.ops_ledger import OpsLedger, measure_step_macs, compute_ce_report
 from utils.ce_profiler import (CEProfileController, measure_baseline_and_actual,
                                 NarrowAuxAccumulator, split_by_recurrence)
+from utils.ce2_profiler import CE2Logger, CE2Accumulator, CE2Session, diff_totals
 import os
 import numpy as np
 
@@ -193,17 +194,40 @@ def _train(args):
         # test). Skip CE/ops-ledger measurement entirely for those methods rather
         # than crash -- persistent memory/FLOPs/accuracy (mlog, above) are a
         # completely separate code path and unaffected.
-        if hasattr(model, "_train_adapter"):
+        if hasattr(model, "_train_adapter") and not args.get("ce2_enabled"):
             ce_ledger = OpsLedger(os.path.join("run_logs", "final", args["model_name"]), _tag)
             ce_boundary_ctrl = CEProfileController(
                 model._device, profile_every=int(args.get("ce_profile_every", 1)),
                 enabled=True)
-        else:
+        elif not args.get("ce2_enabled"):
             logging.info(
                 "[CE metric] {} has no _train_adapter/train_merge (non-LoRA "
                 "architecture) -- skipping CE/ops-ledger measurement for this run; "
                 "persistent memory/FLOPs/accuracy logging is unaffected.".format(
                     args["model_name"]))
+
+    # CE2 (2026-08-10, user request): coarse, process-level profiled CE --
+    # exactly 3 torch.profiler sessions per task (whole training loop / whole
+    # eval / method's own boundary op), no per-step sampling or region tagging
+    # -- see utils/ce2_profiler.py's module docstring. Deliberately independent
+    # of `final_metrics`/the ce_ledger block above, and mutually exclusive with
+    # it BY CONSTRUCTION: the `and not args.get("ce2_enabled")` guard just above
+    # means ce_ledger/ce_boundary_ctrl are never constructed when ce2_enabled is
+    # set, so model._ce_boundary_ctrl/_ce_step_acc stay unset for every method,
+    # every LoRA-family method's internal run_boundary(self._ce_boundary_ctrl,
+    # ...)/run_step_narrow(self._ce_step_acc, ...) calls degrade to plain
+    # passthroughs (utils/ce_profiler.py), and SketchLoRA's
+    # _ce_pre_boundary_probe (which opens its OWN raw torch.profiler.profile())
+    # never fires at all -- it's gated on `self._ce_boundary_ctrl is not None`.
+    # This is what makes it safe to open CE2's own outer profiler session around
+    # incremental_train() without a nested-profiler collision.
+    ce2 = None
+    if args.get("ce2_enabled"):
+        _tag2 = "{}_{}_{}_s{}".format(
+            args["model_name"], args["dataset"],
+            args.get("prefix") or (args.get("boundary_mode") or "task"), args["seed"])
+        ce2 = CE2Logger(os.path.join("run_logs", "ce2", args["model_name"]), _tag2, args)
+        model._ce2_boundary_acc = CE2Accumulator(model._device)
 
     for task in range(_n_run):
         if args.get("boundary_mode") == "budget":
@@ -233,7 +257,28 @@ def _train(args):
             model._ce_boundary_ctrl = ce_boundary_ctrl
             model._ce_step_acc = NarrowAuxAccumulator(
                 model._device, enabled=ce_boundary_ctrl.profiling_this_cycle)
-        model.incremental_train(data_manager)
+
+        if ce2 is not None:
+            # Fresh per-task boundary bucket -- each method's own ce2_boundary()
+            # wrap (see e.g. models/sketchlora.py's _compress call) accumulates
+            # into this across however many boundary sub-calls that method makes
+            # (InfLoRA has two: _init_lora_A + _update_dualgpm).
+            model._ce2_boundary_acc.reset()
+            with CE2Session(model._device) as _ce2_total_sess:
+                model.incremental_train(data_manager)
+            _ce2_boundary_totals_train_phase = model._ce2_boundary_acc.totals()
+            # Pure train = whole incremental_train() window minus whatever the
+            # method's own boundary wrap(s) carved out of it -- this is what
+            # isolates "regular back/forward passes plus any EXTRA per-step
+            # work" (O-LoRA's orthogonality penalty, the shared dense-fold's
+            # heavier forward/backward, etc.) from the one-off boundary
+            # bookkeeping, at fixed epochs/batch_size (see the CE2 campaign's
+            # own config convention: tuned_epoch/batch_size held constant
+            # across all 9 methods specifically so this subtraction is
+            # apples-to-apples).
+            _ce2_train_totals = diff_totals(_ce2_total_sess.totals(), _ce2_boundary_totals_train_phase)
+        else:
+            model.incremental_train(data_manager)
 
         if mlog:
             mlog.mark_train_done()
@@ -323,10 +368,18 @@ def _train(args):
         # reduces to the old dense behavior exactly when every task is a checkpoint.
         is_checkpoint = (
             ((task + 1) % 5 == 0 or task == _n_run - 1)
-            if args["dataset"] == "omnibenchmark1k" else True
+            if args["dataset"] == "omnibenchmark1k" and ce2 is None else True
         )
+        # ce2 forces every task to be a checkpoint even on omnibenchmark1k --
+        # the whole point of the CE2 per-task curve (user request: "so we can
+        # see how some methods gradually begin to incur more compute") needs a
+        # real eval measurement at every task, not just every 5th.
         if is_checkpoint:
-            cnn_accy, nme_accy = model.eval_task()
+            if ce2 is not None:
+                with CE2Session(model._device) as _ce2_eval_sess:
+                    cnn_accy, nme_accy = model.eval_task()
+            else:
+                cnn_accy, nme_accy = model.eval_task()
             # per-task TIL accuracies (task-aware), parallel to the CNN/CIL matrix
             til_row = getattr(model, "_til_per_task", None)
             if til_row is not None:
@@ -334,10 +387,37 @@ def _train(args):
         else:
             cnn_accy, nme_accy = None, None
 
+        if ce2 is not None:
+            # CL-LoRA/EASE do real between-task bookkeeping (deep-copying the
+            # just-finished adapter into their ensemble, add_adapter_to_list())
+            # inside after_task(), which trainer.py calls AFTER incremental_train()
+            # has already returned and _ce2_boundary_totals_train_phase already
+            # read -- without this second reset/read, that cost would land nowhere
+            # (not train, not eval, not boundary) since after_task() sits outside
+            # every window CE2 otherwise measures. Reset fresh so after_task()'s
+            # own ce2_boundary() wrap(s) (if any -- most methods have none) start
+            # from zero, then sum both phases' contributions into one reported
+            # boundary bucket -- both are genuinely "between-task bookkeeping,"
+            # just triggered from different call sites in this loop.
+            model._ce2_boundary_acc.reset()
         model.after_task()
+        if ce2 is not None:
+            _ce2_boundary_totals_after_task = model._ce2_boundary_acc.totals()
+            _ce2_boundary_totals = {
+                k: _ce2_boundary_totals_train_phase[k] + _ce2_boundary_totals_after_task[k]
+                for k in _ce2_boundary_totals_train_phase
+            }
         if mlog:
             mlog.record_task(model, task, cnn_accy,
                              getattr(model, "_til_accy", None) if is_checkpoint else None)
+        if ce2 is not None:
+            # is_checkpoint is forced True whenever ce2 is not None (see above),
+            # so _ce2_eval_sess/_ce2_train_totals/_ce2_boundary_totals were
+            # always set this iteration.
+            ce2.record_task(
+                task, train=_ce2_train_totals, eval=_ce2_eval_sess.totals(),
+                boundary=_ce2_boundary_totals,
+                cil_top1=(cnn_accy["top1"] if cnn_accy else None))
 
         if not is_checkpoint:
             continue
@@ -392,6 +472,9 @@ def _train(args):
         if test_loader is not None:
             mlog.record_inference_cost(model, test_loader)
         mlog.finalize(cnn_matrix, til_matrix, task)
+
+    if ce2 is not None:
+        ce2.finalize()
 
     # *** UNTESTED as of 2026-08-03 *** -- same end-of-run CE summary convention
     # as models/bounded_memory_mixin.py's own (compute_ce_report, not the

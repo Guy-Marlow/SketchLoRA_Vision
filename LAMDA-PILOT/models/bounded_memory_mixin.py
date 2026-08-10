@@ -76,7 +76,8 @@ from utils.ops_ledger import OpsLedger, measure_step_macs
 from utils.ce_profiler import (CEProfileController, measure_baseline_and_actual,
                                 NarrowAuxAccumulator, split_by_recurrence, run_step_narrow)
 
-num_workers = 8
+# 2026-08-10: 8->4, see models/lora.py's identical change for rationale.
+num_workers = 4
 BYTES_PER_IMAGE = 224 * 224 * 3   # same accounting convention as budget_stream.py / stream_mixin.py
 
 

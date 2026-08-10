@@ -10,8 +10,24 @@ L2-regularized:
                +  lambda_2 * || current-task LoRA ||_2
 
 Here A is applied to the query and value projections (our shared convention).
-Inference is the merged sum of LoRAs 0..t (CIL) or task-routed (TIL), reusing
-the baseline ``LoRAVitNet`` and the TIL eval in ``models/til_base.py``.
+Inference is the accumulated sum of LoRAs 0..t (CIL) or task-routed (TIL),
+reusing the baseline ``LoRAVitNet`` and the TIL eval in ``models/til_base.py``.
+
+2026-08-10: does NOT use frozen-slot dense folding (see backbone/vit_lora.py's
+``enable_frozen_folding``). Cross-checked against O-LoRA-Ref
+(svd_sketching_vision/O-LoRA/src/peft/tuners/lora.py's ``Linear.forward``):
+the reference NEVER materializes a dense delta -- it always sums the frozen
+history factor and the current task's factor directly (factored forward), the
+same non-fold loop this backbone already provides. Our earlier port opted
+into dense folding anyway (a shared LoRA-family convenience, not something
+O-LoRA's own algorithm needs); at this project's rank=8-10/dim=768 settings
+the crossover where dense folding actually becomes cheaper than factored is
+t* = dim/(2r) ~= 38-48 tasks, and every non-streaming O-LoRA split in this
+repo (10-20 tasks) runs under that -- so folding was making O-LoRA pay MORE
+compute than its own reference algorithm requires, for this whole benchmark
+suite except Omnibenchmark-1K. Removed to match the reference and to stop
+overcharging O-LoRA's measured CE for a self-inflicted cost. See the
+ce_profiling_methodology memory for the fuller investigation.
 """
 
 import logging
@@ -27,14 +43,20 @@ from utils.toolkit import tensor2numpy
 # (docs/ce_profiling_implementation_plan.md sec 4.2). No-op unless a profiling
 # session is active (utils/ce_profiler.py).
 from utils.ce_profiler import ce_region, run_boundary, run_step_narrow
+from utils.ce2_profiler import ce2_boundary
 
 
 class Learner(LoRALearner):
     def __init__(self, args):
         super().__init__(args)
-        # O-LoRA's frozen slots are never modified once trained -- safe to fold
-        # into a dense delta for O(1) merged forward (plan doc §6 item 2).
-        self._network.enable_frozen_folding()
+        # 2026-08-10: NOT calling enable_frozen_folding() -- see module
+        # docstring. O-LoRA's frozen slots ARE immutable once trained (folding
+        # would still be numerically safe), but O-LoRA-Ref itself never folds,
+        # and doing so costs more compute than factored forward for every
+        # split in this repo except Omnibenchmark-1K's 100 tasks. _lora_delta
+        # (backbone/vit_lora.py) falls through to its factored/non-fold loop
+        # automatically whenever _fold_enabled stays False (the class
+        # default) -- no other code change needed for this to take effect.
         self.lamda_1 = args.get("lamda_1", 0.5)   # orthogonality weight
         self.lamda_2 = args.get("lamda_2", 0.0)   # L2 weight on current LoRA
         # O-LoRA accumulates: the forward sums previous (frozen) + current LoRA.
@@ -193,61 +215,18 @@ class Learner(LoRALearner):
                         orth = orth + torch.abs(A_t @ A_prev.t()).sum()
         return orth, l2
 
-    # *** UNTESTED as of 2026-08-03 *** -- local GPUs were unavailable
-    # (thermal/damage risk) at fix time, so this has NOT been exercised on a
-    # live run. Verified only by static tracing of backbone/vit_lora.py: slot
-    # indexing (attn._folded_upto, self._cur_task), the fold invariant (slot
-    # t-1 is folded when slot t starts training, so t itself stays unfolded
-    # for its whole lifetime as "current"), and that frozen_delta_q/v are
-    # unconditional register_buffers. No live run has confirmed this executes
-    # without error or matches the hand-computed estimate used for the
-    # .memcorrected.json files built alongside this fix.
-    #
-    # FIXED 2026-08-03 (found during the same persistent-memory audit that
-    # caught TreeLoRA's bug). O-LoRA previously used the generic fallback
-    # (models/lora.py::persistent_state -- "every slot still in the
-    # ModuleList", never freed) with the same problem TreeLoRA had: it counts
-    # every historical slot as still live and never reads frozen_delta_q/v at
-    # all. BUT O-LoRA's correction is NOT a full analog of TreeLoRA's fix --
-    # it is only HALF as aggressive, because of a real structural difference:
-    # _orth_and_l2 (above) reads every past task's lora_A directly out of the
-    # live ModuleList, forever -- old A genuinely cannot be freed or replaced
-    # by frozen_delta the way TreeLoRA's/InfLoRA's fully-dead old slots can.
-    # Old B, however, IS fully redundant once folded: the fold-enabled forward
-    # branch (backbone/vit_lora.py::_lora_delta) only ever reads frozen_delta_*
-    # + the current slot, never indexing an old B by position, and nothing
-    # else in this file reads old B either. So this override keeps every
-    # folded slot's A (the orthogonality penalty's real, unavoidable O(K)
-    # dependency) while dropping every folded slot's B (dead weight, replaced
-    # by its already-folded contribution inside frozen_delta_q/v), on top of
-    # the current (not-yet-folded) slot's own full A+B and the head. This is
-    # an ACCOUNTING fix only -- old B tensors are still allocated on the GPU
-    # (nothing here calls free_folded_slot, which would also break the
-    # orthogonality penalty's old-A read since it frees A and B as a unit) --
-    # so this describes what SHOULD be counted as persistent, not a change to
-    # what's physically allocated.
-    def persistent_state(self):
-        net = self._network.module if hasattr(self._network, "module") else self._network
-        frozen_delta_bytes = 0
-        for attn in net.attn_modules():
-            frozen_delta_bytes += attn.frozen_delta_q.numel() * attn.frozen_delta_q.element_size()
-            frozen_delta_bytes += attn.frozen_delta_v.numel() * attn.frozen_delta_v.element_size()
-        old_a_bytes = 0
-        for attn in net.attn_modules():
-            for s in range(attn._folded_upto + 1):
-                old_a_bytes += attn.lora_A_q[s].weight.numel() * attn.lora_A_q[s].weight.element_size()
-                old_a_bytes += attn.lora_A_v[s].weight.numel() * attn.lora_A_v[s].weight.element_size()
-        cur_slot_bytes = 0
-        for attn in net.attn_modules():
-            for mlist in (attn.lora_A_q, attn.lora_B_q, attn.lora_A_v, attn.lora_B_v):
-                for p in mlist[self._cur_task].parameters():
-                    cur_slot_bytes += p.numel() * p.element_size()
-        fc_bytes = sum(p.numel() * p.element_size() for p in net.fc.parameters())
-        total_bytes = frozen_delta_bytes + old_a_bytes + cur_slot_bytes + fc_bytes
-        return {"params": int(total_bytes // 4), "bytes": int(total_bytes),
-                "breakdown": {"frozen_delta": frozen_delta_bytes, "old_lora_A": old_a_bytes,
-                             "current_slot": cur_slot_bytes, "fc": fc_bytes}}
-
+    # 2026-08-10: REMOVED the fold-specific persistent_state() override that
+    # used to live here (accounted old-A up to attn._folded_upto, treated old-B
+    # as fully dead/folded-away weight). That accounting was correct ONLY under
+    # folding: with enable_frozen_folding() no longer called (see __init__ and
+    # the module docstring), _folded_upto never advances past its -1 initial
+    # value, so that override would silently report ZERO bytes for every
+    # historical slot's A and B -- a real undercount, not a harmless no-op,
+    # since every slot's A (orthogonality penalty) AND B (factored forward,
+    # backbone/vit_lora.py's non-fold loop branch) are now genuinely live and
+    # read every step. Falls back to models/lora.py::persistent_state(), which
+    # already sums every currently-allocated slot's A+B+head -- exactly the
+    # right accounting once nothing gets folded away.
     def _train(self, train_loader):
         # oracle-mode boundary bookkeeping (docs/ce_step_boundary_isolation_plan.md
         # sec 7): trainer.py has no visibility inside incremental_train(), so this
@@ -257,7 +236,8 @@ class Learner(LoRALearner):
         # zero added cost on the unprofiled path). Under bounded_memory streaming
         # this call site isn't used at all -- _stream_begin_chunk (above) already
         # calls _refresh_orth_cache() from inside the driver's own outer session.
-        run_boundary(getattr(self, "_ce_boundary_ctrl", None), "boundary", self._refresh_orth_cache)
+        with ce2_boundary(self):
+            run_boundary(getattr(self, "_ce_boundary_ctrl", None), "boundary", self._refresh_orth_cache)
 
         self._network.to(self._device)
         params = [p for p in self._network.parameters() if p.requires_grad]

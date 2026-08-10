@@ -1,5 +1,5 @@
 """TreeLoRA for LAMDA-PILOT: per-task LoRA (O-LoRA-style scaffold -- train_merge=True,
-one slot per task, merged CIL/TIL forward) with O-LoRA's orthogonality penalty
+one slot per task, accumulated CIL/TIL forward) with O-LoRA's orthogonality penalty
 REPLACED by a hierarchical gradient-similarity-tree regularizer. Port of
 TreeLoRA/model/Regular/Tree_LoRA.py (train_one_task) +
 TreeLoRA/utils/kd_lora_tree.py (see utils/kd_tree.py, ported near-verbatim) onto our
@@ -13,6 +13,26 @@ Each training step collects the CURRENT TASK's trainable A parameter VALUES (not
 literal .grad -- faithful to what the reference's insert_grad actually consumes,
 despite calling it "grad") as one row per module, running-averaged across the
 task's steps into a single per-task snapshot used for the tree/bandit machinery.
+
+2026-08-10: does NOT use frozen-slot dense folding (see backbone/vit_lora.py's
+``enable_frozen_folding``) -- REMOVED, and this is a much bigger mismatch than
+O-LoRA's equivalent fix. Cross-checked against TreeLoRA-Ref
+(svd_sketching_vision/TreeLoRA/model/Regular/Tree_LoRA.py +
+peft/tuners/lora.py): the reference has NO per-task adapter bank at all --
+`r_sum` (the reference's history-growth knob) stays at its default of 0 for
+the whole run, so it is a SINGLE, continuously-fine-tuned rank-r adapter,
+never reset, with all continual-learning benefit coming from the tree/UCB
+regularizer alone. Our port's per-task-slot-bank + accumulated-forward
+scaffold (borrowed from O-LoRA, to fit this codebase's uniform per-task-slot
+LoRA architecture) has NO counterpart in the reference whatsoever -- the dense
+fold this port used to do was >99.99% of TreeLoRA's measured CE overhead, on
+top of a bank architecture that is ITSELF foreign to the algorithm as
+published. Removed the fold (this port's minimal, safe fix, matching O-LoRA's
+same-day change); the deeper question of whether to also remove the per-task
+bank itself (reproducing the reference's single-shared-adapter design, which
+would be a real behavioral/accuracy-affecting change, not just a CE cleanup)
+is intentionally NOT addressed here -- flagged for a separate decision. See
+the ce_profiling_methodology memory for the fuller investigation.
 """
 
 import logging
@@ -30,15 +50,19 @@ from utils.toolkit import tensor2numpy
 # (docs/ce_profiling_implementation_plan.md sec 4.4). No-op unless a profiling
 # session is active (utils/ce_profiler.py).
 from utils.ce_profiler import ce_region, run_boundary, run_step_narrow
+from utils.ce2_profiler import ce2_boundary
 
 
 class Learner(LoRALearner):
     def __init__(self, args):
         super().__init__(args)
-        # TreeLoRA's frozen slots are never modified once trained (only ever read,
-        # for the tree-gradient-similarity regularizer) -- safe to fold into a
-        # dense delta for O(1) merged forward (plan doc §6 item 2).
-        self._network.enable_frozen_folding()
+        # 2026-08-10: NOT calling enable_frozen_folding() -- see module
+        # docstring. TreeLoRA-Ref never folds (it has no per-task bank at
+        # all), and this port's fold was >99.99% of its measured CE overhead
+        # with no algorithmic counterpart. _lora_delta (backbone/vit_lora.py)
+        # falls through to its factored/non-fold loop automatically whenever
+        # _fold_enabled stays False (the class default) -- no other code
+        # change needed for this to take effect.
         self.reg = args.get("reg", 0.5)
         self.train_merge = True   # accumulated forward (sum 0..t), same as O-LoRA
         self.tree = KD_LoRA_Tree(num_tasks=args["nb_tasks"], reg=self.reg)
@@ -133,67 +157,31 @@ class Learner(LoRALearner):
             # per-task, not averaged away. Under bounded_memory streaming this
             # call site isn't used (_stream_end_chunk, below, is already wrapped
             # end-to-end by the driver's own boundary_end session).
-            run_boundary(getattr(self, "_ce_boundary_ctrl", None), "boundary",
-                         lambda: self.tree.end_task(t))
+            with ce2_boundary(self):
+                run_boundary(getattr(self, "_ce_boundary_ctrl", None), "boundary",
+                             lambda: self.tree.end_task(t))
 
-    # *** UNTESTED as of 2026-08-03 *** -- local GPUs were unavailable
-    # (thermal/damage risk) at fix time, so this has NOT been exercised on a
-    # live run. Verified only by static tracing: confirmed attn.frozen_delta_q/
-    # frozen_delta_v are unconditionally registered buffers (backbone/
-    # vit_lora.py, always exist regardless of enable_frozen_folding()), and
-    # confirmed self._cur_task correctly points to the live, not-yet-folded
-    # slot at read time by tracing freeze_to_task()'s fold_frozen_slots(task-1)
-    # call (folds slot t-1 when STARTING slot t, so slot t itself stays
-    # unfolded for its entire lifetime as "current") -- the same invariant
-    # InfLoRA's own persistent_state() already relies on in production. No
-    # live run has confirmed this executes without error or matches the
-    # ~399MB estimate computed by hand below. Confirm on the first real run
-    # before trusting its memory numbers.
-    #
-    # FIXED 2026-08-03 (found during a persistent-memory audit prompted by an
-    # anomalously large reported figure -- 1026MB at 50MB budget, LARGER than
-    # O-LoRA's own unbounded bank). The OLD override just added tree_grad_store
-    # on top of super().persistent_state() (models/lora.py's generic "every
-    # slot still in the ModuleList" accounting), which has the exact same two
-    # problems InfLoRA's own persistent_state() was written to fix back on
-    # 2026-07-21 (see models/inflora.py's docstring): (a) it counts every
-    # historical per-task lora_A/lora_B slot as still live, even after
-    # enable_frozen_folding() has folded them into frozen_delta_q/v, and (b) it
-    # never reads frozen_delta_q/v at all, since those are register_buffer, not
-    # nn.Parameter. Verified via utils/kd_tree.py that TreeLoRA's regularizer
-    # (tree_search/get_loss/_update_similarity) ONLY ever reads
-    # self.tree.all_accumulate_grads -- its own separate per-task snapshot
-    # store -- and NEVER reads back a folded task's live adapter weights, so
-    # (unlike O-LoRA, whose orthogonality penalty genuinely needs every past
-    # lora_A forever) there is no structural reason old TreeLoRA slots need to
-    # stay counted as persistent once folded. This override now matches
-    # InfLoRA's exact convention: frozen_delta (fixed, O(d^2) per block) +
-    # the current (not-yet-folded) task's own live slot + the tree's own
-    # gradient-snapshot store (tree_grad_store, TreeLoRA's genuine O(cycles)
-    # cost) + head. Measured effect on one real checkpoint (50MB, final):
-    # reported figure drops from 1026MB to ~399MB -- the removed ~682MB was
-    # entirely redundant, already-folded dead weight; NOTE this is an
-    # ACCOUNTING fix only, not a memory-reclamation fix -- old slots are still
-    # allocated on the GPU (free_folded_slots() is not called here, mirroring
-    # what old runs' actual behavior was), so this override describes what
-    # SHOULD be counted as "persistent," not a change to what's allocated.
+    # 2026-08-10: REPLACED the fold-specific override that used to live here
+    # (frozen_delta + current-slot-only + tree_grad_store + fc, correct ONLY
+    # while enable_frozen_folding() was active). With folding removed (see
+    # __init__ and the module docstring), _folded_upto never advances, and
+    # every historical slot's A+B is genuinely live -- required by
+    # backbone/vit_lora.py's factored/non-fold forward loop, not just by the
+    # (still-real) tree regularizer's own snapshot store. The old override
+    # would now silently report ~0 bytes for every non-current slot: a real
+    # undercount, the same class of bug the O-LoRA fold-removal fix caught.
+    # Base off models/lora.py's generic persistent_state() (every currently-
+    # allocated slot's A+B+head -- correct now that nothing is folded away),
+    # plus TreeLoRA's own genuine extra state: the tree's gradient-snapshot
+    # store (tree_grad_store, real O(tasks-seen) cost, has no analog in the
+    # generic base class).
     def persistent_state(self):
-        net = self._network.module if hasattr(self._network, "module") else self._network
-        frozen_delta_bytes = 0
-        for attn in net.attn_modules():
-            frozen_delta_bytes += attn.frozen_delta_q.numel() * attn.frozen_delta_q.element_size()
-            frozen_delta_bytes += attn.frozen_delta_v.numel() * attn.frozen_delta_v.element_size()
-        cur_slot_bytes = 0
-        for attn in net.attn_modules():
-            for mlist in (attn.lora_A_q, attn.lora_B_q, attn.lora_A_v, attn.lora_B_v):
-                for p in mlist[self._cur_task].parameters():
-                    cur_slot_bytes += p.numel() * p.element_size()
+        base = super().persistent_state()
         grad_bytes = sum(g.numel() * 4 for g in self.tree.all_accumulate_grads if g is not None)
-        fc_bytes = sum(p.numel() * p.element_size() for p in net.fc.parameters()) if net.fc is not None else 0
-        total_bytes = frozen_delta_bytes + cur_slot_bytes + grad_bytes + fc_bytes
-        return {"params": int(total_bytes // 4), "bytes": int(total_bytes),
-                "breakdown": {"frozen_delta": frozen_delta_bytes, "current_slot": cur_slot_bytes,
-                             "tree_grad_store": grad_bytes, "fc": fc_bytes}}
+        total_bytes = base["bytes"] + grad_bytes
+        breakdown = dict(base["breakdown"])
+        breakdown["tree_grad_store"] = grad_bytes
+        return {"params": int(total_bytes // 4), "bytes": int(total_bytes), "breakdown": breakdown}
 
     # ==================================================================
     # Boundary-agnostic streaming hooks (models/stream_mixin.py). Adapter slot

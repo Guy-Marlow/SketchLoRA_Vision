@@ -10,8 +10,10 @@ from utils.inc_net import TUNANet
 from models.base import BaseLearner
 from utils.toolkit import tensor2numpy, target2onehot
 from torch.distributions.multivariate_normal import MultivariateNormal
+from utils.ce2_profiler import ce2_boundary
 
-num_workers = 8
+# 2026-08-10: 8->4, see models/lora.py's identical change for rationale.
+num_workers = 4
 
 
 class AngularPenaltySMLoss(nn.Module):
@@ -179,9 +181,10 @@ class Learner(BaseLearner):
         self._network.backbone.adapter_update()
         if self._cur_task > 0:
             self._network.backbone.merge()
-        self._compute_mean(self._network.backbone)
-        if self._cur_task > 0:
-            self.classifer_align(self._network.backbone)
+        with ce2_boundary(self):
+            self._compute_mean(self._network.backbone)
+            if self._cur_task > 0:
+                self.classifer_align(self._network.backbone)
 
     def get_optimizer(self, model):
         base_params = [p for name, p in model.named_parameters() if 'adapter' in name and p.requires_grad]
@@ -336,33 +339,50 @@ class Learner(BaseLearner):
         prog_bar = tqdm(range(run_epochs))
         task_size = self._known_classes - self._total_classes
         self._network.eval()
+
+        # 2026-08-10: per-class MultivariateNormal distributions built ONCE,
+        # not once per epoch. self.cls_mean/self.cls_cov are fixed for the
+        # entire classifer_align call -- only ever written by _compute_mean,
+        # which runs before this method, once per task boundary, and are
+        # never touched again here. Constructing MultivariateNormal(mean, cov)
+        # internally runs a real torch.linalg.cholesky(cov) (needed to sample
+        # from it); since mean/cov don't change across epochs, that Cholesky
+        # factor doesn't either -- the previous code rebuilt it from scratch
+        # run_epochs (30) times per class for no benefit. What genuinely needs
+        # to happen every epoch is drawing NEW samples from the distribution
+        # (m.sample(...) below), not reconstructing the distribution itself.
+        # Mathematically identical result (same distributions, freshly
+        # sampled every epoch exactly as before), ~30x fewer Cholesky calls.
+        if self.args["ca_storage_efficient_method"] in ['covariance', 'variance']:
+            distributions = {}
+            for class_idx in range(self._total_classes):
+                if self.args["decay"]:
+                    t_id = class_idx // task_size
+                    decay = (t_id + 1) / (self._cur_task + 1) * 0.1
+
+                    mean = torch.tensor(self.cls_mean[class_idx], dtype=torch.float64).to(self._device) * (
+                            0.9 + decay)
+                else:
+                    mean = self.cls_mean[class_idx].to(self._device)
+                cov = self.cls_cov[class_idx].to(self._device)
+                if self.args["ca_storage_efficient_method"] == 'variance':
+                    cov = torch.diag(cov)
+                distributions[class_idx] = MultivariateNormal(mean.float(), cov.float())
+        else:
+            raise NotImplementedError
+
         for epoch in prog_bar:
 
             sampled_data = []
             sampled_label = []
             num_sampled_pcls = self.batch_size * 5
 
-            if self.args["ca_storage_efficient_method"] in ['covariance', 'variance']:
-                for class_idx in range(self._total_classes):
-                    if self.args["decay"]:
-                        t_id = class_idx // task_size
-                        decay = (t_id + 1) / (self._cur_task + 1) * 0.1
-                     
-                        mean = torch.tensor(self.cls_mean[class_idx], dtype=torch.float64).to(self._device) * (
-                                0.9 + decay)
-                    else:
-                        mean = self.cls_mean[class_idx].to(self._device)
-                    cov = self.cls_cov[class_idx].to(self._device)
-                    if self.args["ca_storage_efficient_method"] == 'variance':
-                        cov = torch.diag(cov)
-                    m = MultivariateNormal(mean.float(), cov.float())
-                    sampled_data_single = m.sample(sample_shape=(num_sampled_pcls,))
-                    sampled_data.append(sampled_data_single)
+            for class_idx in range(self._total_classes):
+                m = distributions[class_idx]
+                sampled_data_single = m.sample(sample_shape=(num_sampled_pcls,))
+                sampled_data.append(sampled_data_single)
 
-                    sampled_label.extend([class_idx] * num_sampled_pcls)
-
-            else:
-                raise NotImplementedError
+                sampled_label.extend([class_idx] * num_sampled_pcls)
 
             sampled_data = torch.cat(sampled_data, dim=0).float().to(self._device)
             sampled_label = torch.tensor(sampled_label).long().to(self._device)

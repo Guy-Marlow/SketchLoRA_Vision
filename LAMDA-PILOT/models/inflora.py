@@ -30,8 +30,10 @@ from models.lora import Learner as LoRALearner
 # (docs/ce_profiling_implementation_plan.md sec 4.3). No-op unless a profiling
 # session is active (utils/ce_profiler.py).
 from utils.ce_profiler import ce_region, run_boundary
+from utils.ce2_profiler import ce2_boundary
 
-num_workers = 8
+# 2026-08-10: 8->4, see models/lora.py's identical change for rationale.
+num_workers = 4
 
 
 class Learner(LoRALearner):
@@ -256,10 +258,12 @@ class Learner(LoRALearner):
         # the driver, see there), and for any other trainer.py track that never
         # sets this attribute.
         _ctrl = getattr(self, "_ce_boundary_ctrl", None)
-        run_boundary(_ctrl, "inflora_init_a", lambda: self._init_lora_A(self.train_loader))
+        with ce2_boundary(self):
+            run_boundary(_ctrl, "inflora_init_a", lambda: self._init_lora_A(self.train_loader))
         self._log_trainable()
         self._train(self.train_loader)           # train B + head (inherited)
-        run_boundary(_ctrl, "inflora_dualgpm", lambda: self._update_dualgpm(self.train_loader))
+        with ce2_boundary(self):
+            run_boundary(_ctrl, "inflora_dualgpm", lambda: self._update_dualgpm(self.train_loader))
 
     # -- (1)+(2) analytic init of the down-projection A -----------------
     @torch.no_grad()

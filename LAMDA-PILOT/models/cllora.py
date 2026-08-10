@@ -9,9 +9,11 @@ from torch.utils.data import DataLoader
 from utils.inc_net import OurNet
 from models.base import BaseLearner
 from utils.toolkit import tensor2numpy
+from utils.ce2_profiler import ce2_boundary
 import random
 
-num_workers = 8
+# 2026-08-10: 8->4, see models/lora.py's identical change for rationale.
+num_workers = 4
 
 
 def _KD_loss(pred, soft, T):
@@ -73,7 +75,8 @@ class Learner(BaseLearner):
     def after_task(self):
         self._known_classes = self._total_classes
         self._network.freeze()
-        self._network.backbone.add_adapter_to_list()
+        with ce2_boundary(self):
+            self._network.backbone.add_adapter_to_list()
 
     def persistent_state(self):
         net = self._network.module if hasattr(self._network, "module") else self._network
@@ -300,7 +303,8 @@ class Learner(BaseLearner):
         if len(self._multiple_gpus) > 1:
             self._network = self._network.module
         self._network.add_fc()
-        self.replace_fc(self.train_loader_for_protonet)
+        with ce2_boundary(self):
+            self.replace_fc(self.train_loader_for_protonet)
 
     def _train(self, train_loader, test_loader):
         self._network.to(self._device)

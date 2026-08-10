@@ -32,7 +32,8 @@ from models.til_base import TILLearner
 from models.stream_mixin import StreamMixin
 from utils.toolkit import tensor2numpy
 
-num_workers = 8
+# 2026-08-10: 8->4, see models/lora.py's identical change for rationale.
+num_workers = 4
 
 
 class Learner(StreamMixin, TILLearner):
