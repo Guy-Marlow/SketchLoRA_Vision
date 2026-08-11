@@ -33,7 +33,7 @@ from models.stream_mixin import StreamMixin
 from utils.toolkit import tensor2numpy
 
 # 2026-08-10: 8->4, see models/lora.py's identical change for rationale.
-num_workers = 4
+num_workers = 8
 
 
 class Learner(StreamMixin, TILLearner):
@@ -107,11 +107,11 @@ class Learner(StreamMixin, TILLearner):
         train_dataset = data_manager.get_dataset(
             np.arange(self._known_classes, self._total_classes), source="train", mode="train")
         self.train_loader = DataLoader(train_dataset, batch_size=self.batch_size,
-                                       shuffle=True, num_workers=num_workers)
+                                       shuffle=True, num_workers=num_workers, persistent_workers=True)
         test_dataset = data_manager.get_dataset(
             np.arange(0, self._total_classes), source="test", mode="test")
         self.test_loader = DataLoader(test_dataset, batch_size=self.batch_size,
-                                      shuffle=False, num_workers=num_workers)
+                                      shuffle=False, num_workers=num_workers, persistent_workers=True)
 
         self._network.to(self._device)
         self._train(self.train_loader)

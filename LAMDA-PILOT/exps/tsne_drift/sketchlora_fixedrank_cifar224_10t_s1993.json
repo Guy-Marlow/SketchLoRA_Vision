@@ -1,0 +1,38 @@
+{
+  "dataset": "cifar224",
+  "memory_size": 0,
+  "memory_per_class": 0,
+  "fixed_memory": false,
+  "shuffle": true,
+  "init_cls": 10,
+  "increment": 10,
+  "scenario": "cil",
+  "pretrained": true,
+  "print_forget": false,
+  "final_metrics": true,
+  "backbone_type": "vit_base_patch16_224_lora",
+  "lora_rank": 10,
+  "lora_alpha": null,
+  "batch_size": 48,
+  "weight_decay": 0.0005,
+  "min_lr": 0.0,
+  "tuned_epoch": 20,
+  "device": [
+    "0"
+  ],
+  "model_name": "sketchlora",
+  "lora_merge": true,
+  "lora_train_merge": true,
+  "svd_rank": 10,
+  "svd_oversampling": 10,
+  "lora_n_slots": 2,
+  "sketch_diag": true,
+  "merge_op": "randsvd",
+  "init_lr": 0.001,
+  "seed": [
+    1993
+  ],
+  "prefix": "tsne_drift_sketchlora_cifar224_10t_s1993",
+  "embed_drift_dir": "run_logs/tsne_drift/cifar224_10t_fixedrank",
+  "sketchlora_diag_dir": "run_logs/tsne_drift/cifar224_10t_sketch_diag"
+}

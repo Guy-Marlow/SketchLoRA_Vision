@@ -33,7 +33,7 @@ from utils.toolkit import tensor2numpy
 # 2026-08-10: was 8 (== wave1_final.slurm's --cpus-per-task=8), leaving zero CPU
 # headroom for the main process; dropped to 4 to relieve DataLoader-worker vs.
 # main-process contention (see ce_profiling_methodology memory).
-num_workers = 4
+num_workers = 8
 
 
 class Learner(StreamMixin, BoundedMemoryMixin, TILLearner):
@@ -102,11 +102,11 @@ class Learner(StreamMixin, BoundedMemoryMixin, TILLearner):
         train_dataset = data_manager.get_dataset(
             np.arange(self._known_classes, self._total_classes), source="train", mode="train")
         self.train_loader = DataLoader(train_dataset, batch_size=self.batch_size,
-                                       shuffle=True, num_workers=num_workers)
+                                       shuffle=True, num_workers=num_workers, persistent_workers=True)
         test_dataset = data_manager.get_dataset(
             np.arange(0, self._total_classes), source="test", mode="test")
         self.test_loader = DataLoader(test_dataset, batch_size=self.batch_size,
-                                      shuffle=False, num_workers=num_workers)
+                                      shuffle=False, num_workers=num_workers, persistent_workers=True)
 
         if len(self._multiple_gpus) > 1:
             self._network = nn.DataParallel(self._network, self._multiple_gpus)

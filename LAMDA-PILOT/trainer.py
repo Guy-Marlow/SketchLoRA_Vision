@@ -266,6 +266,13 @@ def _train(args):
             model._ce2_boundary_acc.reset()
             with CE2Session(model._device) as _ce2_total_sess:
                 model.incremental_train(data_manager)
+            # Fold in the tag-split compute for whatever nested ce2_boundary()
+            # call(s) fired DURING this window -- the accumulator only got
+            # their wall-clock time synchronously (see ce2_profiler.py's
+            # ce2_boundary()/_split_totals docstrings); the macs/device/host
+            # split only becomes available now, from _ce2_total_sess's own
+            # harvest at its __exit__ above.
+            model._ce2_boundary_acc.merge_split(_ce2_total_sess.boundary_totals())
             _ce2_boundary_totals_train_phase = model._ce2_boundary_acc.totals()
             # Pure train = whole incremental_train() window minus whatever the
             # method's own boundary wrap(s) carved out of it -- this is what

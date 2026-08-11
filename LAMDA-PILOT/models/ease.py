@@ -12,7 +12,7 @@ from utils.toolkit import tensor2numpy
 from utils.ce2_profiler import ce2_boundary
 
 # 2026-08-10: 8->4, see models/lora.py's identical change for rationale.
-num_workers = 4
+num_workers = 8
 
 class Learner(BaseLearner):
     def __init__(self, args):
@@ -127,7 +127,7 @@ class Learner(BaseLearner):
                 embedding_list = []
                 label_list = []
                 dataset = self.data_manager.get_dataset(np.arange(0, self._known_classes), source="train", mode="test", )
-                loader = DataLoader(dataset, batch_size=self.batch_size, shuffle=True, num_workers=num_workers)
+                loader = DataLoader(dataset, batch_size=self.batch_size, shuffle=True, num_workers=num_workers, persistent_workers=True)
                 for i, batch in enumerate(loader):
                     (_, data, label) = batch
                     data = data.to(self._device)
@@ -276,13 +276,13 @@ class Learner(BaseLearner):
         
         self.data_manager = data_manager
         self.train_dataset = data_manager.get_dataset(np.arange(self._known_classes, self._total_classes), source="train", mode="train", )
-        self.train_loader = DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=True, num_workers=num_workers)
+        self.train_loader = DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=True, num_workers=num_workers, persistent_workers=True)
         
         self.test_dataset = data_manager.get_dataset(np.arange(0, self._total_classes), source="test", mode="test" )
-        self.test_loader = DataLoader(self.test_dataset, batch_size=self.batch_size, shuffle=False, num_workers=num_workers)
+        self.test_loader = DataLoader(self.test_dataset, batch_size=self.batch_size, shuffle=False, num_workers=num_workers, persistent_workers=True)
         
         self.train_dataset_for_protonet = data_manager.get_dataset(np.arange(self._known_classes, self._total_classes),source="train", mode="test", )
-        self.train_loader_for_protonet = DataLoader(self.train_dataset_for_protonet, batch_size=self.batch_size, shuffle=True, num_workers=num_workers)
+        self.train_loader_for_protonet = DataLoader(self.train_dataset_for_protonet, batch_size=self.batch_size, shuffle=True, num_workers=num_workers, persistent_workers=True)
 
         if len(self._multiple_gpus) > 1:
             print('Multiple GPUs')

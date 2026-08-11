@@ -53,7 +53,7 @@ from torch.nn import functional as F
 from torch.utils.data import DataLoader
 
 # 2026-08-10: 8->4, see models/lora.py's identical change for rationale.
-num_workers = 4
+num_workers = 8
 
 
 def _stream_checkpoint_write(args, results, tag="stream", partial=True):
@@ -312,7 +312,7 @@ class StreamMixin:
             train_set = data_manager.get_dataset(
                 [], source="train", mode="train", appendent=(chunk_data, chunk_targets))
             loader = DataLoader(train_set, batch_size=self.batch_size, shuffle=True,
-                                num_workers=num_workers)
+                                num_workers=num_workers, persistent_workers=True)
             self._network.to(self._device)
 
             self._stream_begin_chunk(loader)
@@ -419,7 +419,7 @@ class StreamMixin:
             train_set = data_manager.get_dataset(
                 [], source="train", mode="train", appendent=(task_data, task_targets))
             loader = DataLoader(train_set, batch_size=self.batch_size, shuffle=True,
-                                num_workers=num_workers)
+                                num_workers=num_workers, persistent_workers=True)
             self._network.to(self._device)
 
             if not slot_opened:
@@ -467,7 +467,7 @@ class StreamMixin:
         til_per_task = []
         for t, (lo, hi) in enumerate(ranges):
             ds = self.data_manager.get_dataset(np.arange(lo, hi), source="test", mode="test")
-            loader = DataLoader(ds, batch_size=64, shuffle=False, num_workers=num_workers)
+            loader = DataLoader(ds, batch_size=64, shuffle=False, num_workers=num_workers, persistent_workers=True)
             t_corr, t_n = 0, 0
             for _, inputs, targets in loader:
                 inputs = inputs.to(self._device); tnp = targets.numpy()

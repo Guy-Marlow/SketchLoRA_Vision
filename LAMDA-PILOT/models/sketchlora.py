@@ -793,7 +793,8 @@ class Learner(LoRALearner):
     def _drift_test_loader(self, task_idx):
         known, total = self._task_class_ranges[task_idx]
         dataset = self.data_manager.get_dataset(np.arange(known, total), source="test", mode="test")
-        return DataLoader(dataset, batch_size=self.batch_size, shuffle=False, num_workers=num_workers)
+        return DataLoader(dataset, batch_size=self.batch_size, shuffle=False,
+                          num_workers=num_workers, persistent_workers=True)
 
     @torch.no_grad()
     def _extract_features(self, loader, forward_fn):
@@ -1553,5 +1554,5 @@ class Learner(LoRALearner):
               if rec["r_hat_mean"] is not None else "")
         logging.info(
             "[SketchDiag] task {}: retained-energy mean={:.3f} min={:.3f} | "
-            "||ΔW||_F mean={:.3f}{}".format(
+            "||DeltaW||_F mean={:.3f}{}".format(
                 self._cur_task, rec["retained_mean"], rec["retained_min"], rec["fro_mean"], rh))
