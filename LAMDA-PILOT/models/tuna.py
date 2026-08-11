@@ -152,14 +152,14 @@ class Learner(BaseLearner):
                                                       source="train", mode="train")
         self.data_manager = data_manager
         self.train_loader = DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=True,
-                                       num_workers=num_workers, persistent_workers=True)
+                                       num_workers=num_workers)
         test_dataset = data_manager.get_dataset(np.arange(0, self._total_classes), source="test", mode="test")
-        self.test_loader = DataLoader(test_dataset, batch_size=self.batch_size, shuffle=False, num_workers=num_workers, persistent_workers=True)
+        self.test_loader = DataLoader(test_dataset, batch_size=self.batch_size, shuffle=False, num_workers=num_workers)
 
         train_dataset_for_protonet = data_manager.get_dataset(np.arange(self._known_classes, self._total_classes),
                                                               source="train", mode="test")
         self.train_loader_for_protonet = DataLoader(train_dataset_for_protonet, batch_size=self.batch_size,
-                                                    shuffle=True, num_workers=num_workers, persistent_workers=True)
+                                                    shuffle=True, num_workers=num_workers)
 
         if len(self._multiple_gpus) > 1:
             print('Multiple GPUs')

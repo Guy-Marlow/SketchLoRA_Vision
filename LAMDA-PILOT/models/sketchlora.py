@@ -793,8 +793,7 @@ class Learner(LoRALearner):
     def _drift_test_loader(self, task_idx):
         known, total = self._task_class_ranges[task_idx]
         dataset = self.data_manager.get_dataset(np.arange(known, total), source="test", mode="test")
-        return DataLoader(dataset, batch_size=self.batch_size, shuffle=False,
-                          num_workers=num_workers, persistent_workers=True)
+        return DataLoader(dataset, batch_size=self.batch_size, shuffle=False, num_workers=num_workers)
 
     @torch.no_grad()
     def _extract_features(self, loader, forward_fn):

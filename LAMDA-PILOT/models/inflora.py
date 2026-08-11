@@ -235,11 +235,11 @@ class Learner(LoRALearner):
         train_dataset = data_manager.get_dataset(
             np.arange(self._known_classes, self._total_classes), source="train", mode="train")
         self.train_loader = DataLoader(train_dataset, batch_size=self.batch_size,
-                                       shuffle=True, num_workers=num_workers, persistent_workers=True)
+                                       shuffle=True, num_workers=num_workers)
         test_dataset = data_manager.get_dataset(
             np.arange(0, self._total_classes), source="test", mode="test")
         self.test_loader = DataLoader(test_dataset, batch_size=self.batch_size,
-                                      shuffle=False, num_workers=num_workers, persistent_workers=True)
+                                      shuffle=False, num_workers=num_workers)
 
         self._network.to(self._device)
         # oracle-mode boundary bookkeeping (docs/ce_step_boundary_isolation_plan.md

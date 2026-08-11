@@ -140,7 +140,7 @@ class BoundedMemoryMixin:
         k5 = min(5, hi_total)
         test_dataset = data_manager.get_dataset(
             np.arange(0, hi_total), source="test", mode="test")
-        loader = DataLoader(test_dataset, batch_size=64, shuffle=False, num_workers=num_workers, persistent_workers=True)
+        loader = DataLoader(test_dataset, batch_size=64, shuffle=False, num_workers=num_workers)
         correct, correct5, n = 0, 0, 0
         per_task_correct, per_task_correct5, per_task_n = {}, {}, {}
         for _, inputs, targets in loader:
@@ -418,7 +418,7 @@ class BoundedMemoryMixin:
             train_set = data_manager.get_dataset(
                 [], source="train", mode="train", appendent=(chunk_data, chunk_targets))
             loader = DataLoader(train_set, batch_size=self.batch_size, shuffle=True,
-                                num_workers=num_workers, persistent_workers=True)
+                                num_workers=num_workers)
             self._network.to(self._device)
 
             # Round-2 §1.1: cycle-local class mask, computed once per cycle from
@@ -670,7 +670,7 @@ class BoundedMemoryMixin:
         final_test_set = data_manager.get_dataset(
             np.arange(0, data_manager.nb_classes), source="test", mode="test")
         final_test_loader = DataLoader(final_test_set, batch_size=64, shuffle=False,
-                                       num_workers=num_workers, persistent_workers=True)
+                                       num_workers=num_workers)
         mlog.record_inference_cost(self, final_test_loader)
         mlog.finalize(None, None, cycle_idx)
 

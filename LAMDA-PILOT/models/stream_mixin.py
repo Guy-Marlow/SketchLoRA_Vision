@@ -312,7 +312,7 @@ class StreamMixin:
             train_set = data_manager.get_dataset(
                 [], source="train", mode="train", appendent=(chunk_data, chunk_targets))
             loader = DataLoader(train_set, batch_size=self.batch_size, shuffle=True,
-                                num_workers=num_workers, persistent_workers=True)
+                                num_workers=num_workers)
             self._network.to(self._device)
 
             self._stream_begin_chunk(loader)
@@ -419,7 +419,7 @@ class StreamMixin:
             train_set = data_manager.get_dataset(
                 [], source="train", mode="train", appendent=(task_data, task_targets))
             loader = DataLoader(train_set, batch_size=self.batch_size, shuffle=True,
-                                num_workers=num_workers, persistent_workers=True)
+                                num_workers=num_workers)
             self._network.to(self._device)
 
             if not slot_opened:
@@ -467,7 +467,7 @@ class StreamMixin:
         til_per_task = []
         for t, (lo, hi) in enumerate(ranges):
             ds = self.data_manager.get_dataset(np.arange(lo, hi), source="test", mode="test")
-            loader = DataLoader(ds, batch_size=64, shuffle=False, num_workers=num_workers, persistent_workers=True)
+            loader = DataLoader(ds, batch_size=64, shuffle=False, num_workers=num_workers)
             t_corr, t_n = 0, 0
             for _, inputs, targets in loader:
                 inputs = inputs.to(self._device); tnp = targets.numpy()
