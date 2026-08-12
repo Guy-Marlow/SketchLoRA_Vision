@@ -326,8 +326,13 @@ def get_backbone(args, pretrained=False):
         from backbone.rainbowprompt_module import RainbowPromptModule
         # see the matching comment in the '_lora' branch above -- same growable-slot
         # rationale applies to RainbowPrompt's per-task base-knowledge/base-key pool.
-        n_tasks = args.get("lora_n_slots",
-                            1 if args.get("boundary_mode") == "sample" else args["nb_tasks"])
+        # Previously this pre-allocated the full nb_tasks count upfront for the
+        # non-streaming path (the streaming/"sample" boundary_mode branch already
+        # started at 1) -- same fix as '_lora' above: always start with a single
+        # slot and grow one at a time via add_task_slot(), called from
+        # models/rainbowprompt.py::incremental_train (oracle path) and
+        # ::_stream_begin_chunk (streaming path, unchanged).
+        n_tasks = args.get("lora_n_slots", 1)
         prompt_module = RainbowPromptModule(
             num_layers=12, embed_dim=768, n_tasks=n_tasks,
             length=args.get("rp_length", 20),

@@ -76,6 +76,15 @@ class Learner(StreamMixin, TILLearner):
         self._network.default_task = self._cur_task
         logging.info("[RainbowPrompt] Learning on {}-{}".format(self._known_classes, self._total_classes))
 
+        # Grow one base-knowledge/base-key/stored-prompts row if this task needs an
+        # index that isn't allocated yet (construction only preallocates slot 0 --
+        # see utils/inc_net.py's '_rainbowprompt' branch). Same guard as
+        # models/lora.py's incremental_train; mutually exclusive with
+        # _stream_begin_chunk's own add_task_slot() call below (oracle CIL only
+        # ever calls this method, streaming only ever calls that one).
+        if self._cur_task >= self._network.backbone.prompt_module.n_tasks:
+            self._network.backbone.prompt_module.add_task_slot()
+
         # only this task's base-knowledge row (+ its key) and the head are trainable
         for p in self._network.parameters():
             p.requires_grad = False
