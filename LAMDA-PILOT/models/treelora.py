@@ -1,38 +1,57 @@
-"""TreeLoRA for LAMDA-PILOT: per-task LoRA (O-LoRA-style scaffold -- train_merge=True,
-one slot per task, accumulated CIL/TIL forward) with O-LoRA's orthogonality penalty
-REPLACED by a hierarchical gradient-similarity-tree regularizer. Port of
-TreeLoRA/model/Regular/Tree_LoRA.py (train_one_task) +
-TreeLoRA/utils/kd_lora_tree.py (see utils/kd_tree.py, ported near-verbatim) onto our
-shared q/v scaffold. `reg=0.5` confirmed from the reference's actual launch script
-(TreeLoRA/scripts/lora_based_methods/Tree_LoRA.sh), not a config default -- unlike
-HiDeLoRA, TreeLoRA's train_one_task does NOT warm-start a new task's adapter from the
-previous one (verified: no A/B copy anywhere in the reference's per-task loop).
+"""TreeLoRA for LAMDA-PILOT: a SINGLE, continuously-fine-tuned rank-r LoRA
+adapter (pinned to slot 0, never frozen, never replaced) regularized by a
+hierarchical gradient-similarity tree + UCB bandit that nudges each step's
+update toward whichever past task's adapter snapshot looks most related.
+Port of TreeLoRA/model/Regular/Tree_LoRA.py (train_one_task) +
+TreeLoRA/utils/kd_lora_tree.py (see utils/kd_tree.py, ported near-verbatim).
+`reg=0.5` confirmed from the reference's actual launch script
+(TreeLoRA/scripts/lora_based_methods/Tree_LoRA.sh), not a config default --
+unlike HiDeLoRA, TreeLoRA's train_one_task does NOT warm-start a new task's
+adapter from the previous one (verified: no A/B copy anywhere in the
+reference's per-task loop).
 
 Depth axis ("lora_depth") = our 24 wrapped LoRA-A projections (12 blocks x {q,v}).
-Each training step collects the CURRENT TASK's trainable A parameter VALUES (not
-literal .grad -- faithful to what the reference's insert_grad actually consumes,
+Each training step collects the live adapter's A parameter VALUES (not literal
+.grad -- faithful to what the reference's insert_grad actually consumes,
 despite calling it "grad") as one row per module, running-averaged across the
 task's steps into a single per-task snapshot used for the tree/bandit machinery.
 
-2026-08-10: does NOT use frozen-slot dense folding (see backbone/vit_lora.py's
-``enable_frozen_folding``) -- REMOVED, and this is a much bigger mismatch than
-O-LoRA's equivalent fix. Cross-checked against TreeLoRA-Ref
-(svd_sketching_vision/TreeLoRA/model/Regular/Tree_LoRA.py +
-peft/tuners/lora.py): the reference has NO per-task adapter bank at all --
-`r_sum` (the reference's history-growth knob) stays at its default of 0 for
-the whole run, so it is a SINGLE, continuously-fine-tuned rank-r adapter,
-never reset, with all continual-learning benefit coming from the tree/UCB
-regularizer alone. Our port's per-task-slot-bank + accumulated-forward
-scaffold (borrowed from O-LoRA, to fit this codebase's uniform per-task-slot
-LoRA architecture) has NO counterpart in the reference whatsoever -- the dense
-fold this port used to do was >99.99% of TreeLoRA's measured CE overhead, on
-top of a bank architecture that is ITSELF foreign to the algorithm as
-published. Removed the fold (this port's minimal, safe fix, matching O-LoRA's
-same-day change); the deeper question of whether to also remove the per-task
-bank itself (reproducing the reference's single-shared-adapter design, which
-would be a real behavioral/accuracy-affecting change, not just a CE cleanup)
-is intentionally NOT addressed here -- flagged for a separate decision. See
-the ce_profiling_methodology memory for the fuller investigation.
+2026-08-11: CORRECTED to match the reference's actual architecture, after a
+2026-08-10 investigation (see the ce_profiling_methodology memory) found this
+port had inherited a per-task adapter BANK from O-LoRA's scaffold (one new
+LoRA slot per task, all summed via merge=True at forward time) that has NO
+counterpart in the published algorithm. Verified directly against
+TreeLoRA-Ref/utils/my_peft/tuners/lora.py: the reference's LoRA layer has two
+adapter pairs, `loranew_A/B` (the live, trainable rank-r adapter) and
+`lora_A/B` (a "previous-tasks" bank sized `r_sum`) -- and
+TreeLoRA-Ref/model/Regular/Tree_LoRA.py FORCES `r_sum=0` at every save
+("This is the key point to be compatible with O_LoRA!!!"), making `lora_A/B`
+permanently empty. No `.merge()`/`merge_adapter()` call appears anywhere in
+the reference's training loop either. Net effect: `loranew_A/B` is one
+fixed-size adapter, continuously fine-tuned from task 0 through the last task
+with NO growth in parameters, forward/backward FLOPs, or memory as tasks
+accumulate -- exactly SeqLoRA's scaffold (pin slot 0, never freeze it, never
+add a slot), NOT O-LoRA's. Fixed by adopting SeqLoRA's `_train_adapter`/
+`_eval_adapter` pattern (see models/seqlora.py) and `train_merge=False`; the
+tree/UCB regularizer itself is UNCHANGED, still the sole continual-learning
+mechanism, still genuinely reads/writes real per-task state (its own
+`all_accumulate_grads` snapshot store and rebuilt KD-tree, which DO grow with
+task count -- that part was always faithful and stays exactly as before).
+TIL evaluation is no longer performed by this project at all, so no
+TIL-specific routing is needed here anymore (the old `_forward_task` override
+that forced merge=True for TIL fairness is removed, since there is no merge
+concept left to be unfair about).
+
+This is a real, first-order behavioral change, not a cleanup: the old port
+had model capacity the published method was never designed to have (a
+permanent per-task memory bank on top of the regularizer), so its
+accuracy numbers do not reflect the actual algorithm and should not be
+compared against pre-fix results.
+
+Does NOT use frozen-slot dense folding (see backbone/vit_lora.py's
+``enable_frozen_folding``) -- moot now (a single never-frozen slot has
+nothing to fold), but left un-called for the same reason SeqLoRA never calls
+it either.
 """
 
 import logging
@@ -64,17 +83,26 @@ class Learner(LoRALearner):
         # _fold_enabled stays False (the class default) -- no other code
         # change needed for this to take effect.
         self.reg = args.get("reg", 0.5)
-        self.train_merge = True   # accumulated forward (sum 0..t), same as O-LoRA
+        # single continuously-trained adapter -> nothing to merge/accumulate,
+        # same as SeqLoRA (see module docstring for why this, not O-LoRA's
+        # accumulated-forward convention, is what matches the reference).
+        self.train_merge = False
+        self._network.merge = False
         self.tree = KD_LoRA_Tree(num_tasks=args["nb_tasks"], reg=self.reg)
 
-    # -- TIL eval must use the merged adapter (same fairness fix as O-LoRA/InfLoRA:
-    # training forward is merge=True, so TIL should evaluate that same state) ----
-    def _forward_task(self, inputs, task):
-        net = self._network.module if hasattr(self._network, "module") else self._network
-        return net(inputs, task=self._cur_task, merge=True)
+    # -- single adapter, pinned to slot 0 for both training and (former TIL)
+    # evaluation -- identical pattern to models/seqlora.py. `_cur_task` still
+    # advances normally and is used BELOW as the tree regularizer's own task
+    # identity (which snapshot row to write/read) -- that is bookkeeping for
+    # the regularizer, not adapter routing, and the two must not be conflated.
+    def _train_adapter(self):
+        return 0
+
+    def _eval_adapter(self, task):
+        return 0
 
     def _stacked_A(self):
-        """Current task's trainable A (down-proj), one row per wrapped module,
+        """Live adapter's trainable A (down-proj), one row per wrapped module,
         flattened -- matches the reference's `loranew_A` parameter collection."""
         # *** UNTESTED as of 2026-08-03 *** -- plan sec 4.4 "stacked_A_build":
         # torch.stack of 24 reshaped [dim*rank] rows, called EVERY training
@@ -82,7 +110,7 @@ class Learner(LoRALearner):
         # treelora_aux_macs_per_step's flat constant).
         with ce_region("treelora/stacked_A_build"):
             net = self._network.module if hasattr(self._network, "module") else self._network
-            t = self._cur_task
+            t = self._train_adapter()   # always 0 -- the single live slot, NOT self._cur_task
             rows = []
             for attn in net.attn_modules():
                 rows.append(attn.lora_A_q[t].weight.reshape(-1))
@@ -96,7 +124,7 @@ class Learner(LoRALearner):
         scheduler = optim.lr_scheduler.CosineAnnealingLR(
             optimizer, T_max=self.epochs, eta_min=self.min_lr) if self.lr_anneal else None
 
-        t = self._cur_task
+        t = self._cur_task   # tree regularizer's task identity ONLY -- adapter routing is always slot 0
         lo, hi = self._ce_slice()
         prog_bar = tqdm(range(self.epochs))
         for _, epoch in enumerate(prog_bar):
@@ -116,7 +144,7 @@ class Learner(LoRALearner):
                 if self.reg > 0:
                     self.tree.step()
                 inputs, targets = inputs.to(self._device), targets.to(self._device)
-                logits = self._network(inputs, task=t, merge=True)["logits"]
+                logits = self._network(inputs, task=self._train_adapter(), merge=self.train_merge)["logits"]
                 local_logits = logits[:, lo:hi]
                 local_targets = targets - lo
                 loss = F.cross_entropy(local_logits, local_targets)
@@ -161,20 +189,12 @@ class Learner(LoRALearner):
                 run_boundary(getattr(self, "_ce_boundary_ctrl", None), "boundary",
                              lambda: self.tree.end_task(t))
 
-    # 2026-08-10: REPLACED the fold-specific override that used to live here
-    # (frozen_delta + current-slot-only + tree_grad_store + fc, correct ONLY
-    # while enable_frozen_folding() was active). With folding removed (see
-    # __init__ and the module docstring), _folded_upto never advances, and
-    # every historical slot's A+B is genuinely live -- required by
-    # backbone/vit_lora.py's factored/non-fold forward loop, not just by the
-    # (still-real) tree regularizer's own snapshot store. The old override
-    # would now silently report ~0 bytes for every non-current slot: a real
-    # undercount, the same class of bug the O-LoRA fold-removal fix caught.
-    # Base off models/lora.py's generic persistent_state() (every currently-
-    # allocated slot's A+B+head -- correct now that nothing is folded away),
-    # plus TreeLoRA's own genuine extra state: the tree's gradient-snapshot
+    # 2026-08-11: base off models/lora.py's generic persistent_state() -- with
+    # only ever ONE slot allocated now (see module docstring), that already
+    # correctly reports just slot 0's A+B+head, no override needed for that
+    # part. TreeLoRA's own genuine extra state is the tree's gradient-snapshot
     # store (tree_grad_store, real O(tasks-seen) cost, has no analog in the
-    # generic base class).
+    # generic base class) -- that's the only thing added here.
     def persistent_state(self):
         base = super().persistent_state()
         grad_bytes = sum(g.numel() * 4 for g in self.tree.all_accumulate_grads if g is not None)
@@ -185,29 +205,21 @@ class Learner(LoRALearner):
 
     # ==================================================================
     # Boundary-agnostic streaming hooks (models/stream_mixin.py). Adapter slot
-    # = CHUNK index (self._stream_chunk), same convention as O-LoRA/InfLoRA --
-    # one slot per adapter-boundary event, decoupled from real task boundaries.
-    # CORRECTED (was wrong): the fold count is driven by a memory-constraint
-    # sample threshold, not real task count, so it is NOT generically bounded by
-    # nb_tasks -- confirmed by direct crashes on other methods sharing this same
-    # backbone (see BOUNDARY_AGNOSTIC_IMPLEMENTATION_LOG.md's "BLOCKING
-    # ARCHITECTURAL GAP" section). Both the shared LoRA scaffold's adapter slots
-    # (backbone/vit_lora.py::add_task_slot) and KD_LoRA_Tree's own
-    # `all_accumulate_grads`/`num_of_selected` (utils/kd_tree.py) now grow on
-    # demand instead of assuming the nb_tasks preallocation is an upper bound.
+    # is pinned to 0 for the whole stream (StreamMixin's own default
+    # _stream_slot already returns 0 -- no override needed here, same as
+    # SeqLoRA). `self._stream_chunk` still advances every chunk and still
+    # feeds the tree regularizer's own task identity (which snapshot row to
+    # write/read) and KD_LoRA_Tree's `all_accumulate_grads`/`num_of_selected`
+    # (utils/kd_tree.py), which genuinely grow on demand with chunk count --
+    # that part of the design is unchanged and unaffected by this fix.
     # ==================================================================
     def _stream_init(self):
         self._stream_chunk = -1
 
-    def _stream_slot(self):
-        return self._stream_chunk
-
     def _stream_begin_chunk(self, loader):
         self._stream_chunk += 1
-        if self._stream_chunk > 0:
-            self._network.add_task_slot()
-        self._cur_task = self._stream_chunk   # _stacked_A/_forward_task read _cur_task as slot
-        self._network.freeze_to_task(self._stream_chunk, train_a=True)
+        self._cur_task = self._stream_chunk   # tree task identity ONLY -- adapter routing is always slot 0
+        self._network.freeze_to_task(0, train_a=True)   # single continuously-trained adapter -- never add a slot
         for p in self._network.fc.parameters():
             p.requires_grad = True
         self._stream_new_optimizer()
@@ -281,14 +293,14 @@ class Learner(LoRALearner):
         hook has no way to supply. Mirrors _train's per-batch loop exactly,
         against self._stream_optim/_stream_sched instead of a locally-built one."""
         self._network.train()
-        t = self._stream_chunk
+        t = self._stream_chunk   # tree task identity ONLY -- adapter routing is always slot 0
         if self.reg > 0:
             self.tree.new_epoch_init(len(loader))
         for _, inputs, targets in loader:
             if self.reg > 0:
                 self.tree.step()
             inputs, targets = inputs.to(self._device), targets.to(self._device)
-            logits = self._network(inputs, task=t, merge=True)["logits"]
+            logits = self._network(inputs, task=self._stream_slot(), merge=self._stream_train_merge())["logits"]
             local_logits = logits[:, lo:hi]
             local_targets = targets - lo
             loss = F.cross_entropy(local_logits, local_targets)
