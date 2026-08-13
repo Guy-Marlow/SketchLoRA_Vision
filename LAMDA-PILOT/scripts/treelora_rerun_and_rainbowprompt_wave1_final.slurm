@@ -132,7 +132,15 @@ backup_stale_treelora() {
     for seed in "${SEEDS[@]}"; do
       local tag="treelora_${dataset}_s${seed}"
       local prefix="wave1_final_${tag}"
-      local metrics_tag="${tag}_${prefix}_s${seed}"
+      # BUG FIX (2026-08-13): was "${tag}_${prefix}_s${seed}" -- tag already
+      # ends in _s${seed}, so that duplicated the seed and never matched the
+      # real file (metrics_treelora_<dataset>_wave1_final_treelora_<dataset>_
+      # s<seed>_s<seed>.json). Silently found nothing to back up on every
+      # cell, every submission -- run_one()'s own (correct) metrics_tag below
+      # then saw the untouched pre-fix "status": "done" file and skipped the
+      # rerun entirely. Confirmed on a live H200 run: the "new" and original
+      # wave1_final TreeLoRA metrics came back byte-for-byte identical.
+      local metrics_tag="treelora_${dataset}_${prefix}_s${seed}"
       local metrics_json="${src_dir}/metrics_${metrics_tag}.json"
       local ops_ledger_json="${src_dir}/ops_ledger_${metrics_tag}.json"
       local out_log="run_logs/wave1_final/${tag}.out"
