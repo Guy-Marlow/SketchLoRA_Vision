@@ -127,7 +127,13 @@ class KD_LoRA_Tree:
         with ce_region("treelora/tree_end_task_diff"):
             for i in range(grads_tensor.shape[0] - 1, 0, -1):
                 grads_tensor[i] = grads_tensor[i] - grads_tensor[i - 1]
-        task_ids = [i for i, g in enumerate(self.all_accumulate_grads[:task_id + 1]) if g is not None]
+        # task_ids must index grads_tensor's COMPACTED rows (built from
+        # valid_grads, positionally 0..len(valid_grads)-1 above), not real
+        # task ids -- these only coincide when the sequence is fully dense
+        # (no admission ever skipped/frozen). A real-id label here would
+        # index KDTreeNode.build_node's tensor slicing out of alignment
+        # the moment any gap exists. No-op today (always dense).
+        task_ids = list(range(len(valid_grads)))
         # plan sec 4.4 "tree_build_recursive": recursion to depth lora_depth
         # (24); each KDTreeNode.build_node call does two Python list
         # comprehensions, each calling .item() PER TASK INDEX in the node's
@@ -173,16 +179,24 @@ class KD_LoRA_Tree:
         # unscaled (which would undercount it by a factor of n_epochs).
         if self.all_grad is None:
             with ce_region("treelora/per_epoch/tree_search_first_call"):
-                self.all_grad = torch.stack(self.all_accumulate_grads[:task_id], dim=0).to(device, non_blocking=True)
+                # Filter None before stacking -- all_accumulate_grads[:task_id]
+                # assumed fully dense (no admission ever skipped/frozen) prior
+                # to this fix; torch.stack on a raw None entry crashes the
+                # instant any slot is skipped. No-op today (always dense, so
+                # valid_grads has exactly task_id entries either way).
+                valid_grads = [g for g in self.all_accumulate_grads[:task_id] if g is not None]
+                self.all_grad = torch.stack(valid_grads, dim=0).to(device, non_blocking=True)
                 self.all_grad_device = self.all_grad
                 if self.sim is None:
-                    self.sim = torch.zeros((task_id, self.all_grad.shape[1]), device=device)
+                    self.sim = torch.zeros((len(valid_grads), self.all_grad.shape[1]), device=device)
                     # rebuilt fresh every epoch (new_epoch_init) and only ever read via a
-                    # [:task_id] slice below -- size it to task_id exactly rather than the
-                    # fixed self.num_tasks, which is not a safe upper bound under
-                    # boundary-agnostic streaming (see end_task's comment above).
+                    # [:task_id] slice below -- size it to the COMPACTED count exactly
+                    # (matches all_grad's own row count) rather than raw task_id, which
+                    # over-counts once any admission has been skipped. PyTorch's
+                    # slice-clips-to-actual-size semantics mean the existing [:task_id]
+                    # reads further down keep working correctly once this is smaller.
                     self.num_of_selected = torch.zeros(
-                        task_id, self.all_grad.shape[1]).to(device, non_blocking=True)
+                        len(valid_grads), self.all_grad.shape[1]).to(device, non_blocking=True)
 
         # *** UNTESTED as of 2026-08-03 *** -- plan sec 4.4 "tree_search_ucb":
         # the UCB bandit bound + softmax + multinomial sampling, genuinely
