@@ -20,12 +20,17 @@ refinement). User-specified 2026-08-13, explicit rationale per method:
     not a vastly smaller one; the previous round's OmniBenchmark-1K probe
     also only tested 2 points (1e-5, 3e-5), both far below every other
     dataset's tested range, so the earlier "winner" is thin evidence. Test
-    0.001/0.005/0.01 -- EASE's normal range -- on ALL FIVE datasets, to get a
-    genuinely comparable read.
+    0.001/0.005/0.01 -- EASE's normal range -- on ImageNet-R/Food-101/
+    OmniBenchmark-1K. CIFAR-100/SUN397 are DELIBERATELY EXCLUDED (2026-08-13
+    user correction) -- EASE inherits Food-101's winning LR for both instead
+    of being separately tuned there.
 
   TUNA: only ever tested on ImageNet-R and OmniBenchmark-1K across both prior
-    rounds (never CIFAR-100/Food-101/SUN397). Test 0.001/0.005/0.01 on all
-    five to fill that gap and get full coverage before locking in.
+    rounds. Test 0.001/0.005/0.01 on ImageNet-R/Food-101/OmniBenchmark-1K to
+    fill the Food-101 gap and get a genuinely comparable read across all
+    three. CIFAR-100/SUN397 are DELIBERATELY EXCLUDED (2026-08-13 user
+    correction), same rationale as EASE -- TUNA inherits Food-101's winning
+    LR for both instead of being separately tuned there.
 
 TASK COUNTS (2026-08-13, the new standard going forward -- longer than
 either prior round's, chosen to be "solid" for downstream long-run
@@ -95,6 +100,10 @@ DATASET_CFG = {
 }
 
 ALL_DATASETS = ("cifar224", "imagenetr", "sun397", "food101", "omnibenchmark1k")
+# EASE/TUNA only -- CIFAR-100/SUN397 deliberately excluded (2026-08-13 user
+# correction): both methods inherit Food-101's winning LR for those two
+# datasets instead of being separately tuned there.
+NO_CIFAR_SUN_DATASETS = ("imagenetr", "food101", "omnibenchmark1k")
 
 # {method: {dataset: [lr, lr, ...]}} -- explicit values, user-specified 2026-08-13.
 LR_GRID = {
@@ -104,8 +113,8 @@ LR_GRID = {
         "sun397": [0.05],
         # imagenetr/food101 intentionally absent -- locked at 0.05, no rerun.
     },
-    "ease": {d: [0.001, 0.005, 0.01] for d in ALL_DATASETS},
-    "tuna": {d: [0.001, 0.005, 0.01] for d in ALL_DATASETS},
+    "ease": {d: [0.001, 0.005, 0.01] for d in NO_CIFAR_SUN_DATASETS},
+    "tuna": {d: [0.001, 0.005, 0.01] for d in NO_CIFAR_SUN_DATASETS},
 }
 
 SEED = 1993
