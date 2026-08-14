@@ -1142,28 +1142,52 @@ class EaseNet(BaseNet):
     
     @property
     def feature_dim(self):
+        # Bank-cap: len(backbone.adapter_list) instead of self._cur_task --
+        # pre-freeze these are always equal (adapter_list gains exactly one
+        # entry per completed task, and this property is only ever read
+        # after update_fc's self._cur_task += 1 for the task about to
+        # start, at which point adapter_list holds exactly that many
+        # entries from all PRIOR tasks), so this is a no-op when
+        # bank_cap_mb is unset. Once the bank freezes, adapter_list stops
+        # growing while self._cur_task keeps climbing -- this keeps the
+        # classifier's input width matched to the backbone's actual (now
+        # fixed) concatenated feature-vector width (backbone/vit_ease.py's
+        # forward_test() already self-limits the same way, via `for i in
+        # range(len(self.adapter_list))`).
+        n_banked = len(self.backbone.adapter_list)
         if self.use_init_ptm:
-            return self.out_dim * (self._cur_task + 2)
+            return self.out_dim * (n_banked + 2)
         else:
-            return self.out_dim * (self._cur_task + 1)
+            return self.out_dim * (n_banked + 1)
 
     # (proxy_fc = cls * dim)
     def update_fc(self, nb_classes):
         self._cur_task += 1
-        
+
         if self._cur_task == 0:
             self.proxy_fc = self.generate_fc(self.out_dim, self.init_cls).to(self._device)
         else:
             self.proxy_fc = self.generate_fc(self.out_dim, self.inc).to(self._device)
-        
+
         fc = self.generate_fc(self.feature_dim, nb_classes).to(self._device)
         fc.reset_parameters_to_zero()
-        
+
         if self.fc is not None:
             old_nb_classes = self.fc.out_features
             weight = copy.deepcopy(self.fc.weight.data)
             fc.sigma.data = self.fc.sigma.data
-            fc.weight.data[ : old_nb_classes, : -self.out_dim] = nn.Parameter(weight)
+            # Bank-cap: copy into the leading old_width columns rather than
+            # ":-self.out_dim" -- that slice only equals "the old weight's
+            # full width" when new_width == old_width + out_dim (the
+            # pre-freeze/growing case; old_width == new_width - out_dim
+            # there, so this is a byte-identical no-op). Once feature_dim
+            # (above) stops growing post-freeze, new_width == old_width and
+            # ":-self.out_dim" would drop the last out_dim real columns
+            # instead of leaving room for a nonexistent new block --
+            # genuinely wrong (shape mismatch on assignment), not just
+            # imprecise. Same fix as CL-LoRA's OurNet.update_fc.
+            old_width = weight.shape[1]
+            fc.weight.data[: old_nb_classes, :old_width] = nn.Parameter(weight)
         del self.fc
         self.fc = fc
     
@@ -1183,7 +1207,12 @@ class EaseNet(BaseNet):
             if self.args["moni_adam"] or (not self.args["use_reweight"]):
                 out = self.fc(x)
             else:
-                out = self.fc.forward_reweight(x, cur_task=self._cur_task, alpha=self.alpha, init_cls=self.init_cls, inc=self.inc, use_init_ptm=self.use_init_ptm, beta=self.beta)
+                # Bank-cap: cur_task=len(adapter_list), matching feature_dim's
+                # own substitution above and x's actual concatenated width --
+                # a no-op pre-freeze, keeps forward_reweight's per-block loop
+                # bound (and its /cur_task normalization) matched to what's
+                # actually in x post-freeze.
+                out = self.fc.forward_reweight(x, cur_task=len(self.backbone.adapter_list), alpha=self.alpha, init_cls=self.init_cls, inc=self.inc, use_init_ptm=self.use_init_ptm, beta=self.beta)
             
         out.update({"features": x})
         return out
@@ -1224,9 +1253,21 @@ class OurNet(BaseNet):
 
     @property
     def feature_dim(self):
+        # Bank-cap: len(backbone.adapter_list) instead of self._cur_task --
+        # pre-freeze these are always equal (backbone.adapter_list gains
+        # exactly one entry per completed task, and this property is only
+        # ever read after update_fc's self._cur_task += 1 for the task about
+        # to start, at which point adapter_list holds exactly that many
+        # entries from all PRIOR tasks), so this is a no-op when bank_cap_mb
+        # is unset. Once the bank freezes, adapter_list stops growing while
+        # self._cur_task keeps climbing -- this keeps the classifier's input
+        # width matched to the backbone's actual (now fixed) concatenated
+        # feature-vector width (backbone/vit_cllora.py forward_test() already
+        # self-limits the same way, via `for i in range(len(self.adapter_list))`).
+        n_banked = len(self.backbone.adapter_list)
         if self.use_init_ptm:
-            return self.out_dim * (self._cur_task + 2)
-        return self.out_dim * (self._cur_task + 1)
+            return self.out_dim * (n_banked + 2)
+        return self.out_dim * (n_banked + 1)
 
     def update_fc(self, nb_classes):
         self._cur_task += 1
@@ -1248,7 +1289,18 @@ class OurNet(BaseNet):
             old_nb_classes = self.fc.out_features
             weight = copy.deepcopy(self.fc.weight.data)
             fc.sigma.data = self.fc.sigma.data
-            fc.weight.data[: old_nb_classes, : -self.out_dim] = nn.Parameter(weight)
+            # Bank-cap: copy into the leading old_width columns rather than
+            # ":-self.out_dim" -- that slice only equals "the old weight's
+            # full width" when new_width == old_width + out_dim (the
+            # pre-freeze/growing case; old_width == new_width - out_dim
+            # there, so this is a byte-identical no-op). Once feature_dim
+            # (above) stops growing post-freeze, new_width == old_width and
+            # ":-self.out_dim" would drop the last out_dim real columns
+            # instead of leaving room for a nonexistent new block --
+            # confirmed genuinely wrong (shape mismatch on assignment) rather
+            # than just imprecise.
+            old_width = weight.shape[1]
+            fc.weight.data[: old_nb_classes, :old_width] = nn.Parameter(weight)
         del self.fc
         self.fc = fc
         self.fc.requires_grad_(False)
@@ -1275,7 +1327,11 @@ class OurNet(BaseNet):
             out.update({"features": x})
             return out
         x_input = self.backbone.forward(x, True, use_init_ptm=self.use_init_ptm)
-        out = self.fc.forward_diagonal(x_input, cur_task=self._cur_task, alpha=self.alpha,
+        # Bank-cap: cur_task=len(adapter_list), matching feature_dim's own
+        # substitution above and x_input's actual concatenated width -- a
+        # no-op pre-freeze (see feature_dim's comment), keeps forward_diagonal's
+        # per-chunk loop bound to what's actually in x_input post-freeze.
+        out = self.fc.forward_diagonal(x_input, cur_task=len(self.backbone.adapter_list), alpha=self.alpha,
                                        init_cls=self.init_cls, inc=self.inc,
                                        use_init_ptm=self.use_init_ptm, beta=self.beta)
         out.update({"features": x_input})

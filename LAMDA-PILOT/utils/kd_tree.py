@@ -93,7 +93,18 @@ class KD_LoRA_Tree:
         self.total_rounds = train_dataloader_len
         self.sim = None
 
-    def end_task(self, task_id):
+    def end_task(self, task_id, admit=True):
+        # Bank-cap (oracle-CIL only -- models/treelora.py's streaming call
+        # site never passes admit=False, so this is always a no-op there):
+        # once the bank-cap admission check refuses this task's gradient
+        # snapshot, end_task becomes a full no-op -- all_accumulate_grads
+        # stops growing AND kd_tree_root stops being rebuilt, so the
+        # regularizer (tree_search/insert_grad/get_loss, all unconditional on
+        # self.reg>0 elsewhere, not on task boundaries) keeps running against
+        # whatever frozen data the last successful end_task() call left
+        # behind, forever -- never disabled, just stale.
+        if not admit:
+            return
         # *** UNTESTED as of 2026-08-03 *** -- plan sec 4.4: TreeLoRA has NO
         # _ce_boundary_macs_this_cycle override at all (models/treelora.py),
         # so every cost in this method was previously charged as EXACTLY ZERO

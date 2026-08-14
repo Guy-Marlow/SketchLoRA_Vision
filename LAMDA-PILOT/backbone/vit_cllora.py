@@ -353,7 +353,23 @@ class VisionTransformer(nn.Module):
             print("====Not use adapter===")
 
 
-    def add_adapter_to_list(self):
+    def add_adapter_to_list(self, admit=True):
+        if not admit:
+            # Bank-cap refused: adapter_list/block_weight_list/old_adapter_list
+            # stay frozen at whatever they already hold -- do NOT reinitialize
+            # cur_adapter's specific_pos slots (get_new_adapter_msa(), skipped
+            # below, is what did that). They keep fine-tuning continuously
+            # from wherever freeze() just left them instead, matching every
+            # other method's "never reinitialize the post-cap slot" treatment.
+            # get_new_adapter_msa() also does double duty as the ONLY thing
+            # that properly re-enables requires_grad on cur_adapter after
+            # freeze() (freeze()'s own `self.cur_adapter[i].requires_grad =
+            # True` is a plain attribute assignment on an nn.ModuleList -- a
+            # no-op for actual gradient tracking, true regardless of this
+            # feature) -- _rearm_cur_adapter_grad() replicates only that half.
+            if self.msa_adapt:
+                self._rearm_cur_adapter_grad()
+            return
         temp_adapter = []
         for i in range(len(self.specfic_pos)):
             temp_pos = self.adapt_pos.index(self.specfic_pos[i])
@@ -373,6 +389,19 @@ class VisionTransformer(nn.Module):
             self.old_adapter_list.append(copy.deepcopy(self.cur_adapter).requires_grad_(False))
         if self.msa_adapt:
             self.get_new_adapter_msa()
+
+    def _rearm_cur_adapter_grad(self):
+        """The requires_grad-only half of get_new_adapter_msa() -- its
+        reinitialize-specific_pos half is skipped once the bank is frozen (see
+        add_adapter_to_list's admit=False branch above)."""
+        if len(self.specfic_pos) < 12:
+            self.cur_adapter.requires_grad_(True)
+            for i in self.adapt_pos:
+                if i in self.general_pos:
+                    pos = self.adapt_pos.index(i)
+                    for j in range(len(self.msa)):
+                        if self.msa[j] == 1:
+                            self.cur_adapter[pos][j].lora_B.requires_grad_(False)
 
     def forward_train(self, x):
         B = x.shape[0]
@@ -592,9 +621,18 @@ class VisionTransformer(nn.Module):
 
 
 
+        # Bank-cap: index the LAST banked KD-teacher snapshot, not t_idx-1
+        # directly -- pre-freeze these are always the same entry (t_idx-1 ==
+        # len(old_adapter_list)-1, since old_adapter_list holds exactly one
+        # entry per completed task and this only ever runs during the very
+        # next task), so this is a no-op when unset. Once frozen,
+        # old_adapter_list stops growing while t_idx keeps climbing -- using
+        # [-1] keeps the KD regularizer running against the frozen snapshot
+        # forever (by design: it never gets disabled, just stale), instead of
+        # indexing past the end.
         for j in self.general_pos:
             pos = self.adapt_pos.index(j)
-            adapt = self.old_adapter_list[t_idx-1][pos]
+            adapt = self.old_adapter_list[-1][pos]
             x_teacher = self.blocks[j](x_teacher, adapt)
         x_teacher = self.norm(x_teacher)
         output_teacher= x_teacher[:, 0, :]

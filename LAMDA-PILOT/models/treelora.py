@@ -63,6 +63,7 @@ from torch.nn import functional as F
 from tqdm import tqdm
 
 from models.lora import Learner as LoRALearner
+from models.bank_cap_mixin import BankCapMixin
 from utils.kd_tree import KD_LoRA_Tree
 from utils.toolkit import tensor2numpy
 # *** UNTESTED as of 2026-08-03 *** -- measured-CE region tagging
@@ -72,9 +73,10 @@ from utils.ce_profiler import ce_region, run_boundary, run_step_narrow
 from utils.ce2_profiler import ce2_boundary
 
 
-class Learner(LoRALearner):
+class Learner(BankCapMixin, LoRALearner):
     def __init__(self, args):
         super().__init__(args)
+        self._bank_cap_init(args)
         # 2026-08-10: NOT calling enable_frozen_folding() -- see module
         # docstring. TreeLoRA-Ref never folds (it has no per-task bank at
         # all), and this port's fold was >99.99% of its measured CE overhead
@@ -153,7 +155,17 @@ class Learner(LoRALearner):
                     def _tree_regularizer(_loss=loss):
                         grad_current = self._stacked_A()
                         self.tree.insert_grad(grad_current)
-                        if t > 0:
+                        # Bank-cap extreme edge case: a cap small enough to
+                        # refuse admission before even task 0's snapshot is
+                        # banked leaves all_accumulate_grads entirely None
+                        # forever -- tree_search's torch.stack([]) would
+                        # crash on an empty list. With nothing banked to
+                        # search against, skip the regularizer for this step
+                        # (no signal to compare against anyway). No-op when
+                        # bank_cap_mb is unset (all_accumulate_grads is never
+                        # entirely empty once t > 0 there).
+                        has_snapshot = any(g is not None for g in self.tree.all_accumulate_grads[:t])
+                        if t > 0 and has_snapshot:
                             prev_id_matrix = self.tree.tree_search(t, self._device)
                             return self.tree.get_loss(grad_current, _loss, prev_id_matrix)
                         return None
@@ -179,15 +191,23 @@ class Learner(LoRALearner):
                     reg_run / len(train_loader), train_acc))
         logging.info("[TreeLoRA] Task {} done. Acc {:.2f}".format(t, train_acc))
         if self.reg > 0:
+            # Bank-cap admission (no-op, always True, when bank_cap_mb is
+            # unset): candidate_bytes mirrors persistent_state()'s own
+            # per-snapshot byte cost exactly (self.tree.current_grad is
+            # precisely what end_task() is about to store into
+            # all_accumulate_grads[t] if admitted).
+            candidate_bytes = self.tree.current_grad.numel() * 4 if self.tree.current_grad is not None else 0
+            admit = self._bank_admit(candidate_bytes)
             # oracle-mode boundary bookkeeping (docs/ce_step_boundary_isolation_
             # plan.md sec 7): end_task's tree-build genuinely grows with task
             # count (see utils/kd_tree.py) -- wrap it so that growth is visible
             # per-task, not averaged away. Under bounded_memory streaming this
             # call site isn't used (_stream_end_chunk, below, is already wrapped
-            # end-to-end by the driver's own boundary_end session).
+            # end-to-end by the driver's own boundary_end session, and never
+            # passes admit=False -- this feature is oracle-CIL only).
             with ce2_boundary(self):
                 run_boundary(getattr(self, "_ce_boundary_ctrl", None), "boundary",
-                             lambda: self.tree.end_task(t))
+                             lambda: self.tree.end_task(t, admit=admit))
 
     # 2026-08-11: base off models/lora.py's generic persistent_state() -- with
     # only ever ONE slot allocated now (see module docstring), that already
@@ -202,6 +222,12 @@ class Learner(LoRALearner):
         breakdown = dict(base["breakdown"])
         breakdown["tree_grad_store"] = grad_bytes
         return {"params": int(total_bytes // 4), "bytes": int(total_bytes), "breakdown": breakdown}
+
+    def _bank_bytes(self):
+        """BankCapMixin hook: the tree's gradient-snapshot store is TreeLoRA's
+        only genuinely growing persistent structure (the single LoRA adapter
+        is pinned to slot 0, never banked -- see module docstring)."""
+        return sum(g.numel() * 4 for g in self.tree.all_accumulate_grads if g is not None)
 
     # ==================================================================
     # Boundary-agnostic streaming hooks (models/stream_mixin.py). Adapter slot

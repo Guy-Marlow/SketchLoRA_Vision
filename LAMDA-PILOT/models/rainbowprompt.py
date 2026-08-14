@@ -30,15 +30,18 @@ from tqdm import tqdm
 from utils.inc_net import RainbowPromptVitNet
 from models.til_base import TILLearner
 from models.stream_mixin import StreamMixin
+from models.bank_cap_mixin import BankCapMixin
 from utils.toolkit import tensor2numpy
 
 # 2026-08-10: 8->4, see models/lora.py's identical change for rationale.
 num_workers = 8
 
 
-class Learner(StreamMixin, TILLearner):
+class Learner(BankCapMixin, StreamMixin, TILLearner):
     def __init__(self, args):
         super().__init__(args)
+        self._bank_cap_init(args)
+        self._rp_pinned_slot = None
         self._network = RainbowPromptVitNet(args, True)
         self.batch_size = args["batch_size"]
         self.init_lr = args["init_lr"]
@@ -67,13 +70,80 @@ class Learner(StreamMixin, TILLearner):
     def after_task(self):
         self._known_classes = self._total_classes
 
+    # -- Bank-cap: which base_knowledge/base_key/stored_prompts row to
+    # train/route into on the current task (oracle-CIL only). Mirrors
+    # models/olora.py's _train_adapter() pattern: a no-op (always returns
+    # self._cur_task) when bank_cap_mb is unset. Once a new row's admission
+    # is refused, every later task returns the SAME pinned (last-admitted)
+    # row forever after -- add_task_slot()'s own guard (`if self._rp_slot()
+    # >= n_tasks`) then permanently stops firing (the pinned row always
+    # already exists), so the bank genuinely stops growing. incremental_
+    # train()'s existing unconditional per-task requires_grad_(True) on each
+    # layer's WHOLE base_knowledge tensor (+ base_key) needs no separate
+    # re-arm -- it already runs every task regardless (nn.Parameter can't be
+    # frozen by row, so this was already a blanket per-tensor un-freeze, not
+    # a per-row one; the forward pass only ever reads/writes the pinned
+    # row's slice, so gradient still only reaches that one row). The pinned
+    # row keeps fine-tuning continuously every subsequent task -- "never
+    # reinitialize the post-cap slot" falls out for free.
+    def _rp_slot(self):
+        if self._rp_pinned_slot is not None:
+            return self._rp_pinned_slot
+        pm = self._network.backbone.prompt_module
+        if self._cur_task >= pm.n_tasks:
+            if not self._bank_admit(self._rp_slot_bytes()):
+                self._rp_pinned_slot = self._cur_task - 1
+                return self._rp_pinned_slot
+        return self._cur_task
+
+    def _rp_slot_bytes(self):
+        """Cheap upfront estimate of one new row's byte cost across every
+        layer's base_knowledge + base_key + stored_prompts."""
+        pm = self._network.backbone.prompt_module
+        bk_bytes = sum(bk[0:1].numel() * bk.element_size() for bk in pm.base_knowledge)
+        key_bytes = pm.base_key[0:1].numel() * pm.base_key.element_size()
+        stored_bytes = pm.stored_prompts[0:1].numel() * pm.stored_prompts.element_size()
+        return bk_bytes + key_bytes + stored_bytes
+
+    def _bank_bytes(self):
+        """BankCapMixin hook: mirrors persistent_state()'s existing total
+        exactly, minus head (always exempt) -- base_knowledge/base_key/
+        stored_prompts (the genuinely growing, per-task rows) plus the
+        Prompt_Evolution sublayers (fixed-size, shared across tasks, but
+        real allocated memory -- same "count the fixed floor too" choice as
+        InfLoRA's frozen_delta, since how the budget gets spent isn't our
+        concern)."""
+        pm = self._network.backbone.prompt_module
+        bk_bytes = sum(bk.numel() * bk.element_size() for bk in pm.base_knowledge)
+        key_bytes = pm.base_key.numel() * pm.base_key.element_size()
+        stored_bytes = pm.stored_prompts.numel() * pm.stored_prompts.element_size()
+        evolve_bytes = 0
+        if pm.use_linear:
+            for module_list in (pm.query_matcher, pm.key_matcher, pm.value_matcher,
+                                 pm.dense, pm.fc1, pm.fc2):
+                evolve_bytes += sum(p.numel() * p.element_size() for p in module_list.parameters())
+        return bk_bytes + key_bytes + stored_bytes + evolve_bytes
+
+    def _rp_task_to_slot(self, task):
+        """Oracle-mode task-id -> row remap (fresh for this feature; mirrors
+        streaming's existing _stream_task_to_chunk in spirit). TIL eval
+        (_forward_task, below) references REAL ground-truth task ids
+        directly, which can be ANY past task -- not just the current one, so
+        _rp_slot()'s own pinned-value cache can't be reused as-is. A no-op
+        (identity) when bank_cap_mb is unset or the bank hasn't frozen yet."""
+        if self._rp_pinned_slot is None:
+            return task
+        return min(task, self._rp_pinned_slot)
+
     def incremental_train(self, data_manager):
         self._cur_task += 1
         self._total_classes = self._known_classes + data_manager.get_task_size(self._cur_task)
         self.data_manager = data_manager
         self._network.update_fc(self._total_classes)
         self._register_task_range()
-        self._network.default_task = self._cur_task
+        # Bank-cap: self._rp_slot(), not self._cur_task -- no-op substitution
+        # when bank_cap_mb is unset (always equal then).
+        self._network.default_task = self._rp_slot()
         logging.info("[RainbowPrompt] Learning on {}-{}".format(self._known_classes, self._total_classes))
 
         # Grow one base-knowledge/base-key/stored-prompts row if this task needs an
@@ -82,7 +152,10 @@ class Learner(StreamMixin, TILLearner):
         # models/lora.py's incremental_train; mutually exclusive with
         # _stream_begin_chunk's own add_task_slot() call below (oracle CIL only
         # ever calls this method, streaming only ever calls that one).
-        if self._cur_task >= self._network.backbone.prompt_module.n_tasks:
+        # Bank-cap: _rp_slot() instead of self._cur_task -- once frozen this
+        # permanently returns the already-allocated pinned row, so the guard
+        # stops firing and add_task_slot() is never called again.
+        if self._rp_slot() >= self._network.backbone.prompt_module.n_tasks:
             self._network.backbone.prompt_module.add_task_slot()
 
         # only this task's base-knowledge row (+ its key) and the head are trainable
@@ -134,7 +207,10 @@ class Learner(StreamMixin, TILLearner):
             self._warmup_steps = self.warmup_epochs * len(train_loader)
 
         lo, hi = self._ce_slice()
-        t = self._cur_task
+        # Bank-cap: self._rp_slot(), not self._cur_task -- no-op substitution
+        # when unset; once frozen, routes every remaining task's training
+        # onto the pinned row.
+        t = self._rp_slot()
         prog_bar = tqdm(range(self.epochs))
         for _, epoch in enumerate(prog_bar):
             self._network.train()
@@ -187,9 +263,15 @@ class Learner(StreamMixin, TILLearner):
         self._network.eval()
         y_pred, y_true = [], []
         k = min(self.topk, self._total_classes)
+        # Bank-cap: self._rp_slot(), not self._cur_task -- no-op pre-freeze
+        # (base_key[:task_id+1]'s own slice-clips-to-actual-size semantics
+        # would already self-limit this correctly even left as self._cur_task,
+        # but routing through _rp_slot() explicitly matches every other
+        # redirect in this file rather than relying on that implicitly).
+        slot = self._rp_slot()
         for _, inputs, targets in loader:
             inputs = inputs.to(self._device)
-            logits = self._network(inputs, task_id=self._cur_task, train=False)["logits"]
+            logits = self._network(inputs, task_id=slot, train=False)["logits"]
             predicts = torch.topk(logits, k=k, dim=1, largest=True, sorted=True)[1]
             if k < self.topk:
                 pad = predicts[:, -1:].expand(-1, self.topk - k)
@@ -198,7 +280,15 @@ class Learner(StreamMixin, TILLearner):
             y_true.append(targets.cpu().numpy())
         return np.concatenate(y_pred), np.concatenate(y_true)
 
-    # TIL: ground-truth task known -- bypass key-matching via known_task
+    # DEAD CODE, confirmed by grepping for a second `def _forward_task` in
+    # this class: Python keeps only the LAST of two same-named methods in a
+    # class body, and a streaming-flavored override further down (near
+    # _stream_cil_forward) replaces this one at class-definition time -- it
+    # is what actually executes at runtime, in both oracle and streaming
+    # modes. The bank-cap TIL remap (_rp_task_to_slot) is implemented there,
+    # not here, to avoid two copies of the same routing logic silently
+    # drifting apart. Left in place (not deleted) since removing dead code
+    # unrelated to this feature is out of scope for this change.
     def _forward_task(self, inputs, task):
         return self._network(inputs, task_id=task, train=False, known_task=task)
 
@@ -226,7 +316,8 @@ class Learner(StreamMixin, TILLearner):
         """The actual deployed CIL forward, verbatim from _eval_cnn (train=False,
         test-time key-matching routing since known_task is not passed), for
         metrics_logger.py's inference-cost/FLOPs measurement."""
-        return self._network(inputs, task_id=self._cur_task, train=False)
+        # Bank-cap: self._rp_slot(), matching _eval_cnn's own substitution.
+        return self._network(inputs, task_id=self._rp_slot(), train=False)
 
     # ==================================================================
     # Boundary-agnostic streaming hooks (models/stream_mixin.py). base_knowledge/
@@ -315,6 +406,17 @@ class Learner(StreamMixin, TILLearner):
         the real task index itself (chunk count generically diverges from real
         task count) -- remap via the generic _stream_task_to_chunk map built by
         stream_run() (identity outside streaming, since that attribute doesn't
-        exist there)."""
+        exist there).
+
+        THIS is the LIVE definition (Python keeps only the last of two
+        same-named methods in a class body -- the earlier oracle-flavored
+        _forward_task above is dead code, confirmed by grepping for a second
+        `def _forward_task`). Under oracle mode _stream_task_to_chunk never
+        exists, so the streaming remap above is already an identity -- bank-
+        cap's own remap is chained on unconditionally after it (also an
+        identity under streaming, since _rp_pinned_slot is only ever set from
+        oracle-path methods) rather than duplicating this docstring's routing
+        logic in the dead copy above."""
         slot = getattr(self, "_stream_task_to_chunk", {}).get(task, task)
+        slot = self._rp_task_to_slot(slot)
         return self._network(inputs, task_id=slot, train=False, known_task=slot)

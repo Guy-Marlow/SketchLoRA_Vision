@@ -8,6 +8,7 @@ from torch.nn import functional as F
 from torch.utils.data import DataLoader
 from utils.inc_net import TUNANet
 from models.base import BaseLearner
+from models.bank_cap_mixin import BankCapMixin
 from utils.toolkit import tensor2numpy, target2onehot
 from torch.distributions.multivariate_normal import MultivariateNormal
 from utils.ce2_profiler import ce2_boundary
@@ -55,9 +56,10 @@ class AngularPenaltySMLoss(nn.Module):
             return -torch.mean(L)
 
 
-class Learner(BaseLearner):
+class Learner(BankCapMixin, BaseLearner):
     def __init__(self, args):
         super().__init__(args)
+        self._bank_cap_init(args)
 
         self._network = TUNANet(args, True)
         #  self._network.backbone.head = nn.Linear(self._network.backbone.num_features, args["nb_classes"], bias=False)
@@ -101,9 +103,41 @@ class Learner(BaseLearner):
         # here would double count the just-finished task's adapter.
         adapter_bytes = sum(p.numel() * p.element_size() for p in net.backbone.adapter_list.parameters())
         fc_bytes = sum(p.numel() * p.element_size() for p in net.fc.parameters()) if net.fc is not None else 0
-        total_bytes = adapter_bytes + fc_bytes
+        # 2026-08-14: cls_mean/cls_cov (per-class Gaussian anti-drift stats
+        # for classifer_align) are genuinely persistent, growing storage --
+        # previously uncounted here. At "covariance" mode each class costs
+        # ~2.36MB (a full 768x768 covariance matrix); at "variance" mode it's
+        # a diagonal-only ~3KB/class. Bank-cap admission (bank_cap_mixin)
+        # depends on this being accurate.
+        cls_stats_bytes = (sum(v.numel() * v.element_size() for v in self.cls_mean.values())
+                            + sum(v.numel() * v.element_size() for v in self.cls_cov.values()))
+        total_bytes = adapter_bytes + cls_stats_bytes + fc_bytes
         return {"params": int(total_bytes // 4), "bytes": int(total_bytes),
-                "breakdown": {"adapters": adapter_bytes, "fc": fc_bytes}}
+                "breakdown": {"adapters": adapter_bytes, "cls_stats": cls_stats_bytes, "fc": fc_bytes}}
+
+    def _bank_bytes(self):
+        """BankCapMixin hook: current non-head bank bytes (adapter_list +
+        cls_mean/cls_cov -- the fc head is exempt, matching persistent_state()'s
+        own head/non-head split)."""
+        net = self._network.module if hasattr(self._network, "module") else self._network
+        adapter_bytes = sum(p.numel() * p.element_size() for p in net.backbone.adapter_list.parameters())
+        cls_stats_bytes = (sum(v.numel() * v.element_size() for v in self.cls_mean.values())
+                            + sum(v.numel() * v.element_size() for v in self.cls_cov.values()))
+        return adapter_bytes + cls_stats_bytes
+
+    def _bank_cls_stat_bytes_per_class(self):
+        """Cheap upfront estimate (no forward pass needed) of one class's
+        cls_mean+cls_cov byte cost, used to decide bank-cap admission for an
+        entire task's worth of new-class stats before _compute_mean actually
+        runs. Mirrors _compute_mean's own tensor shapes exactly."""
+        net = self._network.module if hasattr(self._network, "module") else self._network
+        out_dim = net.backbone.out_dim
+        mean_bytes = out_dim * 4  # float32 [out_dim]
+        if self.args["ca_storage_efficient_method"] == "covariance":
+            cov_bytes = (out_dim ** 2) * 4  # float32 [out_dim, out_dim]
+        else:
+            cov_bytes = out_dim * 4  # diag-only, float32 [out_dim]
+        return mean_bytes + cov_bytes
 
     @torch.no_grad()
     def _deployed_forward(self, inputs):
@@ -121,19 +155,40 @@ class Learner(BaseLearner):
             features = net.backbone(inputs, adapter_id=0, train=False)["features"]
             logits = net.fc(features)["logits"][:, :self._total_classes]
             return {"logits": logits}
+        # Bank-cap: loop/general-id bound is len(adapter_list), not
+        # self._cur_task+1 -- pre-freeze these are always equal (adapter_update
+        # appends every task, so len(adapter_list)==self._cur_task+1 by the
+        # time this runs), so this is a no-op when bank_cap_mb is unset. Once
+        # frozen, adapter_list stops growing while self._cur_task keeps
+        # climbing; using its length keeps the ensemble at the K banked slots
+        # it actually has, and forward_features' `adapter_id==len(adapter_list)`
+        # branch (which selects cur_adapter for the "general" pass) stays a
+        # tautology by construction instead of needing its own clamp.
+        n_banked = len(net.backbone.adapter_list)
+        # Bank-cap extreme edge case: a cap small enough to refuse admission
+        # before even task 0's adapter is banked leaves n_banked at 0 for
+        # every later task -- torch.stack([]) below would crash on an empty
+        # tensor list. With nothing banked to vote over, fall back to the
+        # "general"/cur_adapter's own logits alone (the same thing the
+        # _cur_task==0 branch above already does) -- a no-op when
+        # bank_cap_mb is unset (n_banked is never 0 once _cur_task > 0 there).
+        if n_banked == 0:
+            features = net.backbone(inputs, adapter_id=0, train=False)["features"]
+            logits = net.fc(features)["logits"][:, :self._total_classes]
+            return {"logits": logits}
         all_logits, all_entropies = [], []
-        for i in range(self._cur_task + 1):
+        for i in range(n_banked):
             features = net.backbone(inputs, adapter_id=i, train=False)["features"]
             logits = net.fc(features)["logits"][:, :self._total_classes] * self.args['scale']
             probs = F.softmax(logits, dim=1)
             entropy = -torch.sum(probs * torch.log(probs + 1e-10), dim=1)
             all_logits.append(logits)
             all_entropies.append(entropy)
-        all_logits = torch.stack(all_logits)          # [cur_task+1, bs, classes]
-        all_entropies = torch.stack(all_entropies)     # [cur_task+1, bs]
+        all_logits = torch.stack(all_logits)          # [n_banked, bs, classes]
+        all_entropies = torch.stack(all_entropies)     # [n_banked, bs]
         min_entropy_indices = torch.argmin(all_entropies, dim=0)  # [bs]
         min_entropy_logits = all_logits[min_entropy_indices, torch.arange(inputs.shape[0], device=inputs.device)]
-        features = net.backbone(inputs, adapter_id=self._cur_task + 1, train=False)["features"]
+        features = net.backbone(inputs, adapter_id=n_banked, train=False)["features"]
         general_logits = net.fc(features)["logits"][:, :self._total_classes] * self.args['scale']
         outputs = F.softmax(general_logits, dim=1) + F.softmax(min_entropy_logits, dim=1)
         return {"logits": outputs}
@@ -178,11 +233,29 @@ class Learner(BaseLearner):
         scheduler = self.get_scheduler(optimizer)
 
         self._init_train(train_loader, test_loader, optimizer, scheduler)
-        self._network.backbone.adapter_update()
+
+        # Bank-cap admission (no-op, both always True, when bank_cap_mb is
+        # unset). One shared budget/latch between this task's cls_mean/
+        # cls_cov contribution and its adapter_list slot; cls stats are
+        # checked FIRST -- they're TUNA's only anti-drift mechanism for
+        # older classes (a denied class gets zero further classifer_align
+        # correction, ever), whereas a denied adapter slot only costs one
+        # task's worth of entropy-vote ensemble diversity. Per-task
+        # granularity (admit/refuse this whole task's contribution, not
+        # per-class/per-parameter) matches classifer_align's own
+        # contiguous-prefix assumption -- see its n_ca_classes clamp below.
+        net = self._network.module if hasattr(self._network, "module") else self._network
+        new_classes = self._total_classes - self._known_classes
+        cls_stats_admit = self._bank_admit(new_classes * self._bank_cls_stat_bytes_per_class())
+        adapter_bytes = sum(p.numel() * p.element_size() for p in net.backbone.cur_adapter.parameters())
+        adapter_admit = self._bank_admit(adapter_bytes)
+
+        if adapter_admit:
+            self._network.backbone.adapter_update()
         if self._cur_task > 0:
             self._network.backbone.merge()
         with ce2_boundary(self):
-            self._compute_mean(self._network.backbone)
+            self._compute_mean(self._network.backbone, admit=cls_stats_admit)
             if self._cur_task > 0:
                 self.classifer_align(self._network.backbone)
 
@@ -275,8 +348,14 @@ class Learner(BaseLearner):
         logging.info(info)
     def orth_loss(self, features):
         final_loss = 0
-       
-        for i in range(self._cur_task):
+
+        # Bank-cap: once adapter_list stops growing (admission refused in
+        # _train), it holds fewer than self._cur_task entries -- bound the
+        # loop to what's actually banked instead of indexing past it. A
+        # no-op when bank_cap_mb is unset (adapter_list always has exactly
+        # self._cur_task entries by then).
+        n_banked = min(self._cur_task, len(self._network.backbone.adapter_list))
+        for i in range(n_banked):
             loss = 0
             for j in range(12):  
                 cur_up_proj = self._network.backbone.cur_adapter[j].up_proj.weight
@@ -291,7 +370,14 @@ class Learner(BaseLearner):
        
         return final_loss
     @torch.no_grad()
-    def _compute_mean(self, model):
+    def _compute_mean(self, model, admit=True):
+        if not admit:
+            # Bank-cap refused this task's cls_mean/cls_cov contribution --
+            # self.cls_mean/self.cls_cov simply stop growing, leaving a
+            # strict class-index prefix. classifer_align's n_ca_classes
+            # clamp (below) is what keeps every downstream consumer of
+            # these dicts consistent with that frozen prefix.
+            return
         model.eval()
         for class_idx in range(self._known_classes, self._total_classes):
             data, targets, idx_dataset = self.data_manager.get_dataset(
@@ -340,6 +426,25 @@ class Learner(BaseLearner):
         task_size = self._known_classes - self._total_classes
         self._network.eval()
 
+        # Bank-cap: once cls_mean/cls_cov stop growing (admission refused in
+        # _train -> _compute_mean), self.cls_mean holds a strict class-index
+        # prefix [0, len(self.cls_mean)) rather than [0, self._total_classes)
+        # -- indexing self.cls_mean[class_idx] for a denied class would
+        # KeyError. n_ca_classes clamps every loop below to that prefix; a
+        # no-op when bank_cap_mb is unset (cls_mean always has exactly
+        # self._total_classes entries by then, the prior invariant).
+        n_ca_classes = min(self._total_classes, len(self.cls_mean))
+        # Bank-cap extreme edge case: a cap small enough to refuse admission
+        # before even the FIRST class's stats are stored leaves n_ca_classes
+        # at 0 -- torch.cat([]) below would crash on an empty tensor list.
+        # Nothing meaningful can be aligned against zero classes' stats
+        # regardless, so skip the whole method (fc keeps whatever
+        # update_fc() initialized it to for the new classes -- untrained by
+        # this stage, but not corrupted). A no-op when bank_cap_mb is unset
+        # (n_ca_classes is never 0 there once _cur_task > 0).
+        if n_ca_classes == 0:
+            return
+
         # 2026-08-10: per-class MultivariateNormal distributions built ONCE,
         # not once per epoch. self.cls_mean/self.cls_cov are fixed for the
         # entire classifer_align call -- only ever written by _compute_mean,
@@ -355,7 +460,7 @@ class Learner(BaseLearner):
         # sampled every epoch exactly as before), ~30x fewer Cholesky calls.
         if self.args["ca_storage_efficient_method"] in ['covariance', 'variance']:
             distributions = {}
-            for class_idx in range(self._total_classes):
+            for class_idx in range(n_ca_classes):
                 if self.args["decay"]:
                     t_id = class_idx // task_size
                     decay = (t_id + 1) / (self._cur_task + 1) * 0.1
@@ -377,7 +482,7 @@ class Learner(BaseLearner):
             sampled_label = []
             num_sampled_pcls = self.batch_size * 5
 
-            for class_idx in range(self._total_classes):
+            for class_idx in range(n_ca_classes):
                 m = distributions[class_idx]
                 sampled_data_single = m.sample(sample_shape=(num_sampled_pcls,))
                 sampled_data.append(sampled_data_single)
@@ -398,7 +503,7 @@ class Learner(BaseLearner):
 
             losses = 0.0
             correct, total = 0, 0
-            for _iter in range(self._total_classes):
+            for _iter in range(n_ca_classes):
                 inp = inputs[_iter * num_sampled_pcls:(_iter + 1) * num_sampled_pcls]
                 tgt = targets[_iter * num_sampled_pcls:(_iter + 1) * num_sampled_pcls]
                 outputs = self._network.fc(inp)["logits"]
@@ -465,13 +570,24 @@ class Learner(BaseLearner):
         # cap k to classes-seen-so-far (see models/base.py::_eval_cnn) -- needed for
         # the 50-task sensitivity/ablation splits (init_cls < 5).
         k = min(self.topk, self._total_classes)
+        # Bank-cap: see the matching comment in _deployed_forward -- using
+        # len(adapter_list) instead of self._cur_task+1 is a no-op pre-freeze
+        # and keeps the ensemble at the K banked slots once frozen.
+        n_banked = len(self._network.backbone.adapter_list)
+        # Extreme edge case (cap refused even task 0's adapter): nothing
+        # banked to vote over at any later task either -- fall back to the
+        # same single-adapter eval path task 0 itself uses (torch.stack([])
+        # below would otherwise crash on an empty list). No-op when
+        # bank_cap_mb is unset.
+        if n_banked == 0:
+            return self._eval_cnn1(loader)
         for _, (_, inputs, targets) in enumerate(loader):
             inputs = inputs.to(self._device)
             targets = targets.to(self._device)
             all_predicts = []
             all_entropies = []
             all_logits = []
-            for i in range(self._cur_task + 1):
+            for i in range(n_banked):
                 with torch.no_grad():
                     features = self._network.backbone(inputs, adapter_id=i, train=False)["features"]
                     logits = self._network.fc(features)["logits"][:, :self._total_classes]*self.args['scale']
@@ -491,7 +607,7 @@ class Learner(BaseLearner):
             min_entropy_logits = all_logits[min_entropy_indices, torch.arange(len(min_entropy_indices))].to(
                 self._device)
             with torch.no_grad():
-                features = self._network.backbone(inputs, adapter_id=self._cur_task + 1, train=False)["features"]
+                features = self._network.backbone(inputs, adapter_id=n_banked, train=False)["features"]
                 logits = self._network.fc(features)["logits"][:, :self._total_classes]*self.args['scale']
                 logits = F.softmax(logits, dim=1)
             min_entropy_logits = F.softmax(min_entropy_logits, dim=1)

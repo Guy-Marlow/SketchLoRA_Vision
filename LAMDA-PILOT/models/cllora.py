@@ -8,6 +8,7 @@ from torch.nn import functional as F
 from torch.utils.data import DataLoader
 from utils.inc_net import OurNet
 from models.base import BaseLearner
+from models.bank_cap_mixin import BankCapMixin
 from utils.toolkit import tensor2numpy
 from utils.ce2_profiler import ce2_boundary
 import random
@@ -43,9 +44,10 @@ def compute_orthogonality_loss(previous_weights_list, current_weights, epsilon=1
 
     return total_ortho_loss
 
-class Learner(BaseLearner):
+class Learner(BankCapMixin, BaseLearner):
     def __init__(self, args):
         super().__init__(args)
+        self._bank_cap_init(args)
         self._network = OurNet(args, True)
 
         self.args = args
@@ -75,8 +77,37 @@ class Learner(BaseLearner):
     def after_task(self):
         self._known_classes = self._total_classes
         self._network.freeze()
+        # Bank-cap admission (no-op, always True, when bank_cap_mb is unset).
+        # ONE atomic check covering all three structures add_adapter_to_list()
+        # would grow this task (adapter_list's specific-block slot,
+        # block_weight_list's entry, old_adapter_list's full-cur_adapter KD
+        # snapshot) -- they must grow or freeze TOGETHER, never independently,
+        # since forward()/forward_test() index adapter_list and
+        # block_weight_list by the SAME position i (backbone/vit_cllora.py:
+        # 450/454), and a length mismatch between them would silently read
+        # the wrong task's block_weight. See docs/bounded_bank_memory_changelog.md
+        # for why this is a single combined admission rather than the 3
+        # separate per-structure checks a first pass might reach for.
+        candidate_bytes = self._bank_admit_candidate_bytes()
+        admit = self._bank_admit(candidate_bytes)
         with ce2_boundary(self):
-            self._network.backbone.add_adapter_to_list()
+            self._network.backbone.add_adapter_to_list(admit=admit)
+
+    def _bank_admit_candidate_bytes(self):
+        """Cheap upfront estimate of this task's combined adapter_list +
+        block_weight_list + old_adapter_list growth, computed from the
+        LIVE (not-yet-banked) structures add_adapter_to_list() is about to
+        copy from -- mirrors its own byte cost exactly."""
+        net = self._network.module if hasattr(self._network, "module") else self._network
+        backbone = net.backbone
+        specific_bytes = sum(p.numel() * p.element_size()
+                              for i in range(len(backbone.specfic_pos))
+                              for p in backbone.cur_adapter[backbone.adapt_pos.index(backbone.specfic_pos[i])].parameters())
+        block_weight_bytes = (backbone.block_weight.numel() * backbone.block_weight.element_size()
+                               if getattr(backbone, "use_block_weight", False) else 0)
+        old_adapter_bytes = (sum(p.numel() * p.element_size() for p in backbone.cur_adapter.parameters())
+                              if hasattr(backbone, "old_adapter_list") else 0)
+        return specific_bytes + block_weight_bytes + old_adapter_bytes
 
     def persistent_state(self):
         net = self._network.module if hasattr(self._network, "module") else self._network
@@ -88,6 +119,18 @@ class Learner(BaseLearner):
                              for task_adapters in backbone.adapter_list
                              for a in task_adapters for p in a.parameters())
         adapter_bytes += sum(p.numel() * p.element_size() for p in backbone.cur_adapter.parameters())
+        # 2026-08-14: old_adapter_list (the full per-task cur_adapter KD-teacher
+        # snapshot, ALL blocks not just specfic_pos) and block_weight_list (the
+        # banked, frozen block-weighting vectors) were both previously
+        # uncounted here -- old_adapter_list IS a proper nn.ModuleList (so
+        # named_parameters() could see it) but was simply never summed;
+        # block_weight_list is a plain python list of Parameters (same blind
+        # spot as adapter_list). Bank-cap admission depends on this being
+        # accurate.
+        old_adapter_bytes = (sum(p.numel() * p.element_size() for p in backbone.old_adapter_list.parameters())
+                              if hasattr(backbone, "old_adapter_list") else 0)
+        block_weight_list_bytes = (sum(p.numel() * p.element_size() for p in backbone.block_weight_list)
+                                    if hasattr(backbone, "block_weight_list") else 0)
         # VPT deep-prompt tokens (one nn.Parameter per tuned block) and the MSA
         # block-weighting vector -- both real nn.Parameters, but named here for an
         # explicit breakdown rather than folding them into the generic heuristic.
@@ -96,10 +139,30 @@ class Learner(BaseLearner):
         block_weight_bytes = (backbone.block_weight.numel() * backbone.block_weight.element_size()
                               if hasattr(backbone, "block_weight") else 0)
         fc_bytes = sum(p.numel() * p.element_size() for p in net.fc.parameters()) if net.fc is not None else 0
-        total_bytes = adapter_bytes + vpt_bytes + block_weight_bytes + fc_bytes
+        total_bytes = (adapter_bytes + old_adapter_bytes + block_weight_list_bytes
+                       + vpt_bytes + block_weight_bytes + fc_bytes)
         return {"params": int(total_bytes // 4), "bytes": int(total_bytes),
-                "breakdown": {"adapters": adapter_bytes, "vpt_prompts": vpt_bytes,
+                "breakdown": {"adapters": adapter_bytes, "old_adapters_kd": old_adapter_bytes,
+                             "block_weight_list": block_weight_list_bytes, "vpt_prompts": vpt_bytes,
                              "block_weight": block_weight_bytes, "fc": fc_bytes}}
+
+    def _bank_bytes(self):
+        """BankCapMixin hook: current non-head bank bytes -- the three
+        structures add_adapter_to_list() grows (adapter_list, old_adapter_list,
+        block_weight_list). Excludes cur_adapter/block_weight (the live,
+        continuously-training slot -- never capped, matching every other
+        method's treatment of its post-freeze training slot) and the fc head
+        (always exempt)."""
+        net = self._network.module if hasattr(self._network, "module") else self._network
+        backbone = net.backbone
+        adapter_bytes = sum(p.numel() * p.element_size()
+                             for task_adapters in backbone.adapter_list
+                             for a in task_adapters for p in a.parameters())
+        old_adapter_bytes = (sum(p.numel() * p.element_size() for p in backbone.old_adapter_list.parameters())
+                              if hasattr(backbone, "old_adapter_list") else 0)
+        block_weight_list_bytes = (sum(p.numel() * p.element_size() for p in backbone.block_weight_list)
+                                    if hasattr(backbone, "block_weight_list") else 0)
+        return adapter_bytes + old_adapter_bytes + block_weight_list_bytes
 
     @torch.no_grad()
     def _deployed_forward(self, inputs):
@@ -127,6 +190,7 @@ class Learner(BaseLearner):
     def replace_fc(self, train_loader):
         model = self._network
         model = model.eval()
+        net = model.module if hasattr(model, "module") else model
 
         with torch.no_grad():
             # replace proto for each adapter in the current task
@@ -135,12 +199,27 @@ class Learner(BaseLearner):
             else:
                 start_idx = 0
 
-            for index in range(start_idx, self._cur_task + 1):
+            # Bank-cap: n_banked = len(adapter_list) instead of self._cur_task
+            # -- pre-freeze these are always equal (see OurNet.feature_dim's
+            # matching comment in utils/inc_net.py), so this is a no-op when
+            # bank_cap_mb is unset. Once frozen, len(adapter_list) stops
+            # growing while self._cur_task keeps climbing; fc's width is
+            # frozen to match (feature_dim's own bank-cap fix), so writing at
+            # column block self._cur_task here would be out of bounds. Using
+            # n_banked instead means every post-cap task keeps recomputing
+            # and overwriting the SAME trailing column block (the one
+            # backbone.forward_proto's `else` branch -- adapt_index ==
+            # len(adapter_list) -- already routes to cur_adapter, the live,
+            # continuously-training slot), matching "never reinitialize the
+            # post-cap slot" and giving real signal from every task a route
+            # into the classifier instead of being silently discarded.
+            n_banked = len(net.backbone.adapter_list)
+            for index in range(start_idx, n_banked + 1):
                 if self.moni_adam:
                     if index > self.adapter_num - 1:
                         break
-                # only use the diagonal feature, index = -1 denotes using init PTM, index = self._cur_task denotes the last adapter's feature
-                elif self.use_diagonal and index != -1 and index != self._cur_task:
+                # only use the diagonal feature, index = -1 denotes using init PTM, index = n_banked denotes the last adapter's feature
+                elif self.use_diagonal and index != -1 and index != n_banked:
                     continue
 
                 embedding_list, label_list = [], []
@@ -391,7 +470,16 @@ class Learner(BaseLearner):
                     aux_targets - lo,
                     -1,
                 )
-                if self._cur_task > 0:
+                # Bank-cap extreme edge case: a cap small enough to refuse
+                # admission before even task 0's contribution is banked
+                # leaves old_adapter_list empty forever -- forward_kd (via
+                # forward_general_cls's old_adapter_list[-1]) and the direct
+                # old_adapter_list[-1] index below would both crash on an
+                # empty list. With no KD teacher ever banked, skip the whole
+                # KD phase for this step (no signal to distill from anyway).
+                # No-op when bank_cap_mb is unset (old_adapter_list is never
+                # empty once self._cur_task > 0 there).
+                if self._cur_task > 0 and len(self._network.backbone.old_adapter_list) > 0:
                     # KD phase FIRST, own backward+step -- its optimizer.step() updates
                     # shared backbone params in-place, so the CE/orth forward below is
                     # computed AFTER this (not reused from before it), avoiding a stale
@@ -416,7 +504,13 @@ class Learner(BaseLearner):
                         pos = self._network.backbone.adapt_pos.index(self._network.backbone.general_pos[j])
                         for jj in range(len(self._network.backbone.msa)):
                             if self._network.backbone.msa[jj] == 1:
-                                temp_weights = 1. * torch.norm(self._network.backbone.old_adapter_list[self._cur_task-1][pos][jj].lora_A.weight,dim=1)
+                                # Bank-cap: [-1] instead of [self._cur_task-1] --
+                                # same no-op-pre-freeze / frozen-snapshot-forever
+                                # substitution as forward_general_cls's matching
+                                # fix (backbone/vit_cllora.py); this direct
+                                # old_adapter_list index was a separate site that
+                                # fix didn't cover.
+                                temp_weights = 1. * torch.norm(self._network.backbone.old_adapter_list[-1][pos][jj].lora_A.weight,dim=1)
                                 temp_weights = 1. * len(temp_weights) * temp_weights / torch.sum(temp_weights)
                                 self._network.backbone.cur_adapter[pos][jj].lora_A.weight.grad = temp_weights.unsqueeze(1) * self._network.backbone.cur_adapter[pos][jj].lora_A.weight.grad
                     optimizer.step()

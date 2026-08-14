@@ -38,6 +38,7 @@ from torch.nn import functional as F
 from tqdm import tqdm
 
 from models.lora import Learner as LoRALearner
+from models.bank_cap_mixin import BankCapMixin
 from utils.toolkit import tensor2numpy
 # *** UNTESTED as of 2026-08-03 *** -- measured-CE region tagging
 # (docs/ce_profiling_implementation_plan.md sec 4.2). No-op unless a profiling
@@ -46,9 +47,10 @@ from utils.ce_profiler import ce_region, run_boundary, run_step_narrow
 from utils.ce2_profiler import ce2_boundary
 
 
-class Learner(LoRALearner):
+class Learner(BankCapMixin, LoRALearner):
     def __init__(self, args):
         super().__init__(args)
+        self._bank_cap_init(args)
         # 2026-08-10: NOT calling enable_frozen_folding() -- see module
         # docstring. O-LoRA's frozen slots ARE immutable once trained (folding
         # would still be numerically safe), but O-LoRA-Ref itself never folds,
@@ -61,6 +63,53 @@ class Learner(LoRALearner):
         self.lamda_2 = args.get("lamda_2", 0.0)   # L2 weight on current LoRA
         # O-LoRA accumulates: the forward sums previous (frozen) + current LoRA.
         self.train_merge = True
+        self._olora_pinned_slot = None
+
+    # -- Bank-cap: which LoRA slot to train/route on the current task -----
+    # Overrides models/lora.py's base `return self._cur_task`. The base
+    # class's incremental_train() ALREADY calls this (not self._cur_task
+    # directly) for default_task, the add_task_slot() growth guard, and
+    # freeze_to_task() -- so overriding just this one method is sufficient to
+    # make the whole existing slot-growth/training pipeline bank-cap-aware,
+    # with no other change needed there. A no-op (always returns
+    # self._cur_task) when bank_cap_mb is unset.
+    #
+    # Once a new slot's admission is refused, every later task keeps
+    # returning the SAME pinned (last-admitted) slot: add_task_slot()'s guard
+    # (`if self._train_adapter() >= n_tasks`) becomes permanently false (the
+    # pinned slot always already exists), so the bank genuinely stops
+    # growing; freeze_to_task(pinned_slot) unconditionally re-enables
+    # requires_grad on that slot's A/B every task (its own existing
+    # behavior, unchanged), so the pinned slot keeps fine-tuning
+    # continuously -- "last admitted slot trains forever" falls out for free.
+    def _train_adapter(self):
+        if self._olora_pinned_slot is not None:
+            return self._olora_pinned_slot
+        net = self._network.module if hasattr(self._network, "module") else self._network
+        if self._cur_task >= net.backbone.n_tasks:
+            if not self._bank_admit(self._olora_slot_bytes()):
+                self._olora_pinned_slot = self._cur_task - 1
+                return self._olora_pinned_slot
+        return self._cur_task
+
+    def _olora_slot_bytes(self):
+        """Cheap upfront estimate of one new slot's byte cost -- all slots
+        are identically shaped, so slot 0 (always allocated) is measured
+        directly rather than the not-yet-existing new one."""
+        net = self._network.module if hasattr(self._network, "module") else self._network
+        return sum(p.numel() * p.element_size()
+                   for attn in net.attn_modules()
+                   for mlist in (attn.lora_A_q, attn.lora_B_q, attn.lora_A_v, attn.lora_B_v)
+                   for p in mlist[0].parameters())
+
+    def _bank_bytes(self):
+        """BankCapMixin hook: current total bytes across every allocated LoRA
+        slot (the fc head is separate, never summed here -- always exempt)."""
+        net = self._network.module if hasattr(self._network, "module") else self._network
+        return sum(p.numel() * p.element_size()
+                   for attn in net.attn_modules()
+                   for mlist in (attn.lora_A_q, attn.lora_B_q, attn.lora_A_v, attn.lora_B_v)
+                   for p in mlist.parameters())
 
     # -- TIL eval must use O-LoRA's *merged* adapter ---------------------
     # O-LoRA's inference model is the merged sum (W + Σ_{k≤cur} B_k A_k) -- the
@@ -71,7 +120,7 @@ class Learner(LoRALearner):
     # still masks logits to task t's class slice.
     def _forward_task(self, inputs, task):
         net = self._network.module if hasattr(self._network, "module") else self._network
-        return net(inputs, task=self._cur_task, merge=True)
+        return net(inputs, task=self._train_adapter(), merge=True)
 
     # -- sample-boundary streaming hooks --------------------------------
     # One adapter slot per CHUNK (not per class-task); the orthogonality penalty
@@ -158,8 +207,18 @@ class Learner(LoRALearner):
 
         No-op on task 0 (nothing to compare against yet, matching
         _orth_and_l2's own `if t > 0` guard) and a no-op on any later call this
-        same task (matches the original guard's idempotence within a task)."""
-        t = self._cur_task
+        same task (matches the original guard's idempotence within a task).
+
+        Bank-cap: t = self._train_adapter(), not self._cur_task -- a no-op
+        substitution when bank_cap_mb is unset (the two are always equal
+        then). Once frozen, t stays pinned at the same value across every
+        subsequent task, so the per-(block,proj) cache_attr/task_attr check
+        below (`!= t`) is true only once more (the freezing task) and then
+        stays false forever after -- the cache is built once at the
+        freeze point and never rebuilt again, exactly matching "frozen data,
+        used forever" (and a free performance win: no more rebuilding a
+        growing concat cache every task once nothing about it can change)."""
+        t = self._train_adapter()
         if t <= 0:
             return
         for attn in self._network.attn_modules():
@@ -190,8 +249,13 @@ class Learner(LoRALearner):
         concatenation Y = [Y_0; Y_1; ...; Y_{t-1}] (stacked along dim 0), X @ Y^T
         stacks the individual X @ Y_s^T blocks along dim 1 (columns), and abs() is
         elementwise, so |X @ Y^T|.sum() == sum_s |X @ Y_s^T|.sum() exactly. Dominant
-        win in budget mode (up to 475 tiny matmuls/step collapses to 1)."""
-        t = self._cur_task
+        win in budget mode (up to 475 tiny matmuls/step collapses to 1).
+
+        Bank-cap: t = self._train_adapter(), matching _refresh_orth_cache's
+        own substitution -- a no-op when unset. Once frozen, A_t below is
+        the pinned slot's own A/B (continuously fine-tuned every task, never
+        reinitialized), orthogonalized against the frozen cache built above."""
+        t = self._train_adapter()
         orth = 0.0
         l2 = 0.0
         for attn in self._network.attn_modules():
@@ -260,7 +324,10 @@ class Learner(LoRALearner):
             losses, ce_run, orth_run, correct, total = 0.0, 0.0, 0.0, 0, 0
             for _, inputs, targets in train_loader:
                 inputs, targets = inputs.to(self._device), targets.to(self._device)
-                logits = self._network(inputs, task=self._cur_task, merge=self.train_merge)["logits"]
+                # Bank-cap: task=self._train_adapter(), not self._cur_task --
+                # a no-op substitution when unset; once frozen, routes every
+                # remaining task's training onto the pinned slot.
+                logits = self._network(inputs, task=self._train_adapter(), merge=self.train_merge)["logits"]
                 local_logits = logits[:, lo:hi]
                 local_targets = targets - lo
                 ce = F.cross_entropy(local_logits, local_targets)

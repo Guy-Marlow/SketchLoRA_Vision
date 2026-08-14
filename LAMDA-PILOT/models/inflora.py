@@ -26,6 +26,7 @@ import torch
 from torch.utils.data import DataLoader
 
 from models.lora import Learner as LoRALearner
+from models.bank_cap_mixin import BankCapMixin
 # *** UNTESTED as of 2026-08-03 *** -- measured-CE region tagging
 # (docs/ce_profiling_implementation_plan.md sec 4.3). No-op unless a profiling
 # session is active (utils/ce_profiler.py).
@@ -36,9 +37,10 @@ from utils.ce2_profiler import ce2_boundary
 num_workers = 8
 
 
-class Learner(LoRALearner):
+class Learner(BankCapMixin, LoRALearner):
     def __init__(self, args):
         super().__init__(args)
+        self._bank_cap_init(args)
         # InfLoRA's frozen slots are never modified once trained (A is set once
         # analytically, B is trained once, neither touched again) -- safe to fold
         # into a dense delta for O(1) merged forward (plan doc §6 item 2).
@@ -89,6 +91,25 @@ class Learner(LoRALearner):
         return {"params": int(total_bytes // 4), "bytes": int(total_bytes),
                 "breakdown": {"frozen_delta": frozen_delta_bytes, "current_slot": cur_slot_bytes,
                              "dualgpm_bases": dualgpm_bytes, "fc": fc_bytes}}
+
+    def _bank_bytes(self):
+        """BankCapMixin hook: frozen_delta (fixed-size once it exists, never
+        grows) + the DualGPM bases/projectors (feature_list/feature_mat --
+        InfLoRA's only genuinely growing structure). Excludes current_slot
+        (the live, not-yet-folded task's own slot -- transient, folded away
+        next task regardless of the cap, same "never count the live slot"
+        convention as every other method) and fc (always exempt)."""
+        net = self._network.module if hasattr(self._network, "module") else self._network
+        frozen_delta_bytes = 0
+        for attn in net.attn_modules():
+            frozen_delta_bytes += attn.frozen_delta_q.numel() * attn.frozen_delta_q.element_size()
+            frozen_delta_bytes += attn.frozen_delta_v.numel() * attn.frozen_delta_v.element_size()
+        dualgpm_bytes = 0
+        for f in self.feature_list:
+            dualgpm_bytes += f.numel() * f.element_size()
+        for m in self.feature_mat:
+            dualgpm_bytes += m.numel() * m.element_size()
+        return frozen_delta_bytes + dualgpm_bytes
 
     # -- TIL eval must use InfLoRA's *merged* adapter -------------------
     # Like O-LoRA, InfLoRA trains and infers with the merged sum (merge=True).
@@ -262,8 +283,28 @@ class Learner(LoRALearner):
             run_boundary(_ctrl, "inflora_init_a", lambda: self._init_lora_A(self.train_loader))
         self._log_trainable()
         self._train(self.train_loader)           # train B + head (inherited)
-        with ce2_boundary(self):
-            run_boundary(_ctrl, "inflora_dualgpm", lambda: self._update_dualgpm(self.train_loader))
+        # Bank-cap: COARSE gate around the WHOLE _update_dualgpm call (not a
+        # fine-grained per-column clip inside update_DualGPM) -- a no-op
+        # (always admits, candidate_bytes=0 never exceeds an unset cap) when
+        # bank_cap_mb is unset. _update_dualgpm is the only genuinely growing
+        # InfLoRA structure (feature_list/feature_mat); _init_lora_A/_train
+        # above and add_task_slot()/free_folded_slots() below always keep
+        # running regardless -- their cost is fixed-size per task (folding
+        # keeps frozen_delta/current_slot bounded), not something the cap
+        # needs to touch. candidate_bytes=0 (not a predicted growth amount):
+        # feature_mat's rebuild commits its full cost as a single
+        # all-or-nothing step regardless of how many columns get admitted,
+        # so predicting a partial-admission byte count ahead of running the
+        # SVDs isn't meaningful here -- the check instead asks "has the
+        # PREVIOUS cycle's growth already put us at/over budget", and once
+        # that's true, this and every later cycle's _update_dualgpm is
+        # skipped in full (one-way latch) -- feature_list/feature_mat freeze
+        # at whatever they held, and _init_lora_A keeps using that same
+        # frozen feature_mat to analytically set every future task's A
+        # forever (orthogonal-to-frozen-subspace, never disabled).
+        if self._bank_admit(0):
+            with ce2_boundary(self):
+                run_boundary(_ctrl, "inflora_dualgpm", lambda: self._update_dualgpm(self.train_loader))
 
     # -- (1)+(2) analytic init of the down-projection A -----------------
     @torch.no_grad()
@@ -294,7 +335,19 @@ class Learner(LoRALearner):
         with ce_region("inflora/init_lora_A_svd"):
             for kk, attn in enumerate(net.attn_modules()):
                 cur = attn.cur_matrix.clone().double()           # [dim, dim] on cpu
-                if self._cur_task == 0:
+                # Bank-cap: treat "no projector banked for this block yet"
+                # (kk >= len(self.feature_mat)) the same as task 0 -- plain
+                # SVD of the raw covariance, no projection. A no-op when
+                # bank_cap_mb is unset (feature_mat always has all 12 block
+                # entries by the time _cur_task > 0 there). Without this,
+                # an extreme cap that refuses _update_dualgpm before it ever
+                # runs once (frozen_delta_q/v are always-allocated [dim,dim]
+                # register_buffers -- ~54MB from construction, regardless of
+                # whether any folding has actually happened -- so even task
+                # 0's admission can be refused by a small enough cap) leaves
+                # feature_mat permanently empty, and self.feature_mat[kk]
+                # below raises IndexError on the very next task.
+                if self._cur_task == 0 or kk >= len(self.feature_mat):
                     U, S, _ = torch.linalg.svd(cur)
                     basis = U[:, :self.rank]
                 else:

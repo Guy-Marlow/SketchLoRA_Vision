@@ -297,7 +297,23 @@ class VisionTransformer(nn.Module):
         else:
             print("====Not use adapter===")
 
-    def add_adapter_to_list(self):
+    def add_adapter_to_list(self, admit=True):
+        if not admit:
+            # Bank-cap refused: adapter_list stays frozen at whatever it
+            # already holds -- do NOT reinitialize cur_adapter (skip
+            # get_new_adapter(), which discards it and builds a fresh
+            # randomly-initialized one every task). It keeps fine-tuning
+            # continuously from wherever freeze() just left it instead,
+            # matching every other method's "never reinitialize the
+            # post-cap slot" treatment. get_new_adapter() is also the only
+            # thing that properly re-enables requires_grad on cur_adapter
+            # after freeze() (freeze()'s own `self.cur_adapter[i].
+            # requires_grad = True` is a plain attribute assignment on an
+            # nn.ModuleList -- a pre-existing no-op for actual gradient
+            # tracking, true with or without this feature) -- replicate
+            # only that half explicitly.
+            self.cur_adapter.requires_grad_(True)
+            return
         self.adapter_list.append(copy.deepcopy(self.cur_adapter.requires_grad_(False)))
         self.get_new_adapter()
     

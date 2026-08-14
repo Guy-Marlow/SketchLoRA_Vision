@@ -8,17 +8,19 @@ from torch.nn import functional as F
 from torch.utils.data import DataLoader
 from utils.inc_net import EaseNet
 from models.base import BaseLearner
+from models.bank_cap_mixin import BankCapMixin
 from utils.toolkit import tensor2numpy
 from utils.ce2_profiler import ce2_boundary
 
 # 2026-08-10: 8->4, see models/lora.py's identical change for rationale.
 num_workers = 8
 
-class Learner(BaseLearner):
+class Learner(BankCapMixin, BaseLearner):
     def __init__(self, args):
         super().__init__(args)
+        self._bank_cap_init(args)
         self._network = EaseNet(args, True)
-        
+
         self.args = args
         self.batch_size = args["batch_size"]
         self.init_lr = args["init_lr"]
@@ -46,8 +48,31 @@ class Learner(BaseLearner):
     def after_task(self):
         self._known_classes = self._total_classes
         self._network.freeze()
+        # Bank-cap admission (no-op, always True, when bank_cap_mb is
+        # unset). One check covering the whole new adapter slot
+        # add_adapter_to_list() would grow this task.
+        admit = self._bank_admit(self._bank_admit_candidate_bytes())
         with ce2_boundary(self):
-            self._network.backbone.add_adapter_to_list()
+            self._network.backbone.add_adapter_to_list(admit=admit)
+
+    def _bank_admit_candidate_bytes(self):
+        """Cheap upfront estimate of one new adapter slot's byte cost --
+        mirrors add_adapter_to_list()'s own copy.deepcopy(cur_adapter) cost
+        exactly (EASE's cur_adapter is a full 12-block adapter, unlike
+        CL-LoRA's specific_pos-only slice)."""
+        net = self._network.module if hasattr(self._network, "module") else self._network
+        return sum(p.numel() * p.element_size() for p in net.backbone.cur_adapter.parameters())
+
+    def _bank_bytes(self):
+        """BankCapMixin hook: current total bytes across every banked
+        (frozen, past-task) adapter slot. Excludes cur_adapter (the live,
+        continuously-training slot -- never capped, matching every other
+        method's live-slot treatment) and the fc head (always exempt)."""
+        net = self._network.module if hasattr(self._network, "module") else self._network
+        backbone = net.backbone
+        return sum(p.numel() * p.element_size()
+                   for task_adapters in backbone.adapter_list
+                   for a in task_adapters for p in a.parameters())
 
     def persistent_state(self):
         net = self._network.module if hasattr(self._network, "module") else self._network
@@ -85,20 +110,36 @@ class Learner(BaseLearner):
     def replace_fc(self, train_loader):
         model = self._network
         model = model.eval()
-        
-        with torch.no_grad():           
+        net = model.module if hasattr(model, "module") else model
+
+        with torch.no_grad():
             # replace proto for each adapter in the current task
             if self.use_init_ptm:
                 start_idx = -1
             else:
                 start_idx = 0
-            
-            for index in range(start_idx, self._cur_task + 1):
+
+            # Bank-cap: n_banked = len(adapter_list) instead of self._cur_task
+            # -- pre-freeze these are always equal (see EaseNet.feature_dim's
+            # matching comment in utils/inc_net.py), so this is a no-op when
+            # bank_cap_mb is unset. Once frozen, len(adapter_list) stops
+            # growing while self._cur_task keeps climbing; fc's width is
+            # frozen to match (feature_dim's own bank-cap fix), so writing at
+            # column block self._cur_task here would be out of bounds. Using
+            # n_banked instead means every post-cap task keeps recomputing
+            # and overwriting the SAME trailing column block
+            # (backbone.forward_proto's `i < len(adapter_list)` check already
+            # routes any out-of-range index to cur_adapter, the live,
+            # continuously-training slot), matching "never reinitialize the
+            # post-cap slot" and giving real signal from every task a route
+            # into the classifier instead of being silently discarded.
+            n_banked = len(net.backbone.adapter_list)
+            for index in range(start_idx, n_banked + 1):
                 if self.moni_adam:
                     if index > self.adapter_num - 1:
                         break
-                # only use the diagonal feature, index = -1 denotes using init PTM, index = self._cur_task denotes the last adapter's feature
-                elif self.use_diagonal and index != -1 and index != self._cur_task:
+                # only use the diagonal feature, index = -1 denotes using init PTM, index = n_banked denotes the last adapter's feature
+                elif self.use_diagonal and index != -1 and index != n_banked:
                     continue
 
                 embedding_list, label_list = [], []
@@ -123,6 +164,14 @@ class Learner(BaseLearner):
                     else:
                         model.fc.weight.data[class_index, index*self._network.out_dim:(index+1)*self._network.out_dim] = proto
 
+            # Bank-cap: adapt_index=self._cur_task below is left AS-IS,
+            # deliberately not redirected to n_banked -- forward_proto's own
+            # `i < len(adapter_list)` check (backbone/vit_ease.py) already
+            # routes ANY out-of-range index to cur_adapter (not just
+            # i==len(adapter_list)), and the fc write two blocks below uses
+            # NEGATIVE indexing (-out_dim:, position-independent of
+            # self._cur_task's absolute value) -- both are already
+            # bank-cap-safe without modification.
             if self.use_exemplars and self._cur_task > 0:
                 embedding_list = []
                 label_list = []
@@ -148,7 +197,20 @@ class Learner(BaseLearner):
         
         if self.use_diagonal or self.use_exemplars:
             return
-        
+
+        # Bank-cap: disable solve_similarity()/solve_sim_reset() entirely
+        # once frozen, rather than fixing their internal self._cur_task-based
+        # indexing (both iterate range(self._cur_task), which would run past
+        # the frozen bank's actual width). Confirmed sufficient: both methods
+        # only ever WRITE into fc.weight (a B-column reweighting refinement
+        # over the diagonal blocks written by the loop above) -- fc.weight
+        # retains every value written before freezing, so skipping this
+        # refinement step post-freeze leaves the classifier at its last
+        # correctly-computed state rather than corrupting it. A no-op when
+        # bank_cap_mb is unset (self._bank_frozen stays False forever).
+        if self._bank_frozen:
+            return
+
         if self.recalc_sim:
             self.solve_sim_reset()
         else:
