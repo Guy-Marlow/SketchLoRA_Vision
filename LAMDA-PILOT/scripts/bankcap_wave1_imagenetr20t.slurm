@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=bankcap_wave1_imagenetr20t
-#SBATCH --time=120:00:00
+#SBATCH --time=28:00:00
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=48G
@@ -22,7 +22,7 @@
 #     cllora_ease_tuna_lr_refine2 sweep has only reached Food-101 for TUNA as
 #     of 2026-08-14).
 #
-# TWO PHASES, each structured as SketchLoRA-first-then-derived-cap:
+# THREE PHASES, each structured as SketchLoRA-first-then-derived-cap:
 #
 #   Phase "rank16": SketchLoRA on ImageNet-R-20t, wave1_final settings
 #     UNCHANGED except sketchlora_rank_cap: 128 -> 16 (wave1_final SketchLoRA
@@ -39,7 +39,15 @@
 #     seeds each, ImageNet-R-20t, wave1_final settings + bank_cap_mb=<derived>.
 #
 #   Phase "rank32": identical structure, sketchlora_rank_cap=32 instead of 16
-#     (yielding a larger derived cap for the second half).
+#     (yielding a larger derived cap).
+#
+#   Phase "rank10": identical structure again, sketchlora_rank_cap=10 (2026-
+#     08-16 user request, added after rank16/rank32 already completed --
+#     yielding a THIRD, smaller derived cap; sits below rank16's ~4MB, so
+#     this is the tightest-budget point in the sweep). Listed here in
+#     ascending-rank order (10, 16, 32) for readability even though it was
+#     appended to the script after the other two -- run_phase's resumability
+#     makes execution order irrelevant to correctness (see below).
 #
 # CL-LoRA/EASE HAVE NO wave1_final ImageNet-R CONFIG (never part of the
 # original wave1_final grid) -- scripts/gen_bankcap_wave1_imagenetr20t_
@@ -52,17 +60,29 @@
 # is a genuine judgment call, not pulled from an existing "official" config,
 # flagged to the user when this script was written.
 #
-# WALL TIME (120h, generous but not certainly sufficient): O-LoRA/TreeLoRA/
-# SketchLoRA measured at ~30min/seed on this exact split (wave1_final logs,
-# 2026-08-06/07). CL-LoRA/EASE are NOT wave1_final-measured on ImageNet-R --
-# extrapolated from this session's 2-epoch/3-task smoke-test rate (~7min) to
-# full 20-epoch/20-task scale (~66x) gives ~8h/seed, i.e. ~24h per method
-# across 3 seeds. Rough total: phase = ~1.5h (sketchlora) + ~1.5h (olora+
-# treelora+rainbowprompt) + ~48h (cllora+ease) =~ 51h; both phases =~ 102h.
-# The whole campaign is resumable end-to-end (see run_one below), so a SLURM
-# time-limit kill is not fatal -- just resubmit, already-finished runs are
-# skipped and the derived-cap computation re-derives the identical value from
-# the now-complete metrics files.
+# WALL TIME (28h budget, 2026-08-16 -- single GPU, --gres=gpu:1,
+# CUDA_VISIBLE_DEVICES=0, sequential loop by construction, same as always):
+# the original estimate here (120h budget, ~102h projected) was based on
+# extrapolating this session's tiny 2-epoch/3-task smoke test to full scale
+# and turned out to be pessimistic -- the rank16+rank32 phases ACTUALLY
+# completed in 19h54m total (2026-08-15 13:45 -> 2026-08-16 09:39, from the
+# real slurm_22389.out log), i.e. ~9h57m/phase. Per-run rate was remarkably
+# uniform regardless of method: O-LoRA and SketchLoRA both averaged
+# ~28-30min/seed; even CL-LoRA/EASE (the ones the smoke-test extrapolation
+# most overestimated) came in well under the linear projection. Wall time is
+# driven by epoch/task count (fixed at 20/20 for every method here), not by
+# the cap value itself, so rank10 should cost about the same as either prior
+# phase, ~10h.
+#
+# 28h is sized for a RESUME (rank16/rank32 already status=="done", skip-fast
+# in minutes, leaving ~27h+ of headroom for rank10's ~10h) -- not for a
+# from-scratch run of all three phases, which would need ~30h and could miss
+# a 28h budget. If this is ever resubmitted against a clean run_logs/final/
+# (no prior rank16/rank32 results), raise --time back up accordingly. The
+# whole campaign is resumable end-to-end regardless (see run_one below), so
+# even a time-limit kill mid-phase is not fatal -- just resubmit, already-
+# finished runs are skipped and the derived-cap computation re-derives the
+# identical value from the now-complete metrics files.
 #
 # RESUMABLE BY CONSTRUCTION, no separate checkpoint state needed: run_one()
 # skips any config whose final_metrics JSON already shows status=="done"
@@ -193,8 +213,9 @@ run_phase() {
   echo "======== PHASE ${phase} COMPLETE $(date) ========"
 }
 
-echo "==== ${CAMPAIGN} start: 2 phases (sketchlora rank_cap 16, then 32), 6 methods/phase (sketchlora + 5 derived-cap), 3 seeds each = 36 total runs $(date) ===="
+echo "==== ${CAMPAIGN} start: 3 phases (sketchlora rank_cap 10, 16, 32), 6 methods/phase (sketchlora + 5 derived-cap), 3 seeds each = 54 total runs (36 already done as of the rank10 addition, 2026-08-16) $(date) ===="
 
+run_phase rank10 10
 run_phase rank16 16
 run_phase rank32 32
 
