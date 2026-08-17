@@ -62,7 +62,15 @@ class Learner(BankCapMixin, LoRALearner):
         self.lamda_1 = args.get("lamda_1", 0.5)   # orthogonality weight
         self.lamda_2 = args.get("lamda_2", 0.0)   # L2 weight on current LoRA
         # O-LoRA accumulates: the forward sums previous (frozen) + current LoRA.
-        self.train_merge = True
+        # Configurable (default True = O-LoRA's own behavior, so every existing
+        # config is byte-identical -- none of them set this key) ONLY so the
+        # mechanism-isolation ablation can turn the accumulation off while
+        # leaving the orthogonality penalty untouched: with a bank cap in force
+        # this separates "the frozen slot's delta is summed into the forward"
+        # (additive memory) from "the live slot's A is pushed orthogonal to the
+        # frozen A" (regulariser), which the bankcap_wave1_imagenetr20t campaign
+        # cannot tell apart. See scripts/olora_mechanism_ablation_imagenetr20t.slurm.
+        self.train_merge = bool(args.get("lora_train_merge", True))
         self._olora_pinned_slot = None
 
     # -- Bank-cap: which LoRA slot to train/route on the current task -----
@@ -120,7 +128,11 @@ class Learner(BankCapMixin, LoRALearner):
     # still masks logits to task t's class slice.
     def _forward_task(self, inputs, task):
         net = self._network.module if hasattr(self._network, "module") else self._network
-        return net(inputs, task=self._train_adapter(), merge=True)
+        # merge=self.train_merge, not a hardcoded True: the point of this override
+        # is that TIL must evaluate whatever adapter TRAINING actually used, and
+        # train_merge is now configurable (see __init__). A no-op for every
+        # existing config, where train_merge is True.
+        return net(inputs, task=self._train_adapter(), merge=self.train_merge)
 
     # -- sample-boundary streaming hooks --------------------------------
     # One adapter slot per CHUNK (not per class-task); the orthogonality penalty
