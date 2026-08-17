@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=olora_mechanism_ablation
-#SBATCH --time=14:00:00
+#SBATCH --time=12:00:00
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=48G
@@ -83,8 +83,14 @@
 #     directly SketchLoRA-relevant statement.
 #
 # WALL TIME: 21 runs x ~28-30 min/run (the rate bankcap_wave1 actually measured
-# for O-LoRA at 20 tasks / 20 epochs, uniform across methods) = ~10.5h. 14h
-# requested for headroom. Resumable: run_one() skips any config whose
+# for O-LoRA at 20 tasks / 20 epochs, uniform across methods) = ~10.5h. 12h
+# requested (2026-08-17 user decision, down from 14h) -- that is ~1.5h of
+# headroom, i.e. tolerance for ~3 runs going long, not for a systematically
+# slower node. Arm B's runs are the cheapest of the three (merge=false means
+# the forward sums one slot instead of two, so if anything the ~28-30min/run
+# figure is conservative for 9 of the 21). If the job does hit the wall,
+# nothing is lost: resubmit and the finished runs skip in minutes (see below).
+# Resumable: run_one() skips any config whose
 # final_metrics JSON already reports status=="done", same check
 # (scripts/_bankcap_run_done.py) and same rationale as bankcap_wave1 -- see that
 # script's comment for why the .out log's "Average Accuracy (CNN):" line is NOT
