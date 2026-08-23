@@ -62,6 +62,12 @@ def get_model(model_name, args):
         from models.inflora import Learner
     elif name == 'sketchlora':
         from models.sketchlora import Learner
+    elif name == 'sketchlora_align':
+        from models.sketchlora_align import Learner
+    elif name == 'lora_rank_probe':
+        from models.lora_rank_probe import Learner
+    elif name == 'sketchlora_orthref':
+        from models.sketchlora_orthref import Learner
     elif name == 'hidelora':
         from models.hidelora import Learner
     elif name == 'treelora':

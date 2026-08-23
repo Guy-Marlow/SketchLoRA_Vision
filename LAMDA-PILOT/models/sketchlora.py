@@ -148,12 +148,69 @@ class Learner(LoRALearner):
         # sketchlora_lora_wd=0.0) to opt into the frozen variant Plan C requires.
         # See docs/sketchlora_frozen_variant.md for the full design writeup.
         self.admission_rule = args.get("sketchlora_admission", "global_eps")
-        assert self.admission_rule in ("global_eps", "bounded_eviction", "floor")
-        if self.admission_rule in ("bounded_eviction", "floor"):
+        assert self.admission_rule in ("global_eps", "bounded_eviction", "floor", "retain")
+        if self.admission_rule in ("bounded_eviction", "floor", "retain"):
             assert self.energy_target is not None, \
-                "bounded_eviction/floor are rank-SELECTION refinements of adaptive " \
+                "bounded_eviction/floor/retain are rank-SELECTION refinements of adaptive " \
                 "(energy_target) mode -- nothing to bound in fixed-rank mode, where svd_rank " \
                 "already pins the rank every merge. Set svd_energy_target to use it."
+        # -- "retain" admission rule (2026-08-20 user design, see the docstring
+        # on _compress's retain branch for the full mechanism/rationale).
+        # NEVER evicts anything already in the sketch -- unconditionally keeps
+        # the top prev_rank singular values (the sketch's own rank going INTO
+        # this merge) and applies the energy_target threshold only to the
+        # trailing residual_total values the merge newly introduces, measured
+        # against THEIR OWN sub-spectrum's energy, not the whole composite's.
+        # Fixes a real effect (not previously flagged as a bug, but confirmed
+        # by direct diagnostic inspection this session -- see
+        # run_logs/sketchlora_diag_imagenetr_adapt0.01_ball_ic10i10_seed1993.
+        # json's steadily-growing fro_mean): under global_eps/bounded_eviction,
+        # a fixed energy_target compares each candidate singular value against
+        # the TOTAL energy of a composite that gets heavier every task purely
+        # because the sketch has accumulated more history -- so admission of
+        # genuinely-new content gets silently harder over time even though
+        # nothing about how important that new content is has changed. Not to
+        # be confused with "floor" above: floor protects a small fixed k
+        # (default 1) of the RESIDUAL's own orthogonal-complement directions
+        # and still sizes its energy-fill budget from the ordinary (whole-
+        # composite) bounded_eviction formula; retain protects the ENTIRE
+        # pre-merge sketch (prev_rank, not a small fixed k) and evaluates the
+        # threshold in a completely separate, self-contained sub-spectrum.
+        self.retain_epsilon_override = args.get("sketchlora_retain_epsilon", None)
+        if self.admission_rule == "retain":
+            assert self.merge_op == "randsvd", \
+                "retain reads the randomized probe's full (composite_rank + " \
+                "oversampling)-length S from rand_svd_probe (models/sketchlora.py's " \
+                "fold_rank_select) -- exactsvd/countsketch/naive_sum/nocompress " \
+                "don't produce a probe with the required prev_rank/residual_total " \
+                "split; not wired in for those merge_ops."
+        # -- retain-threshold annealing (2026-08-20 user design): rather than a
+        # constant epsilon, cosine-anneal the RETAINED FRACTION (1-epsilon) of
+        # the newly-added spectrum's own energy between sketchlora_retain_start
+        # and sketchlora_retain_end over the run's task count. "cosine anneal"
+        # = the standard monotonic ease-in/ease-out curve (same shape as a
+        # cosine LR schedule): retention(t) = start + (end-start) *
+        # (1-cos(pi*t/(T-1)))/2, t = self._cur_task, T = sketchlora_retain_
+        # anneal_tasks (defaults to this run's own total task count, resolved
+        # lazily in _retain_current_value since self._n_run_effective isn't
+        # computed yet at this point in __init__). Resolved from RETENTION
+        # (not epsilon) because that's the more intuitive quantity to name a
+        # start/end range over (user-facing terms in the design conversation
+        # were "retention" and "retain (1-epsilon) of the weight" -- epsilon
+        # itself is 1-retention, an implementation detail, not what gets
+        # configured directly here).
+        self.retain_anneal = args.get("sketchlora_retain_anneal", None)
+        self.retain_start = args.get("sketchlora_retain_start", 0.5)
+        self.retain_end = args.get("sketchlora_retain_end", 0.9)
+        self.retain_anneal_tasks = args.get("sketchlora_retain_anneal_tasks", None)
+        if self.retain_anneal is not None:
+            assert self.retain_anneal == "cosine", \
+                "only 'cosine' is implemented -- sketchlora_retain_anneal should be " \
+                "unset (constant epsilon) or 'cosine'"
+            assert self.admission_rule == "retain", \
+                "sketchlora_retain_anneal only has an effect under " \
+                "sketchlora_admission='retain' -- every other admission rule reads " \
+                "self.energy_target directly, never _retain_epsilon()"
         # reduce_merge (2026-08-05, "reduce then merge" ablation -- see _compress)
         # never evicts anything from the existing sketch (only ever adds to it,
         # then re-expresses the sum losslessly), so admission_rule's whole
@@ -434,6 +491,37 @@ class Learner(LoRALearner):
     def _residual_slots(self):
         """Slot indices 1..P (P = svd_period); {RESIDUAL} when P=1 (unchanged)."""
         return list(range(RESIDUAL, RESIDUAL + self.svd_period))
+
+    def _retain_epsilon(self):
+        """The epsilon "retain" mode's threshold uses for THIS compress event.
+        Three cases: (1) sketchlora_retain_anneal="cosine" -- derived from
+        _retain_current_value() below (1 - retention); (2)
+        sketchlora_retain_epsilon set to an explicit constant; (3) default,
+        falls back to self.energy_target (the same constant every other
+        admission rule uses)."""
+        if self.retain_anneal == "cosine":
+            return 1.0 - self._retain_current_value()
+        return self.retain_epsilon_override if self.retain_epsilon_override is not None \
+            else self.energy_target
+
+    def _retain_current_value(self):
+        """Cosine-annealed retention fraction (the (1-epsilon) quantity, NOT
+        epsilon itself) for the task currently being compressed
+        (self._cur_task). Standard monotonic cosine ease-in/ease-out curve,
+        same shape as a cosine LR schedule: retention(t) = start + (end -
+        start) * (1 - cos(pi*t/(T-1))) / 2, t clamped to [0, T-1]. T defaults
+        to this run's own total task count (self._n_run_effective, which by
+        the time this is ever called -- during actual training/compress --
+        is always already set, unlike at __init__ time when retain_anneal_
+        tasks is first read). Exposed (not underscore-double-private) so
+        models/sketchlora_align.py can read the SAME instantaneous retention
+        value to couple orth_weight to it."""
+        T = self.retain_anneal_tasks or self._n_run_effective
+        if T <= 1:
+            return self.retain_end
+        t = max(0, min(self._cur_task, T - 1))
+        frac = (1.0 - math.cos(math.pi * t / (T - 1))) / 2.0
+        return self.retain_start + (self.retain_end - self.retain_start) * frac
 
     # Plan A §A5.1: weight_decay=0 for LoRA params specifically (the frozen
     # variant), head keeps the ordinary self.weight_decay. Only takes effect
@@ -1335,7 +1423,48 @@ class Learner(LoRALearner):
                         else:
                             k_eps = 1
                         k_eps = max(1, min(k_eps, delta_W.shape[0]))
-                        if self.admission_rule == "bounded_eviction":
+                        if self.admission_rule == "retain":
+                            # Never evicts: prev_rank (the sketch's OWN rank
+                            # going into this merge) is unconditionally kept
+                            # in full -- S is sorted descending, so S[:prev_
+                            # rank] IS "the top prev_rank singular values" by
+                            # construction, no separate selection needed for
+                            # them. The energy_target threshold applies ONLY
+                            # to S[prev_rank:composite_rank] -- the trailing
+                            # residual_total values this merge newly
+                            # introduces -- measured against THEIR OWN
+                            # squared-Frobenius-norm total, not delta_W's
+                            # whole-composite total (the `total`/k_eps above
+                            # are unused by this branch on purpose: computing
+                            # against the whole spectrum is exactly the
+                            # sketch-gets-heavier-so-new-content-gets-
+                            # starved effect this admission rule exists to
+                            # avoid). oversampling columns beyond
+                            # composite_rank (present in S because rand_svd_
+                            # probe returns working_rank+oversampling
+                            # columns, not just working_rank) are excluded --
+                            # they're numerical padding for the randomized
+                            # algorithm's accuracy, not real directions of
+                            # delta_W, whose true rank is <= composite_rank.
+                            S_new = S[prev_rank:composite_rank]
+                            total_new = S_new.pow(2).sum()
+                            if total_new > 0:
+                                cum_new = torch.cumsum(S_new.pow(2), 0) / total_new
+                                k_new = int((cum_new < (1.0 - self._retain_epsilon())).sum().item()) + 1
+                            else:
+                                k_new = 1
+                            k_new = max(1, min(k_new, residual_total))
+                            r_hat_t = prev_rank + k_new
+                            if self.rank_cap is not None:
+                                # Plain ceiling clamp, same convention as global_eps
+                                # below. NOTE: if prev_rank alone has already reached
+                                # rank_cap, this clamps r_hat_t back down to rank_cap
+                                # even though prev_rank was meant to be "unconditionally
+                                # protected" -- an expected, accepted corner case (the
+                                # sketch is simply full; no further growth is possible
+                                # under a cap this tight), not a bug in the mechanism.
+                                r_hat_t = min(r_hat_t, self.rank_cap)
+                        elif self.admission_rule == "bounded_eviction":
                             # Plan A §A5.2 / Round 2 §2.4: never evict more than the
                             # residual's OWN just-added rank per merge (bounds eviction to
                             # <= what was just contributed, so rank is monotone non-

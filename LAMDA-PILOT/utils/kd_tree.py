@@ -6,15 +6,23 @@ Depth axis ("lora_depth" in the reference) = our shared scaffold's 24 wrapped Lo
 projections (12 ViT blocks x {q,v}), each contributing one row of the per-step
 similarity-tracking tensor.
 
-insert_grad simplification (not a bug fix -- a documented faithfulness choice): the
-reference's own loop (`for i in range(len(_grad_current)): ... current_grad +=
-_grad_current * frac`) iterates lora_depth times but adds the FULL tensor each
-iteration, inflating current_grad by a constant lora_depth factor every call.
-get_loss's self-normalization (`reg_loss / reg_loss.detach()`) divides by this same
-inflated magnitude, so the inflation has zero effect on final training dynamics --
-we implement the single-accumulation the loop clearly intended (add _grad_current
-once per call, not lora_depth times), which is numerically equivalent after
-normalization and considerably cheaper.
+insert_grad now replicates the reference's ACTUAL numerical behavior, not its
+apparent intent (2026-08-17 correction). The reference's own loop
+(`for i in range(len(_grad_current)): ... current_grad += _grad_current * frac`)
+never indexes by `i`, so it silently re-adds the FULL tensor lora_depth times per
+call -- current_grad accumulates by `_grad_current * lora_depth / total_rounds`
+per insert_grad call, not `_grad_current / total_rounds`. An earlier version of
+this port implemented the reduced single-accumulation form (add once, not
+lora_depth times) on the theory that get_loss's self-normalization
+(`reg_loss / reg_loss.detach()`) cancels any constant scale factor applied to
+current_grad -- true for get_loss's own output, but current_grad/
+all_accumulate_grads are ALSO consumed directly (no normalization) by
+tree_search/_update_similarity's L1-distance-based `self.sim`, which is combined
+via SUBTRACTION with a UCB exploration bonus that has no dependency on gradient
+scale at all. Scaling the similarity term by lora_depth while leaving the UCB
+term fixed changes their relative weight in which past task gets selected for
+regularization each step -- so the "simplification" was not actually inert, and
+we now reproduce the reference's literal ×lora_depth inflation exactly instead.
 """
 
 import math
@@ -162,8 +170,17 @@ class KD_LoRA_Tree:
         # *** UNTESTED as of 2026-08-03 *** -- plan sec 4.4 "tree_insert_grad":
         # every training step -- previously folded into the flat
         # treelora_aux_macs_per_step constant.
+        #
+        # 2026-08-17: `frac = depth / total_rounds`, not `1 / total_rounds` --
+        # see module docstring. Reproduces the reference's actual per-call
+        # ×lora_depth inflation of current_grad (its own loop re-adds the full
+        # tensor lora_depth times, not once), which matters for
+        # tree_search/_update_similarity's un-normalized L1-distance routing
+        # decision even though it washes out of get_loss's self-normalized
+        # regularizer-loss magnitude either way.
         with ce_region("treelora/tree_insert_grad"):
-            frac = 1.0 / self.total_rounds
+            depth = _grad_current.shape[0]
+            frac = depth / self.total_rounds
             if self.current_grad is None:
                 self.current_grad = _grad_current.detach() * frac
             else:
