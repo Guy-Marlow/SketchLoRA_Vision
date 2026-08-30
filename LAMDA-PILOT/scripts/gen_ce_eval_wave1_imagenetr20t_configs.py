@@ -37,16 +37,34 @@ reporting results from this campaign):
     genuinely untagged/unformulated in both CE1 and CE2 -- a small,
     confirmed-scope gap, not fixed here.
   - SketchLoRA: uses "sketchlora" (the base, canonical wave1 method), NOT
-    the newer sketchlora_align/sketchlora_orth variants -- the CE-invisible-
-    regularizer bug found in models/sketchlora_align.py does not apply to
-    this campaign's config.
+    the newer sketchlora_align/sketchlora_orth variants. NOTE (2026-08-30
+    re-check): the "CE-invisible-regularizer bug" this line originally cited
+    in models/sketchlora_align.py cannot be reconciled against git history --
+    that file was first added in commit 7cebdeb (2026-08-23), three days
+    AFTER this campaign's own commit 6eecd6e (2026-08-20) that first wrote
+    this caveat, so it cannot have been checked against the file's actual
+    code at the time. A fresh trace on 2026-08-30 (prompted by a direct user
+    question) found the opposite: CE2 wraps the ENTIRE incremental_train()
+    window in one generic torch.profiler(with_flops=True) session
+    (trainer.py:267-268) and harvests every op that runs inside it, so
+    sketchlora_align's per-step _align_loss()/_orth_loss() matmuls land in
+    the "train" bucket automatically, by construction -- no per-method
+    formula update needed the way CE1/ce_formulas.py would have required.
+    Left unresolved here either way, since this campaign doesn't run
+    sketchlora_align regardless -- flagging so a future reader doesn't take
+    the original claim at face value.
 
 Base source configs, copied VERBATIM (only prefix and ce2_enabled change):
-  olora, seqlora, inflora, treelora, sketchlora, rainbowprompt
+  seqlora, inflora, treelora, sketchlora, rainbowprompt
       <- exps/wave1_final/<method>_imagenetr_s1993.json
-  cllora, tuna, ease
+  olora, cllora, tuna, ease
       <- exps/wave1_final_completion/<method>_imagenetr_s1993.json
-      (settled learning rates; wave1_final itself never included these 3)
+      (O-LoRA: current-code rerun with the fixed persistent_state()
+      accounting, commit 23c6405 -- doesn't change CE2's measured compute
+      cost, since that fix was about memory-byte reporting, not training
+      code, but keeps this campaign's provenance consistent with every
+      other current comparison. cllora/tuna/ease: settled learning rates;
+      wave1_final itself never included these 3.)
 
 Single seed (1993) per explicit user request -- this campaign answers "how
 expensive is each method," not a statistical accuracy comparison, so one
@@ -61,7 +79,7 @@ SEED = 1993
 
 # method -> source config path
 SOURCES = {
-    "olora": "exps/wave1_final/olora_imagenetr_s1993.json",
+    "olora": "exps/wave1_final_completion/olora_imagenetr_s1993.json",
     "seqlora": "exps/wave1_final/seqlora_imagenetr_s1993.json",
     "inflora": "exps/wave1_final/inflora_imagenetr_s1993.json",
     "treelora": "exps/wave1_final/treelora_imagenetr_s1993.json",
