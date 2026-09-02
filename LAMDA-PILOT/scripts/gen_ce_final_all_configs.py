@@ -43,14 +43,39 @@ silently drop these when reporting results from this campaign):
     zero regardless of what add_task_slot() actually costs.
   - InfLoRA: `fold_up_to`'s actual fold matmul (~141M MACs/task) is
     genuinely untagged/unformulated in both CE1 and CE2.
-  - SketchLoRA: uses "sketchlora" (the base, canonical wave1 method), NOT
-    the newer sketchlora_align/sketchlora_orth variants.
+  - SketchLoRA: FIXED 2026-09-01 (was wrong from 2026-08-31 through
+    2026-09-01 -- the actual bug this file's edit history is about). This
+    dict's "sketchlora" entry originally pointed at exps/wave1_final/
+    sketchlora_imagenetr_s1993.json, copied verbatim from the OLDER
+    ce_eval_wave1_imagenetr20t generator -- the base, non-orth "sketchlora"
+    model, from BEFORE the user's "SketchLoRA now means the orthogonal
+    variant by default" instruction (given earlier the same session this
+    file was first written). That instruction was already correctly applied
+    in the separate scripts/gen_sketchlora_ncm_imagenetr_configs.py written
+    around the same time -- this file just never got the same fix, so the
+    2026-09-01 ce_final_all cluster run trained and CE-profiled the WRONG
+    SketchLoRA variant. Its results (run_logs/ce_final_all/ce2/sketchlora/)
+    are not usable as "SketchLoRA" and must not be reported as such -- fixed
+    below by pointing "sketchlora" at exps/sketchlora_fixedrank_orth05_
+    imagenetr_s1993.json (fixed-rank, sketchlora_align_mode="orth", weight
+    0.5 -- the same config validated against a real local metrics JSON
+    earlier this project and used as "SketchLoRA" in every other current
+    comparison table/chart this session). Its model_name is "sketchlora_
+    align", not "sketchlora" -- CE2's own output will therefore land under
+    run_logs/ce_final_all/ce2/sketchlora_align/, a NEW subfolder, not
+    overwrite the old (wrong, base-variant) one; scripts/_bankcap_run_done.py's
+    resumability check keys off model_name too, so a resubmission will
+    correctly treat this as "not done yet" and actually retrain it, rather
+    than skipping on the strength of the old (wrong-model) run.
 
-Base source configs, copied VERBATIM (only prefix and ce2_enabled change) --
-same sources as ce_eval_wave1_imagenetr20t, re-checked 2026-08-31 against
-git history since (nothing newer exists for any of these 9 methods):
-  seqlora, inflora, treelora, sketchlora, rainbowprompt
+Base source configs, copied VERBATIM (only prefix and ce2_enabled change):
+  seqlora, inflora, treelora, rainbowprompt
       <- exps/wave1_final/<method>_imagenetr_s1993.json
+  sketchlora
+      <- exps/sketchlora_fixedrank_orth05_imagenetr_s1993.json (fixed
+      2026-09-01 -- see the SketchLoRA caveat above; this is NOT under
+      exps/wave1_final/, it's the dedicated orth config used everywhere
+      else "SketchLoRA" appears this session)
   olora, cllora, tuna, ease
       <- exps/wave1_final_completion/<method>_imagenetr_s1993.json
       (O-LoRA: current-code rerun, commit 23c6405. cllora/tuna/ease:
@@ -66,14 +91,15 @@ import os
 OUT_DIR = "exps/ce_final_all"
 SEED = 1993
 
-# method -> source config path (unchanged from ce_eval_wave1_imagenetr20t --
-# re-verified 2026-08-31 that nothing newer exists for any of these 9)
+# method -> source config path. "sketchlora" fixed 2026-09-01 to point at
+# the orth config (see the SketchLoRA caveat above) -- every other entry
+# unchanged, still correct.
 SOURCES = {
     "olora": "exps/wave1_final_completion/olora_imagenetr_s1993.json",
     "seqlora": "exps/wave1_final/seqlora_imagenetr_s1993.json",
     "inflora": "exps/wave1_final/inflora_imagenetr_s1993.json",
     "treelora": "exps/wave1_final/treelora_imagenetr_s1993.json",
-    "sketchlora": "exps/wave1_final/sketchlora_imagenetr_s1993.json",
+    "sketchlora": "exps/sketchlora_fixedrank_orth05_imagenetr_s1993.json",
     "rainbowprompt": "exps/wave1_final/rainbowprompt_imagenetr_s1993.json",
     "cllora": "exps/wave1_final_completion/cllora_imagenetr_s1993.json",
     "tuna": "exps/wave1_final_completion/tuna_imagenetr_s1993.json",
