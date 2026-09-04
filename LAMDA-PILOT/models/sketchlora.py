@@ -83,7 +83,7 @@ from models.lora import Learner as LoRALearner, num_workers
 from utils.toolkit import tensor2numpy
 
 # trusted randomized-SVD implementation (vendored into utils/ for self-containment)
-from utils.randsvd import rand_svd, rand_svd_probe, factors_from_probe
+from utils.randsvd import rand_svd, rand_svd_probe, factors_from_probe, random_factors_from_probe
 from utils.countsketch import countsketch_compress
 from utils.admission import floor_admission_merge
 # *** UNTESTED as of 2026-08-03 *** -- measured-CE region tagging
@@ -130,6 +130,43 @@ class Learner(LoRALearner):
         self.merge_op = args.get("merge_op", "randsvd")
         assert self.merge_op in ("randsvd", "exactsvd", "countsketch", "naive_sum",
                                   "nocompress", "reduce_merge")
+        # -- "random rank selection" ablation (2026-09-02 user design). Default
+        # "top" is the original, unmodified behavior: factors_from_probe keeps
+        # the r_hat_t directions with the LARGEST singular values (S is sorted
+        # descending by construction). "random" instead keeps a random r_hat_t
+        # -sized subset of the composite's meaningful directions -- rationale:
+        # empirically test whether keeping the LARGEST values specifically is
+        # what makes truncation good, vs. just keeping some fixed-size subset
+        # at all. Scoped narrowly to fixed-rank merge_op="randsvd" (exactly
+        # "after we perform the randomSVD ... select r singular values at
+        # random ... to eliminate" -- the user's own framing): adaptive mode's
+        # target rank varies per merge (no fixed "eliminate r of these"
+        # semantics), and every other merge_op either has no comparable
+        # spectrum (naive_sum/countsketch) or is a separate, already-exact
+        # ablation of its own (exactsvd/nocompress/reduce_merge).
+        self.rank_selection = args.get("sketchlora_rank_selection", "top")
+        assert self.rank_selection in ("top", "random")
+        if self.rank_selection == "random":
+            assert self.merge_op == "randsvd", \
+                "sketchlora_rank_selection='random' only applies to merge_op='randsvd' " \
+                "-- see this flag's __init__ docstring for why the other merge_ops don't " \
+                "have a comparable notion of 'eliminate r of a fixed spectrum'."
+            assert args.get("svd_energy_target") is None, \
+                "sketchlora_rank_selection='random' is fixed-rank-mode only (svd_rank) -- " \
+                "adaptive mode's (svd_energy_target) target rank varies every merge, so " \
+                "there is no fixed 'r to eliminate' for a random subset to replace."
+        # random_factors_from_probe needs the FULL randomized-probe spectrum
+        # (composite_rank meaningful columns of U_probe/S/Vh_probe) to sample
+        # from -- the raw rand_svd() fallback path (need_svdvals False, no
+        # probe computed) has no equivalent pool, so require sketch_diag=True
+        # to guarantee the probe always runs. Every production config already
+        # sets this.
+        if self.rank_selection == "random":
+            assert args.get("sketch_diag", False), \
+                "sketchlora_rank_selection='random' requires sketch_diag=True -- it needs " \
+                "the randomized probe's full spectrum (U_probe/S/Vh_probe), which is only " \
+                "computed when need_svdvals is True; the raw rand_svd() fallback path has " \
+                "no comparable pool of directions to sample from."
         # -- FD shrinkage bolt-on (impl_plan_7.27.2026 sec 1.1). Only meaningful for
         # SVD-truncation merge_ops -- "Sigma[l]" (the first discarded singular value)
         # has no analogue for naive_sum (no SVD) or countsketch (hashed, not truncated),
@@ -371,6 +408,9 @@ class Learner(LoRALearner):
         self.cs_rank = args.get("cs_rank", self.svd_rank)
         self.cs_seed = args.get("cs_seed", args["seed"] if not isinstance(args.get("seed"), list)
                                  else args["seed"][0])
+        self.rank_selection_seed = args.get(
+            "sketchlora_rank_selection_seed",
+            args["seed"] if not isinstance(args.get("seed"), list) else args["seed"][0])
         if self.merge_op == "naive_sum":
             assert self.svd_rank == self.lora_rank, \
                 "naive_sum keeps rank fixed at the residual rank (no SVD) -- svd_rank must equal " \
@@ -1563,7 +1603,18 @@ class Learner(LoRALearner):
                         # where none of those three were on (need_svdvals was False,
                         # so fold_rank_select never ran a decomposition at all) --
                         # still exactly one SVD either way, never two.
-                        if U_probe is not None:
+                        if U_probe is not None and self.rank_selection == "random":
+                            # sketchlora_rank_selection="random" ablation -- see
+                            # __init__'s docstring on the flag. Seed derivation
+                            # mirrors countsketch_compress's own convention just
+                            # below (per task, per module -- so consecutive
+                            # merges/modules don't all draw the identical subset),
+                            # keyed off rank_selection_seed instead of cs_seed.
+                            _rs_seed = (int(self.rank_selection_seed) * 1_000_003
+                                        + (self._cur_task + 1) * 9176 + module_idx) % (2 ** 63 - 1)
+                            B_hat, A_hat = random_factors_from_probe(
+                                U_probe, S, Vh_probe, r_hat_t, composite_rank, _rs_seed)
+                        elif U_probe is not None:
                             B_hat, A_hat = factors_from_probe(U_probe, S, Vh_probe, r_hat_t)
                         else:
                             # gesvd fallback path (utils/randsvd.py, 2026-07-28) is

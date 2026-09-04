@@ -113,6 +113,43 @@ def factors_from_probe(U, S, Vh, r_hat):
     return B_hat, A_hat
 
 
+def random_factors_from_probe(U, S, Vh, r_hat, composite_rank, seed):
+    """Ablation counterpart to factors_from_probe (2026-09-02, "random rank
+    selection" sensitivity study): instead of keeping the TOP r_hat directions
+    by singular-value magnitude (the standard, principled choice), keeps a
+    RANDOM r_hat-sized subset of the first `composite_rank` directions.
+    composite_rank is delta_W's true, meaningful rank (prev_rank +
+    residual_total in models/sketchlora.py) -- columns beyond that, out to
+    rand_svd_probe's working_rank+oversampling, are numerical padding from the
+    randomized projection, not real content, and MUST be excluded from the
+    random pool (matches the same exclusion the "retain" admission rule
+    already applies to this same S for the identical reason -- see
+    models/sketchlora.py's _compress).
+
+    Seeded with a torch.Generator local to this call, never the global RNG --
+    this ablation must not perturb any other randomness (weight init,
+    dataloader shuffling, rand_svd's own projection, ...) elsewhere in the
+    same run. The caller is responsible for deriving a seed that varies per
+    (task, layer, projection) the same way countsketch_compress's own seed
+    does, so consecutive merges/modules don't all draw the identical subset.
+
+    Exists to let the project empirically test whether keeping the LARGEST
+    singular values specifically -- rather than an arbitrary same-size subset
+    of the meaningful spectrum -- is actually what makes truncated-SVD
+    compression good, rather than just "keeping some fixed number of
+    directions" being sufficient on its own."""
+    assert r_hat <= composite_rank, \
+        "cannot keep {} random directions out of only {} meaningful ones".format(
+            r_hat, composite_rank)
+    gen = torch.Generator(device="cpu").manual_seed(int(seed))
+    perm = torch.randperm(composite_rank, generator=gen)
+    keep = perm[:r_hat].to(U.device)
+    root_S = S[keep].sqrt()
+    B_hat = U[:, keep] * root_S.unsqueeze(0)
+    A_hat = root_S.unsqueeze(1) * Vh[keep, :]
+    return B_hat, A_hat
+
+
 def rand_svd_debug(M: np.ndarray, target_rank: int, oversampling: int):
 
     omega = np.random.randn(M.shape[1], target_rank + oversampling)
