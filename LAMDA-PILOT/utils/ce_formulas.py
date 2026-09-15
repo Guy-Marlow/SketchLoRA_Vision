@@ -78,6 +78,17 @@ def sketchlora_fold_macs(r_hat, dim=DIM, oversampling=10, merge_op="randsvd"):
     this via fewer auxiliary_pass_macs entries, not a smaller per-fold cost."""
     if merge_op == "exactsvd":
         return dim ** 3
+    if merge_op == "freqdir":
+        # Two independent thin SVDs per module (2026-09-15 user design, see
+        # utils/freqdir.py) -- input-space M_A: [2*r_hat, dim], output-space
+        # M_B: [dim, 2*r_hat] -- no oversampling (exact SVD, not randomized),
+        # and the dense [dim, dim] delta_W is never formed at all. Same
+        # dim*(k^2) order as randsvd's own approximation below, with
+        # k=2*r_hat (not r_hat+oversampling) since there's no randomized
+        # projection step, counted TWICE (once per side) since the two
+        # decompositions are independent, not shared.
+        k = 2 * r_hat
+        return 2 * dim * (k ** 2)
     # randsvd: dominant cost is forming the sketch (dim x (r_hat+oversampling))
     # and its SVD, ~ dim * (r_hat + oversampling)^2 order (standard randomized-
     # SVD complexity), taken as the plan's implied cost model for this ablation.

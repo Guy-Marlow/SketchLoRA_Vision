@@ -86,6 +86,7 @@ from utils.toolkit import tensor2numpy
 from utils.randsvd import rand_svd, rand_svd_probe, factors_from_probe, random_factors_from_probe
 from utils.countsketch import countsketch_compress
 from utils.admission import floor_admission_merge
+from utils.freqdir import freqdir_input_factor, freqdir_output_factor
 # *** UNTESTED as of 2026-08-03 *** -- measured-CE region tagging
 # (docs/ce_profiling_implementation_plan.md sec 4.1, sec 5 Step 2). ce_region()
 # is a no-op unless a profiling session is active (utils/ce_profiler.py), so
@@ -129,7 +130,7 @@ class Learner(LoRALearner):
         # behaviour above.
         self.merge_op = args.get("merge_op", "randsvd")
         assert self.merge_op in ("randsvd", "exactsvd", "countsketch", "naive_sum",
-                                  "nocompress", "reduce_merge")
+                                  "nocompress", "reduce_merge", "freqdir")
         # -- "random rank selection" ablation (2026-09-02 user design). Default
         # "top" is the original, unmodified behavior: factors_from_probe keeps
         # the r_hat_t directions with the LARGEST singular values (S is sorted
@@ -345,6 +346,28 @@ class Learner(LoRALearner):
                 "(impl_plan_7.27.2026 sec 1.2) -- does not combine with svd_period>1"
             from utils.lazy import PlateauTracker
             self._plateau_tracker = PlateauTracker(self.lazy_merge_delta, self.lazy_merge_max_holdoff)
+        # -- freqdir (2026-09-15 user design): decoupled-space Frequent-Directions
+        # merge -- see utils/freqdir.py's module docstring for the algorithm.
+        # Never forms the dense [d,d] delta_W (that's the entire point of this
+        # ablation -- testing what happens when the sketch's input/output
+        # directions are extracted from UNRELATED decompositions instead of a
+        # single joint one), so it only makes sense at a single fixed target
+        # rank: one sketch slot (rank svd_rank) concatenated against exactly one
+        # residual slot (also rank svd_rank) -> a rank-2*svd_rank stack, same
+        # every merge. energy_target (adaptive rank) and svd_period>1 (multiple
+        # residual slots to concatenate, admission/eviction across a growing
+        # composite) are both explicitly out of scope for now -- asserted here
+        # rather than silently mishandled. (sketch_diag is handled separately,
+        # right after self.sketch_diag itself is assigned below -- not
+        # available yet at this point in __init__.)
+        if self.merge_op == "freqdir":
+            assert self.energy_target is None, \
+                "merge_op='freqdir' is fixed-rank only (svd_rank == target rank r_hat) -- " \
+                "set svd_energy_target=None (the default), not adaptive rank"
+            assert self.svd_period == 1, \
+                "merge_op='freqdir' concatenates exactly ONE sketch slot against ONE " \
+                "residual slot (rank svd_rank each, stacked to rank 2*svd_rank) -- " \
+                "svd_period>1 (multiple residual slots per boundary) is not implemented"
         # -- classifier alignment (impl_plan_7.27.2026 sec 1.3). SLCA-style,
         # exemplar-free: online per-class {mean, diagvar} over penultimate
         # features (utils.ca.ClassStats), head-only realignment on pseudo-
@@ -458,6 +481,17 @@ class Learner(LoRALearner):
         # accumulated delta_W so we can read sigma_{r̂+1} and the retained-energy
         # fraction directly off each truncation.  See Remark 2 condition (iii).
         self.sketch_diag = bool(args.get("sketch_diag", True))
+        if self.merge_op == "freqdir" and self.sketch_diag:
+            # sketch_diag defaults True and every production config sets it
+            # explicitly -- auto-disable rather than crash later in _compress
+            # on the delta_W this merge_op deliberately never forms. Matches
+            # the user's own "hold off on that logging for now" (2026-09-15).
+            logging.warning(
+                "[SketchLoRA] merge_op='freqdir' auto-disabling sketch_diag -- this "
+                "merge_op never forms the dense delta_W the diagnostic block reads "
+                "(that's the point of the ablation); re-enable once a freqdir-specific "
+                "diagnostic is built.")
+            self.sketch_diag = False
         self._diag_records = []
         seed = args["seed"] if not isinstance(args.get("seed"), list) else args["seed"][0]
         # include the task split (init_cls/increment) so 10-task vs 20-task runs
@@ -1186,7 +1220,13 @@ class Learner(LoRALearner):
         # residuals even though the sketch itself is still zero at that point.
         skip_compression = (not self._sketch_populated) and len(residual_slots) == 1
         full_svd_needed = (not skip_compression) and self.merge_op in ("exactsvd", "nocompress")
+        # freqdir explicitly excluded even though sketch_diag/fd_shrinkage are
+        # both already guaranteed off for it (asserted/auto-disabled in
+        # __init__) -- kept explicit here too so this can never silently
+        # start forming delta_W's SVD for freqdir under some future flag
+        # combination this line doesn't anticipate.
         need_svdvals = (not skip_compression) and (not full_svd_needed) and \
+            self.merge_op != "freqdir" and \
             (self.sketch_diag or self.energy_target is not None or self.fd_shrinkage)
         module_idx = 0     # unique per (layer,proj) -- seeds countsketch's hash/sign draw
         for attn in self._active_attns():
@@ -1198,11 +1238,21 @@ class Learner(LoRALearner):
                 # (block, proj) pair, every compress call, for every admission
                 # rule (including "floor", which reuses this same delta_W) --
                 # previously folded into one flat sketchlora_fold_macs formula.
-                with ce_region("sketchlora/fold_composite_build"):
-                    delta_W = B_s @ A_s                                    # [d, d], unscaled
-                    for slot in residual_slots:
-                        A_r, B_r = A_list[slot].weight, B_list[slot].weight
-                        delta_W = delta_W + B_r @ A_r
+                # freqdir is the one exception: never forms this dense [d,d]
+                # matrix at all -- that's the entire point of the ablation
+                # (see utils/freqdir.py). delta_W stays None; nothing else in
+                # this branch's downstream code reads it when merge_op ==
+                # "freqdir" (full_svd_needed/need_svdvals are both forced
+                # False for it above, and sketch_diag is forced off in
+                # __init__ for it too).
+                if self.merge_op == "freqdir":
+                    delta_W = None   # never formed -- see comment above (also covers skip_compression's task-0 transplant, which doesn't read delta_W's values either)
+                else:
+                    with ce_region("sketchlora/fold_composite_build"):
+                        delta_W = B_s @ A_s                                    # [d, d], unscaled
+                        for slot in residual_slots:
+                            A_r, B_r = A_list[slot].weight, B_list[slot].weight
+                            delta_W = delta_W + B_r @ A_r
 
                 if skip_compression:
                     # transplant the lone residual into slot 0 verbatim, at its
@@ -1583,6 +1633,18 @@ class Learner(LoRALearner):
                         seed = (int(self.cs_seed) * 1_000_003 + (self._cur_task + 1) * 9176
                                 + module_idx) % (2 ** 63 - 1)
                         B_hat, A_hat = countsketch_compress(B_ws, A_ws, r_hat_t, seed)
+                elif self.merge_op == "freqdir":
+                    # Decoupled-space Frequent-Directions merge (utils/freqdir.py) --
+                    # never forms delta_W (guaranteed None above). Exactly one
+                    # residual slot at this point (svd_period==1, asserted in
+                    # __init__), so residual_slots == [RESIDUAL].
+                    with ce_region("sketchlora/fold_merge_freqdir"):
+                        A_r = A_list[residual_slots[0]].weight
+                        B_r = B_list[residual_slots[0]].weight
+                        M_A = torch.cat([A_s, A_r], dim=0).float()    # [2r, d_in]
+                        M_B = torch.cat([B_s, B_r], dim=1).float()    # [d_out, 2r]
+                        A_hat = freqdir_input_factor(M_A, r_hat_t)
+                        B_hat = freqdir_output_factor(M_B, r_hat_t)
                 elif full_svd_needed:
                     # plan sec 4.1 names this "fold_merge_randsvd"'s sibling for the
                     # exactsvd/nocompress merge_ops -- reconstruction from the S/U/Vh
@@ -1669,8 +1731,14 @@ class Learner(LoRALearner):
                         A_s.data.copy_(A_hat)
                     else:
                         # rank changed (adaptive mode, or nocompress's growing sketch) -> replace
-                        # slot-0 Linears (variable width)
-                        dim = delta_W.shape[0]
+                        # slot-0 Linears (variable width). B_s.shape[0] == delta_W.shape[0]
+                        # (== d_out) always, but doesn't depend on delta_W existing --
+                        # freqdir sets delta_W to None (never forms it) and, while this
+                        # branch is unreachable for freqdir specifically (fixed rank ==
+                        # B_s.shape[1] always, so the "rank unchanged" branch above always
+                        # fires instead), using B_s.shape[0] here removes the latent
+                        # dependency rather than leaving it as a trap for later changes.
+                        dim = B_s.shape[0]
                         newA = nn.Linear(dim, final_rank, bias=False).to(dev, dt)
                         newB = nn.Linear(final_rank, dim, bias=False).to(dev, dt)
                         newA.weight.data.copy_(A_hat)
