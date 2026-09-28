@@ -3,7 +3,7 @@
 #SBATCH --time=48:00:00
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=8
-#SBATCH --mem=64G
+#SBATCH --mem=160G
 #SBATCH --open-mode=append
 #SBATCH --output=/data/gmar762/research/continuous_learning/svd_sketching_vision/LAMDA-PILOT/run_logs/ce_eval_wave1_imagenetr20t/slurm_%j.out
 #SBATCH --error=/data/gmar762/research/continuous_learning/svd_sketching_vision/LAMDA-PILOT/run_logs/ce_eval_wave1_imagenetr20t/slurm_%j.err
@@ -57,6 +57,39 @@
 # the confident, cheap results before spending budget on the riskiest one.
 # Resubmit if EASE (or the campaign generally) doesn't finish in one pass --
 # resumable design below handles that safely.
+#
+# HOST MEMORY -- UPDATE (2026-08-31, first two submissions examined after the
+# user moved the raw outputs to a local folder): the wall-time risk above
+# didn't end up mattering -- what actually killed 4 of the 9 runs was host
+# RAM, not wall clock. Evidence, from the .out/.err logs of job 22507 (first
+# submission, all 9 methods attempted) and job 22604 (resubmission, resuming
+# the methods job 22507 left undone):
+#   - job 22507's own .err: "Detected 6 oom_kill events in StepId=22507.batch"
+#     plus 4 explicit "Killed" lines -- a SLURM/cgroup-level SIGKILL, not a
+#     Python exception (nothing in any .out shows a traceback or "CUDA out of
+#     memory" -- this is HOST RAM against --mem, not GPU VRAM).
+#   - TUNA and EASE both silently stopped mid-run in that job (TUNA at task
+#     15/20, EASE at task 10/20 -- no error text, just no further output).
+#   - job 22604 (2026-08-30/31) correctly resumed only the methods job 22507
+#     never reached "done" on (olora, rainbowprompt, tuna, ease -- confirmed
+#     via scripts/_bankcap_run_done.py's own skip check, not guesswork).
+#     O-LoRA ran ~10.5h this time and again stopped silently mid-run (task
+#     11/20); RainbowPrompt was killed almost immediately (task 0, ~3 min
+#     in, one more "Killed" PID in job 22604's .err) and took the whole job
+#     down with it -- no further methods were attempted after it.
+#   - Likely mechanism (inference, not directly confirmed -- no dmesg/cgroup
+#     trace was available, only these logs): ce2_enabled wraps the ENTIRE
+#     incremental_train() call in one torch.profiler(with_flops=True)
+#     session per task (utils/ce2_profiler.py), retaining a full per-op event
+#     trace in host memory for the whole task rather than CE1's old narrow
+#     per-step sampling -- a much larger resident footprint, worse for
+#     methods with heavier graphs (RainbowPrompt) or many training steps
+#     accumulated per task.
+# FIX: --mem bumped 64G -> 160G below. This is a guess at a safe margin, not
+# a measured requirement -- if OOM kills recur even at 160G, that basically
+# confirms the mechanism above and the next step would be checking actual
+# peak RSS via `sacct -j <jobid> --format=MaxRSS` (not available from what
+# was moved locally this time) rather than guessing further.
 #
 # RESUMABLE via scripts/_bankcap_run_done.py (fully generic despite the
 # name -- reconstructs trainer.py's own metrics-path formula from a config's
@@ -122,16 +155,34 @@ run_one() {
     echo "==== SKIP (done) ${tag} $(date) ===="
     return
   fi
+  # A retry's plain `>` used to silently overwrite a prior failed attempt's
+  # log -- exactly what made it impossible to see WHERE job 22507's O-LoRA
+  # and RainbowPrompt attempts actually died once job 22604 overwrote both
+  # files with its own (also-failed) retry. Back up any existing outfile
+  # first so a resubmission never destroys the previous attempt's evidence.
+  if [ -f "$outfile" ]; then
+    mv "$outfile" "${outfile}.prev-${SLURM_JOB_ID:-unknown}"
+  fi
   echo "==== START ${tag} $(date) ===="
   python main.py --config "$config" \
     > "$outfile" 2>&1 || true
   echo "==== DONE  ${tag} $(date) ===="
 }
 
-# Ascending risk/uncertainty order (see WALL TIME note above): 5
-# well-precedented LoRA-scaffold methods first, then the 4 methods with no
-# prior CE2-profiled precedent, EASE last (confirmed O(T^3)-risk config).
-METHOD_ORDER="seqlora olora inflora treelora sketchlora rainbowprompt cllora tuna ease"
+# Ordering note (2026-08-31, revised after examining job 22507/22604): the
+# original "ascending wall-time risk" ordering below turned out not to
+# matter -- what actually killed runs was host RAM (see HOST MEMORY note
+# above), and of the 4 methods that failed, RainbowPrompt is the one that
+# died fastest (task 0, ~3 min in) AND took the whole job down with it,
+# blocking every method after it in the list from even being attempted.
+# Moved it to run LAST among the not-yet-done methods so that if it fails
+# again despite the --mem bump, O-LoRA/TUNA/EASE (which each made real
+# partial progress last time -- 11/20, 15/20, 10/20 tasks respectively, so
+# more headroom may be enough) have already banked their results in the same
+# submission rather than being blocked behind another RainbowPrompt crash.
+# seqlora/inflora/treelora/sketchlora/cllora are already done and will just
+# SKIP instantly regardless of position.
+METHOD_ORDER="seqlora inflora treelora sketchlora cllora olora tuna ease rainbowprompt"
 
 echo "==== ${CAMPAIGN} start: 9 methods x 1 seed, single GPU $(date) ===="
 

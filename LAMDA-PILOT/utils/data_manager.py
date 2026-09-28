@@ -152,7 +152,9 @@ class DataManager(object):
 
         # Order
         order = [i for i in range(len(np.unique(self._train_targets)))]
-        if shuffle:
+        if self.args.get("class_order") is not None:
+            order = self.args["class_order"]  # explicit override (e.g. SPOT-similarity task ordering)
+        elif shuffle:
             np.random.seed(seed)
             order = np.random.permutation(len(order)).tolist()
         else:

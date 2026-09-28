@@ -9,6 +9,6 @@ set -uo pipefail
 cd "$(dirname "$0")/.."
 
 DATA_ROOT="${1:-./data}"
-for ds in cifar100 imagenetr sun397 food101; do
+for ds in cifar100 imagenetr sun397 food101 omnibenchmark1k; do
   python scripts/data_prep.py --dataset "$ds" --data_root "$DATA_ROOT"
 done

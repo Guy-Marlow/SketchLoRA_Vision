@@ -448,6 +448,8 @@ class Learner(SketchLoRALearner):
         for the full rationale behind each piece, unchanged here. The one
         substantive difference: the non-CA branch calls self._train_core
         (above, with the align term) instead of super()._train()."""
+        if self.ncm_classifier:
+            self._ncm_grow_fc()
         self._task_class_ranges[self._cur_task] = (self._known_classes, self._total_classes)
         self._freeze_inactive_blocks()
 
@@ -476,3 +478,11 @@ class Learner(SketchLoRALearner):
             with ce2_boundary(self):
                 run_boundary(getattr(self, "_ce_boundary_ctrl", None), "sketchlora_ca",
                             self._run_ca_alignment)
+        # NCM classifier (2026-08-31) -- see models/sketchlora.py's
+        # _ncm_write_prototypes for the full mechanism; inherited unchanged
+        # here, just called at this class's own _train() exit point (same
+        # relative position as the base class's own call site: after
+        # training, after any compress this task triggers, after net.
+        # default_task is routed to SKETCH).
+        if self.ncm_classifier:
+            self._ncm_write_prototypes(train_loader)

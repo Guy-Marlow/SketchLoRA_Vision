@@ -1642,9 +1642,18 @@ class LoRAVitNet(BaseNet):
         if self.fc is not None:
             nb_output = self.fc.out_features
             weight = copy.deepcopy(self.fc.weight.data)
-            bias = copy.deepcopy(self.fc.bias.data)
             fc.weight.data[:nb_output] = weight
-            fc.bias.data[:nb_output] = bias
+            # sketchlora_ncm_classifier (2026-08-31) swaps self.fc for a
+            # CosineLinear (backbone/linears.py) from the learner side, after
+            # this method returns -- CosineLinear has no bias param at all
+            # (register_parameter is never called for it), so on the task
+            # AFTER that swap, self.fc here is that bias-less CosineLinear.
+            # Guarded rather than assumed-present: every other method's fc
+            # (SimpleLinear) still has a real bias and copies it exactly as
+            # before.
+            if getattr(self.fc, "bias", None) is not None and getattr(fc, "bias", None) is not None:
+                bias = copy.deepcopy(self.fc.bias.data)
+                fc.bias.data[:nb_output] = bias
         del self.fc
         self.fc = fc
 

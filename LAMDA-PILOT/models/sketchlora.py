@@ -87,6 +87,7 @@ from utils.randsvd import rand_svd, rand_svd_probe, factors_from_probe, random_f
 from utils.countsketch import countsketch_compress
 from utils.admission import floor_admission_merge
 from utils.freqdir import freqdir_input_factor, freqdir_output_factor
+from utils.freqdir_dense import fd_shrink_probe
 # *** UNTESTED as of 2026-08-03 *** -- measured-CE region tagging
 # (docs/ce_profiling_implementation_plan.md sec 4.1, sec 5 Step 2). ce_region()
 # is a no-op unless a profiling session is active (utils/ce_profiler.py), so
@@ -130,7 +131,7 @@ class Learner(LoRALearner):
         # behaviour above.
         self.merge_op = args.get("merge_op", "randsvd")
         assert self.merge_op in ("randsvd", "exactsvd", "countsketch", "naive_sum",
-                                  "nocompress", "reduce_merge", "freqdir")
+                                  "nocompress", "reduce_merge", "freqdir", "freqdir_dense")
         # -- "random rank selection" ablation (2026-09-02 user design). Default
         # "top" is the original, unmodified behavior: factors_from_probe keeps
         # the r_hat_t directions with the LARGEST singular values (S is sorted
@@ -249,6 +250,26 @@ class Learner(LoRALearner):
                 "sketchlora_retain_anneal only has an effect under " \
                 "sketchlora_admission='retain' -- every other admission rule reads " \
                 "self.energy_target directly, never _retain_epsilon()"
+        # -- reduce task 0's OWN adapter through the same threshold (2026-08-24
+        # user design). Default behavior (this flag False, every existing config
+        # unaffected): _compress's "skip_compression" branch transplants task 0's
+        # lone residual into the sketch VERBATIM at full lora_rank -- there is
+        # nothing else to combine it with yet, so no SVD ever runs. When this
+        # flag is True, that shortcut is bypassed for task 0 as well: the lone
+        # residual is truncated via the SAME (1-epsilon)-energy-covering-
+        # threshold the "retain" rule already uses for every later boundary,
+        # applied to its own full spectrum (no prior content exists to protect,
+        # so this is NOT an approximation of the retain formula -- prev_rank is
+        # genuinely 0 at this point, see _compress's prev_rank fix below). A
+        # harsh epsilon (e.g. 0.5) is expected to collapse task 0's rank-10
+        # adapter down to just 1-2 directions, which then become the
+        # orthogonality reference every subsequent task trains against.
+        self.retain_reduce_task0 = bool(args.get("sketchlora_retain_reduce_task0", False))
+        if self.retain_reduce_task0:
+            assert self.admission_rule == "retain", \
+                "sketchlora_retain_reduce_task0 only has an effect under " \
+                "sketchlora_admission='retain' -- it reuses that rule's threshold " \
+                "formula for task 0's boundary specifically."
         # reduce_merge (2026-08-05, "reduce then merge" ablation -- see _compress)
         # never evicts anything from the existing sketch (only ever adds to it,
         # then re-expresses the sum losslessly), so admission_rule's whole
@@ -367,6 +388,24 @@ class Learner(LoRALearner):
             assert self.svd_period == 1, \
                 "merge_op='freqdir' concatenates exactly ONE sketch slot against ONE " \
                 "residual slot (rank svd_rank each, stacked to rank 2*svd_rank) -- " \
+                "svd_period>1 (multiple residual slots per boundary) is not implemented"
+        # -- freqdir_dense (2026-09-28 user design): Frequent-Directions shrinkage
+        # on the randomized-SVD probe of the DENSE composite update delta_W =
+        # B_s@A_s + B_r@A_r -- i.e. otherwise identical to merge_op="randsvd",
+        # with the probe's candidate spectrum FD-shrunk before the final top-
+        # svd_rank slice instead of just truncated. See utils/freqdir_dense.py.
+        # Explicitly NOT the same code path as merge_op="freqdir" (which never
+        # forms delta_W, sketching the A/B stacks independently instead -- the
+        # thing this variant exists to avoid). Same scope restriction as
+        # "freqdir" and for the same reason: the candidate window is exactly
+        # svd_rank+oversampling wide only when there's one sketch slot and one
+        # residual slot at a fixed target rank.
+        if self.merge_op == "freqdir_dense":
+            assert self.energy_target is None, \
+                "merge_op='freqdir_dense' is fixed-rank only (svd_rank == target rank " \
+                "r_hat) -- set svd_energy_target=None (the default), not adaptive rank"
+            assert self.svd_period == 1, \
+                "merge_op='freqdir_dense' assumes exactly ONE residual slot per fold -- " \
                 "svd_period>1 (multiple residual slots per boundary) is not implemented"
         # -- classifier alignment (impl_plan_7.27.2026 sec 1.3). SLCA-style,
         # exemplar-free: online per-class {mean, diagvar} over penultimate
@@ -533,6 +572,32 @@ class Learner(LoRALearner):
             self._diag_path = os.path.join(
                 os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                 "run_logs", "sketchlora_diag_{}_seed{}.json".format(tag, seed))
+
+        # -- NCM classifier, in the style of EASE (2026-08-31 user request) --
+        # Default False: byte-identical to existing behavior. When set, net.fc
+        # becomes a CosineLinear (backbone/linears.py, matching EASE's own
+        # EaseCosineLinear -- no bias, cosine similarity between the
+        # L2-normalized feature and each L2-normalized weight ROW) instead of
+        # the ordinary SimpleLinear head, and each task's own newly-introduced
+        # classes get their weight rows overwritten, post-training, with the
+        # real per-class mean feature (see _ncm_write_prototypes) -- a genuine
+        # nearest-class-mean classifier at deployment, not just a linear head
+        # that happens to start near the mean. See _ncm_write_prototypes's own
+        # docstring for why old classes' rows are left frozen rather than
+        # EASE's cross-subspace similarity-drift correction (no equivalent
+        # here: SketchLoRA has one fixed-width feature space, not EASE's
+        # growing per-task subspace blocks).
+        self.ncm_classifier = bool(args.get("sketchlora_ncm_classifier", False))
+        if self.ncm_classifier:
+            assert not self.classifier_alignment, \
+                "sketchlora_ncm_classifier is not supported combined with " \
+                "classifier_alignment -- both write to net.fc via different " \
+                "mechanisms (CA's align_head vs. prototype overwrite); only the " \
+                "standard, non-CA oracle-CIL path is implemented for NCM."
+        # Cache of the actual CosineLinear object _ncm_write_prototypes last
+        # wrote real prototype rows into -- see _ncm_grow_fc's docstring for
+        # why this can't just be read back off net.fc at grow time.
+        self._ncm_prototype_fc = None
 
     # -- which attention blocks carry LoRA (all, or the first n) --------
     def _all_attns(self):
@@ -1002,9 +1067,102 @@ class Learner(LoRALearner):
             self._save_drift_group("sketch_task{}_boundary{}.npz".format(r, n), feats, labels,
                                     task=r, boundary=n, kind="sketch")
 
+    # -- NCM classifier (2026-08-31), in the style of EASE ------------------
+    # NOTE: NOT hooked via an incremental_train override -- models/lora.py's
+    # own incremental_train calls self._train(self.train_loader) itself,
+    # synchronously, as its LAST step (line 113) -- it does not return control
+    # to a caller-side override first. _ncm_grow_fc is therefore called from
+    # the TOP of _train() below instead (both this class's own and
+    # sketchlora_align.py's copy), before training starts, so the CosineLinear
+    # head is in place for both this task's own backprop AND the
+    # _ncm_write_prototypes call at _train()'s end.
+    def _ncm_grow_fc(self):
+        """utils/inc_net.py::LoRAVitNet.update_fc (already run by
+        models/lora.py::incremental_train, just before _train() was called)
+        grew net.fc as a SimpleLinear of the new width -- swap it for a
+        CosineLinear of the same width, copying over whatever rows a
+        previous task's _ncm_write_prototypes already set.
+
+        BUG FIXED (2026-09-01): this used to read the previous fc off
+        `net.fc` itself and check `isinstance(net.fc, CosineLinear)` to
+        decide whether to copy rows. That check always failed: update_fc is
+        shared by every LoRA-based method (models/lora.py's
+        incremental_train calls the generic LoRAVitNet.update_fc, unaware
+        NCM is even enabled) and its own generate_fc unconditionally builds
+        a plain SimpleLinear -- so by the time this method runs, net.fc had
+        ALREADY been overwritten with a SimpleLinear (update_fc does copy
+        the raw weight VALUES over, but not the CosineLinear TYPE). The
+        isinstance check on that SimpleLinear was always False, so every
+        task silently discarded all previously-written prototype rows and
+        started every class (old and new) from a fresh CosineLinear's
+        random init -- old classes' rows were never real prototypes at
+        eval time, which is why old-task accuracy read as ~0% at every
+        checkpoint. Fixed by caching the actual CosineLinear object
+        _ncm_write_prototypes last wrote into (self._ncm_prototype_fc, set
+        at the end of that method) and copying from THAT instead of
+        inspecting net.fc's current (unreliable) type."""
+        from backbone.linears import CosineLinear
+        net = self._network.module if hasattr(self._network, "module") else self._network
+        fc = CosineLinear(net.feature_dim, self._total_classes).to(self._device)
+        prev = self._ncm_prototype_fc
+        if prev is not None:
+            nb_output = prev.out_features
+            fc.weight.data[:nb_output] = prev.weight.data
+            fc.sigma.data = prev.sigma.data
+        net.fc = fc
+
+    def _ncm_write_prototypes(self, train_loader):
+        """Called once, at the very end of _train() (after training AND any
+        compress this task triggers -- see that call site), for THIS task's
+        own newly-introduced classes only: [self._known_classes,
+        self._total_classes). Mirrors models/ease.py::replace_fc's core idea
+        (mean feature -> classifier weight row, no gradient descent) but not
+        its cross-subspace similarity-drift correction for OLD rows -- EASE
+        needs that because its feature space grows a new concatenated block
+        per task; SketchLoRA's feature space is fixed-width throughout, so
+        there is nothing for an equivalent correction to operate over. A row
+        written here is never touched again: the CE loss driving every LATER
+        task's training is always sliced to that task's own [known, total)
+        range (_ce_slice), so it can't reach an already-written row's
+        gradient either. Requires ncm_classifier's CosineLinear head (built
+        by _ncm_grow_fc, called from the top of _train() right before this
+        task's training started) -- the L2-normalization CosineLinear.forward
+        applies to both the input feature and each weight row at inference
+        time is what makes writing a raw (un-normalized) mean feature here
+        equivalent to nearest-class-mean BY COSINE DISTANCE, not requiring
+        the mean itself to be pre-normalized or scaled to match other rows."""
+        net = self._network.module if hasattr(self._network, "module") else self._network
+        from backbone.linears import CosineLinear
+        assert isinstance(net.fc, CosineLinear), \
+            "_ncm_write_prototypes requires ncm_classifier's CosineLinear head " \
+            "(did incremental_train's _ncm_grow_fc call get skipped?)"
+        lo, hi = self._known_classes, self._total_classes
+        dataset = self.data_manager.get_dataset(np.arange(lo, hi), source="train", mode="test")
+        loader = DataLoader(dataset, batch_size=self.batch_size, shuffle=False, num_workers=num_workers)
+        net.eval()
+        embedding_list, label_list = [], []
+        with torch.no_grad():
+            for _, inputs, targets in loader:
+                inputs = inputs.to(self._device)
+                features = net.extract_vector(inputs, task=SKETCH, merge=True)
+                embedding_list.append(features.cpu())
+                label_list.append(targets)
+        embeddings = torch.cat(embedding_list, dim=0)
+        labels = torch.cat(label_list, dim=0)
+        for class_idx in range(lo, hi):
+            mask = labels == class_idx
+            proto = embeddings[mask].mean(dim=0)
+            net.fc.weight.data[class_idx] = proto.to(self._device)
+        # see _ncm_grow_fc's docstring: next task's grow step reads this
+        # instead of net.fc, which update_fc will have overwritten with a
+        # type-erased SimpleLinear by the time it runs.
+        self._ncm_prototype_fc = net.fc
+
     # -- train then compress, but ONLY at a period boundary (or the run's last task)
     # -- eval runs before after_task) --------------
     def _train(self, train_loader):
+        if self.ncm_classifier:
+            self._ncm_grow_fc()
         self._task_class_ranges[self._cur_task] = (self._known_classes, self._total_classes)
         self._freeze_inactive_blocks()   # re-freeze before the optimiser is built
         # 2026-08-05 fix: classifier_alignment was DEAD CODE on this (oracle)
@@ -1082,6 +1240,12 @@ class Learner(LoRALearner):
             with ce2_boundary(self):
                 run_boundary(getattr(self, "_ce_boundary_ctrl", None), "sketchlora_ca",
                             self._run_ca_alignment)
+        # NCM classifier (2026-08-31) -- see _ncm_write_prototypes's own
+        # docstring for the full mechanism. Placed last: after training,
+        # after any compress this task triggers, after net.default_task is
+        # routed to SKETCH above.
+        if self.ncm_classifier:
+            self._ncm_write_prototypes(train_loader)
 
     def _ce_pre_boundary_probe(self, train_loader):
         """R2 baseline-vs-actual, measured here rather than by trainer.py's
@@ -1207,6 +1371,7 @@ class Learner(LoRALearner):
         merge_op ablations."""
         retained, sigma_next, fro, rhat = [], [], [], []   # per (layer,proj) diagnostics
         fd_rents = []   # per (layer,proj) FD-shrinkage stats this merge (fd_shrinkage only)
+        fd_dense_stats = []   # per (layer,proj) freqdir_dense shrinkage stats (merge_op=="freqdir_dense" only)
         floor_k_protected = []    # per (layer,proj) reserved-slot count actually used
         floor_energy_filled = [] # per (layer,proj) energy-filled slot count this merge
         residual_slots = self._residual_slots()
@@ -1218,7 +1383,11 @@ class Learner(LoRALearner):
         # Real sketching starts once there are >=2 things to combine: task 1's
         # (sketch + residual), or (with svd_period=P>1) the first boundary's P
         # residuals even though the sketch itself is still zero at that point.
-        skip_compression = (not self._sketch_populated) and len(residual_slots) == 1
+        # sketchlora_retain_reduce_task0 (2026-08-24) opts OUT of this shortcut
+        # specifically to let task 0's own adapter be threshold-truncated too
+        # -- see __init__'s docstring on the flag.
+        skip_compression = (not self._sketch_populated) and len(residual_slots) == 1 \
+            and not self.retain_reduce_task0
         full_svd_needed = (not skip_compression) and self.merge_op in ("exactsvd", "nocompress")
         # freqdir explicitly excluded even though sketch_diag/fd_shrinkage are
         # both already guaranteed off for it (asserted/auto-disabled in
@@ -1453,6 +1622,63 @@ class Learner(LoRALearner):
                     module_idx += 1
                     continue
 
+                if self.merge_op == "freqdir_dense":
+                    # freqdir_dense (2026-09-28): FD shrinkage on the randomized
+                    # probe of the dense composite delta_W -- see utils/
+                    # freqdir_dense.py's module docstring. Self-contained (own
+                    # probe/shrink/reconstruct), falls through to the shared
+                    # diagnostics/slot-realloc/residual-reset tail below, same
+                    # pattern as reduce_merge/admission_rule=="floor" above.
+                    # Deliberately its own branch, never touching fold_rank_select
+                    # or the merge-algorithm elif-chain below (need_svdvals/
+                    # full_svd_needed, the fd_shrinkage bolt-on, etc.) -- so it
+                    # cannot interact with any other merge_op's path.
+                    with ce_region("sketchlora/fold_merge_freqdir_dense"):
+                        prev_rank = A_s.shape[0] if self._sketch_populated else 0
+                        residual_total = sum(A_list[slot].weight.shape[0] for slot in residual_slots)
+                        working_rank = max(prev_rank + residual_total, self.svd_rank)
+                        U_probe, S, Vh_probe = rand_svd_probe(delta_W, working_rank, self.oversampling)
+                        S, fd_stats = fd_shrink_probe(S)   # same length as S, still descending
+                        final_rank = min(self.svd_rank, S.numel())
+                        root_S = S[:final_rank].sqrt()
+                        B_hat = (U_probe[:, :final_rank] * root_S.unsqueeze(0)).to(dt)
+                        A_hat = (root_S.unsqueeze(1) * Vh_probe[:final_rank, :]).to(dt)
+                        # own list, never fd_rents/self._fd_cumulative_rent -- those
+                        # belong to the unrelated fd_shrinkage bolt-on (different
+                        # stats keys: "rent" there vs. "delta" here) and must stay
+                        # untouched by this merge_op (separate, non-interfering).
+                        fd_dense_stats.append(fd_stats)
+                    B_hat, A_hat = B_hat.to(dev, dt), A_hat.to(dev, dt)
+
+                    if self.sketch_diag:
+                        with ce_region("_excluded/sketch_diag"):
+                            recon_err = (delta_W.float() - (B_hat.float() @ A_hat.float())).norm()
+                            fro_delta = delta_W.float().norm()
+                            retained.append(1.0 - (recon_err / fro_delta).item() ** 2 if fro_delta > 0 else 1.0)
+                            sigma_next.append(S[final_rank].item() if S.numel() > final_rank else 0.0)
+                            fro.append(fro_delta.item())
+                            rhat.append(final_rank)
+
+                    with ce_region("sketchlora/fold_slot_realloc"):
+                        if final_rank == B_s.shape[1]:
+                            B_s.data.copy_(B_hat)
+                            A_s.data.copy_(A_hat)
+                        else:
+                            newA = nn.Linear(delta_W.shape[0], final_rank, bias=False).to(dev, dt)
+                            newB = nn.Linear(final_rank, delta_W.shape[0], bias=False).to(dev, dt)
+                            newA.weight.data.copy_(A_hat)
+                            newB.weight.data.copy_(B_hat)
+                            for p in list(newA.parameters()) + list(newB.parameters()):
+                                p.requires_grad = False
+                            A_list[SKETCH] = newA
+                            B_list[SKETCH] = newB
+                    with ce_region("sketchlora/fold_residual_reset"):
+                        for slot in residual_slots:
+                            nn.init.kaiming_uniform_(A_list[slot].weight, a=math.sqrt(5))
+                            nn.init.zeros_(B_list[slot].weight)
+                    module_idx += 1
+                    continue
+
                 S = None
                 U_probe = Vh_probe = None   # populated only for merge_op=="randsvd" -- see below
                 # *** UNTESTED as of 2026-08-03 *** -- plan sec 4.1 "fold_rank_select":
@@ -1478,7 +1704,15 @@ class Learner(LoRALearner):
                 # decision below now reads THIS randomized S, and the
                 # construction phase further down slices the SAME U_probe/S/
                 # Vh_probe instead of calling rand_svd a second time.
-                prev_rank = A_s.shape[0]
+                # A_s.shape[0] is the SKETCH slot's pre-allocated width, not its
+                # true occupied rank -- before the sketch is ever populated it's
+                # a zero-initialized placeholder at full lora_rank width (see
+                # __init__), so reading it naively here would make the retain
+                # formula "protect" phantom zero directions. Only reachable with
+                # sketchlora_retain_reduce_task0=True (every other config keeps
+                # skip_compression=True whenever not self._sketch_populated, so
+                # this branch never runs pre-population otherwise).
+                prev_rank = A_s.shape[0] if self._sketch_populated else 0
                 residual_total = sum(A_list[slot].weight.shape[0] for slot in residual_slots)
                 composite_rank = prev_rank + residual_total
                 with ce_region("sketchlora/fold_rank_select"):
@@ -1761,10 +1995,11 @@ class Learner(LoRALearner):
         self._sketch_populated = True
         if self.sketch_diag:
             self._record_diag(retained, sigma_next, fro, rhat, fd_rents,
-                               floor_k_protected, floor_energy_filled)
+                               floor_k_protected, floor_energy_filled, fd_dense_stats)
 
     def _record_diag(self, retained, sigma_next, fro, rhat, fd_rents=None,
-                      floor_k_protected=None, floor_energy_filled=None):
+                      floor_k_protected=None, floor_energy_filled=None,
+                      fd_dense_stats=None):
         """Aggregate + persist the per-compression singular-spectrum stats."""
         import numpy as np
         rec = {
@@ -1787,6 +2022,18 @@ class Learner(LoRALearner):
             rec["fd_post_shrink_energy"] = [r["post_shrink_energy"] for r in fd_rents]
             rec["fd_rent"] = [r["rent"] for r in fd_rents]
             rec["fd_cumulative_rent"] = list(self._fd_cumulative_rent)
+        if fd_dense_stats:
+            # merge_op=="freqdir_dense" (2026-09-28) -- distinctly-named keys,
+            # deliberately NOT merged into the fd_rent/fd_cumulative_rent fields
+            # above: those belong to the unrelated fd_shrinkage bolt-on (a
+            # different shrinkage formula -- shrink an already-truncated kept
+            # set by the first DISCARDED value's energy -- vs. this merge_op's
+            # own "shrink the full untruncated probe by its own minimum, THEN
+            # truncate"; see utils/freqdir_dense.py). "delta" is the shrinkage
+            # amount subtracted from every squared candidate singular value.
+            rec["freqdir_dense_delta"] = [r["delta"] for r in fd_dense_stats]
+            rec["freqdir_dense_pre_shrink_energy"] = [r["pre_shrink_energy"] for r in fd_dense_stats]
+            rec["freqdir_dense_post_shrink_energy"] = [r["post_shrink_energy"] for r in fd_dense_stats]
         if floor_k_protected:
             # 2026-07-28 guaranteed-admission direction: how many of the k reserved
             # slots actually had a nonzero orthogonal direction to admit this merge,
