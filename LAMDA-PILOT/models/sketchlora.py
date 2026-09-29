@@ -1623,58 +1623,62 @@ class Learner(LoRALearner):
                     continue
 
                 if self.merge_op == "freqdir_dense":
-                    # freqdir_dense (2026-09-28, EXACT-SVD fix 2026-09-29): FD
-                    # shrinkage on the dense composite delta_W's EXACT spectrum
+                    # freqdir_dense (2026-09-28, index-window fix 2026-09-29):
+                    # FD shrinkage on the dense composite delta_W's randomized-
+                    # SVD probe, restricted to its non-structurally-zero window
                     # -- see utils/freqdir_dense.py's module docstring. Self-
-                    # contained (own decompose/shrink/reconstruct), falls
-                    # through to the shared diagnostics/slot-realloc/residual-
-                    # reset tail below, same pattern as reduce_merge/
-                    # admission_rule=="floor" above. Deliberately its own
-                    # branch, never touching fold_rank_select or the merge-
-                    # algorithm elif-chain below (need_svdvals/full_svd_needed,
-                    # the fd_shrinkage bolt-on, etc.) -- so it cannot interact
-                    # with any other merge_op's path.
+                    # contained (own probe/shrink/reconstruct), falls through
+                    # to the shared diagnostics/slot-realloc/residual-reset
+                    # tail below, same pattern as reduce_merge/admission_rule==
+                    # "floor" above. Deliberately its own branch, never
+                    # touching fold_rank_select or the merge-algorithm elif-
+                    # chain below (need_svdvals/full_svd_needed, the
+                    # fd_shrinkage bolt-on, etc.) -- so it cannot interact with
+                    # any other merge_op's path.
                     #
-                    # ORIGINAL VERSION (randomized probe) VERIFIED BROKEN
-                    # 2026-09-29 -- see run_logs/freqdir_dense_wave1's own
-                    # sketch_diag: freqdir_dense_delta sat at ~1e-16 to 1e-17
-                    # EVERY fold of the real campaign, making the shrinkage a
-                    # total no-op (results were bit-identical to plain
-                    # randsvd). Root cause: rand_svd_probe's working_rank was
-                    # sized to exactly bound delta_W's TRUE rank (composite_
-                    # rank = prev_rank+residual_total, an EXACT bound, not an
-                    # estimate) -- so the oversampling columns beyond it were
-                    # structurally probing pure-zero directions, and "the
-                    # smallest candidate value" was always the randomized-
-                    # projection noise floor, never real discarded content.
+                    # ORIGINAL VERSION VERIFIED BROKEN 2026-09-29 -- see
+                    # run_logs/freqdir_dense_wave1's own sketch_diag:
+                    # freqdir_dense_delta sat at ~1e-16 to 1e-17 EVERY fold of
+                    # the real campaign, making the shrinkage a total no-op
+                    # (results were bit-identical to plain randsvd). Root
+                    # cause: fd_shrink_probe was reading its "smallest
+                    # candidate" from the ENTIRE probe (length working_rank+
+                    # oversampling), including the oversampling padding --
+                    # since working_rank already exactly bounds delta_W's true
+                    # rank (composite_rank = prev_rank+residual_total, an
+                    # EXACT bound, not an estimate), those padding columns are
+                    # structurally probing pure-zero directions, so the
+                    # smallest value was always the randomized-projection
+                    # noise floor, never real discarded content.
                     #
-                    # FIX: decompose delta_W EXACTLY (torch.linalg.svd, no
-                    # randomization, no oversampling needed) and restrict the
+                    # FIX (2026-09-29, 2nd attempt -- restores the original
+                    # "identical to vanilla SketchLoRA/randsvd" design intent,
+                    # superseding the brief exact-SVD version this branch used
+                    # in between): keep the randomized probe exactly as
+                    # merge_op="randsvd" itself uses it, but restrict the
                     # shrinkage's candidate window to S[:composite_rank] --
-                    # the only portion of the exact spectrum that ISN'T
-                    # structurally zero (delta_W's true rank is <=
-                    # composite_rank by construction, same exact bound as
-                    # before). Whenever composite_rank > svd_rank (every fold
-                    # after the first, in fixed-rank mode), indices
-                    # [svd_rank:composite_rank] are REAL discarded singular
-                    # values -- not noise -- so S[:composite_rank].min() is
-                    # now a genuine "rent" charge instead of ~0. Measured
-                    # wall-time cost of the exact SVD itself is negligible in
-                    # practice (merge_op="exactsvd" runs on this project take
-                    # the same wall time as merge_op="randsvd" ones -- the SVD
-                    # is not the dominant cost of a training run at this
-                    # scale), so no SLURM budget change was needed for this.
+                    # the top composite_rank probe entries, which the
+                    # randomized projection recovers accurately (with high
+                    # probability) BECAUSE working_rank >= composite_rank by
+                    # construction, so this window is never touching the
+                    # oversampling padding. Whenever composite_rank >
+                    # svd_rank (every fold after the first, in fixed-rank
+                    # mode), indices [svd_rank:composite_rank] are real,
+                    # accurately-recovered singular values -- not noise -- so
+                    # S[:composite_rank].min() is now a genuine "rent" charge
+                    # instead of ~0.
                     with ce_region("sketchlora/fold_merge_freqdir_dense"):
                         prev_rank = A_s.shape[0] if self._sketch_populated else 0
                         residual_total = sum(A_list[slot].weight.shape[0] for slot in residual_slots)
                         composite_rank = prev_rank + residual_total   # exact upper bound on delta_W's true rank
-                        U_full, S_full, Vh_full = torch.linalg.svd(delta_W.float())
-                        S_real = S_full[:composite_rank]   # only non-structurally-zero portion
+                        working_rank = max(composite_rank, self.svd_rank)
+                        U_probe, S_probe, Vh_probe = rand_svd_probe(delta_W, working_rank, self.oversampling)
+                        S_real = S_probe[:composite_rank]   # only the accurately-recovered, non-padding portion
                         S, fd_stats = fd_shrink_probe(S_real)   # same length as S_real, still descending
                         final_rank = min(self.svd_rank, S.numel())
                         root_S = S[:final_rank].sqrt()
-                        B_hat = (U_full[:, :final_rank].to(dt) * root_S.to(dt).unsqueeze(0))
-                        A_hat = (root_S.to(dt).unsqueeze(1) * Vh_full[:final_rank, :].to(dt))
+                        B_hat = (U_probe[:, :final_rank].to(dt) * root_S.to(dt).unsqueeze(0))
+                        A_hat = (root_S.to(dt).unsqueeze(1) * Vh_probe[:final_rank, :].to(dt))
                         # own list, never fd_rents/self._fd_cumulative_rent -- those
                         # belong to the unrelated fd_shrinkage bolt-on (different
                         # stats keys: "rent" there vs. "delta" here) and must stay

@@ -76,12 +76,7 @@ def sketchlora_fold_macs(r_hat, dim=DIM, oversampling=10, merge_op="randsvd"):
     fold COUNT drops (fewer calls to this function per run), which is exactly
     how CE is expected to improve under lazy merge -- the ledger must show
     this via fewer auxiliary_pass_macs entries, not a smaller per-fold cost."""
-    if merge_op in ("exactsvd", "freqdir_dense"):
-        # freqdir_dense (2026-09-29 exact-SVD fix): now decomposes the dense
-        # delta_W exactly (torch.linalg.svd), same as exactsvd -- the earlier
-        # randomized-probe version (dim*(k^2) order, same formula as randsvd
-        # below) was replaced because its shrinkage step turned out to be a
-        # no-op; see utils/freqdir_dense.py's module docstring.
+    if merge_op == "exactsvd":
         return dim ** 3
     if merge_op == "freqdir":
         # Two independent thin SVDs per module (2026-09-15 user design, see
