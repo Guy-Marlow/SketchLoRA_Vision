@@ -1,30 +1,44 @@
 #!/bin/bash
-#SBATCH --job-name=freqdir_dense_wave1
+#SBATCH --job-name=freqdir_dense_wave1_exactsvd
 #SBATCH --time=24:00:00
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=48G
 #SBATCH --open-mode=append
-#SBATCH --output=/data/gmar762/research/continuous_learning/svd_sketching_vision/LAMDA-PILOT/run_logs/freqdir_dense_wave1/slurm_%j.out
-#SBATCH --error=/data/gmar762/research/continuous_learning/svd_sketching_vision/LAMDA-PILOT/run_logs/freqdir_dense_wave1/slurm_%j.err
+#SBATCH --output=/data/gmar762/research/continuous_learning/svd_sketching_vision/LAMDA-PILOT/run_logs/freqdir_dense_wave1_exactsvd/slurm_%j.out
+#SBATCH --error=/data/gmar762/research/continuous_learning/svd_sketching_vision/LAMDA-PILOT/run_logs/freqdir_dense_wave1_exactsvd/slurm_%j.err
 #
-# freqdir_dense merge_op campaign, wave 1 (2026-09-28 user request) -- FD
-# shrinkage on the randomized-SVD probe of the dense composite update (see
-# utils/freqdir_dense.py, models/sketchlora.py's merge_op="freqdir_dense"
-# branch), vs. the standing SketchLoRA (orth, merge_op="randsvd") baseline,
-# on 3 benchmarks x 3 seeds = 9 runs: CIFAR-100/cifar224-10t,
-# ImageNet-R-20t, OmniBenchmark-1k-100t. See
-# scripts/gen_freqdir_dense_wave1_configs.py's own docstring for the exact
-# source configs each run is copied from.
+# freqdir_dense merge_op campaign, EXACT-SVD version (2026-09-28 user
+# request; algorithm fixed 2026-09-29) -- FD shrinkage on the dense
+# composite update's EXACT spectrum (see utils/freqdir_dense.py,
+# models/sketchlora.py's merge_op="freqdir_dense" branch), vs. the standing
+# SketchLoRA (orth, merge_op="randsvd") baseline, on 3 benchmarks x 3 seeds
+# = 9 runs: CIFAR-100/cifar224-10t, ImageNet-R-20t, OmniBenchmark-1k-100t.
+# See scripts/gen_freqdir_dense_wave1_configs.py's own docstring for the
+# exact source configs each run is copied from.
 #
-# 24h budget: 9 runs sequentially at this project's own measured per-run
-# wall time for these benchmarks (ImageNet-R/CIFAR-100 SketchLoRA runs
-# ~2.5-3h each, OmniBenchmark-1k ~2.9h including eval -- see the
-# sketchlora_orth_wave1_datasets / wave1_final fixedrank_orth05 metrics)
-# comes to roughly 9 * 3h =~ 27h at the high end -- may not finish in one
-# submission once per-run variance is accounted for. Relies on the
-# RESUMABLE design below to make partial progress across resubmissions, same
-# as every other long campaign here -- not a bug, expected.
+# NEW CAMPAIGN NAME (freqdir_dense_wave1_exactsvd), NOT a same-name rerun of
+# the original freqdir_dense_wave1 -- that earlier campaign (randomized-
+# probe shrinkage) already completed, and its results are cached under
+# run_logs/final/sketchlora_align/metrics_..._freqdir_dense_wave1_<dataset>_
+# s<seed>_s<seed>.json with status=="done". Its shrinkage step was verified
+# to be a total no-op (results bit-identical to plain randsvd -- see
+# utils/freqdir_dense.py's module docstring for why), which is WHY this
+# exact-SVD version exists. Reusing the old prefix would make scripts/
+# _bankcap_run_done.py's resumability check see those wrong-algorithm
+# results as already-done and silently skip every run here, never producing
+# the corrected numbers -- the new name/prefix avoids that collision
+# entirely. The old freqdir_dense_wave1 run/data is left untouched (a
+# documented negative result), not deleted or overwritten.
+#
+# 24h budget: 9 runs sequentially. Measured wall time for
+# merge_op="exactsvd"-based SketchLoRA runs on this project (sketchlora_
+# orth_sens_ablations's exactsvd_orth variant) is ~0.6-0.8h/run, essentially
+# IDENTICAL to plain randsvd (~0.58-0.74h/run) -- the exact SVD is not the
+# dominant cost of a training run at this scale (dim^3 per module per fold,
+# a handful of folds, dwarfed by 20 epochs of ViT-B/16 forward/backward). 9
+# runs should comfortably finish in a few hours; 24h is generous headroom,
+# not a tight estimate this time.
 #
 # SINGLE GPU BY CONSTRUCTION -- same plain sequential pattern as
 # scripts/freqdir_wave1.slurm.
@@ -34,10 +48,10 @@
 # here uses model_name=sketchlora_align and this campaign's own prefix, so it
 # can only ever match a genuine attempt from THIS campaign).
 #
-# ALL OUTPUT under run_logs/freqdir_dense_wave1/ (.out logs here; sketch_diag
-# under its own <dataset>/diag/ subdir -- see the config generator;
-# final_metrics land at the usual project-wide run_logs/final/ location,
-# same as every other oracle-path campaign).
+# ALL OUTPUT under run_logs/freqdir_dense_wave1_exactsvd/ (.out logs here;
+# sketch_diag under its own <dataset>/diag/ subdir -- see the config
+# generator; final_metrics land at the usual project-wide run_logs/final/
+# location, same as every other oracle-path campaign).
 #
 # >>> CLUSTER-SPECIFIC: conda env name -- adjust CONDA_ENV_NAME if not "treelora" <<<
 
@@ -46,7 +60,7 @@ set -uo pipefail
 VISION=/data/gmar762/research/continuous_learning/svd_sketching_vision/LAMDA-PILOT
 cd "$VISION" || { echo "FATAL: cannot cd to $VISION -- check the path for this cluster"; exit 1; }
 
-CAMPAIGN=freqdir_dense_wave1
+CAMPAIGN=freqdir_dense_wave1_exactsvd
 CONFIG_DIR="exps/$CAMPAIGN"
 OUT_DIR="run_logs/$CAMPAIGN"
 mkdir -p "$CONFIG_DIR" "$OUT_DIR"
