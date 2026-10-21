@@ -144,11 +144,14 @@ class Learner(SketchLoRALearner):
         # at once (e.g. orth-A + align-B) and therefore need different scales.
         self.align_weight_b = args.get("sketchlora_align_weight_b", None)
         self.align_mode = args.get("sketchlora_align_mode", "align")
-        assert self.align_mode in ("align", "orth", "none"), \
+        assert self.align_mode in ("align", "orth", "orth_unit", "none"), \
             "sketchlora_align_mode must be 'align' (pull toward sketch), " \
             "'orth' (push away from sketch, O-LoRA's own formula, the project's " \
-            "standing default), or 'none' (no regularizer on A at all -- only " \
-            "useful combined with sketchlora_align_b_mode, to align/orth B alone)"
+            "standing default), 'orth_unit' (push away using L2-normalized row " \
+            "directions instead of raw rows -- see _orth_unit_loss's docstring " \
+            "for why this is a distinct ablation from 'orth'), or 'none' (no " \
+            "regularizer on A at all -- only useful combined with " \
+            "sketchlora_align_b_mode, to align/orth B alone)"
         # -- independent B-side mode (2026-09-16 user design): A and B can now
         # use DIFFERENT regularizer modes ("orth-A + align-B" was the specific
         # motivating case -- keep vanilla SketchLoRA's existing A-orthogonality
@@ -158,8 +161,8 @@ class Learner(SketchLoRALearner):
         # which reduces to the exact old sign/value on A and contributes
         # nothing on B whenever this stays "none".
         self.align_b_mode = args.get("sketchlora_align_b_mode", "none")
-        assert self.align_b_mode in ("align", "orth", "none"), \
-            "sketchlora_align_b_mode must be 'align', 'orth', or 'none' (default -- B untouched)"
+        assert self.align_b_mode in ("align", "orth", "orth_unit", "none"), \
+            "sketchlora_align_b_mode must be 'align', 'orth', 'orth_unit', or 'none' (default -- B untouched)"
         # -- orthogonalize B as well as A (2026-08-23 follow-up, "orth" mode
         # only). O-LoRA's own formula (and this file's default "orth" mode,
         # mirroring it) only pushes A_new's ROWS (directions in the INPUT/
@@ -285,6 +288,56 @@ class Learner(SketchLoRALearner):
                     orth = orth + self._orth_loss_b_term(attn, A_list, B_list)
         return orth
 
+    def _orth_unit_loss(self):
+        """"orth_unit" mode (2026-10-20, user-requested ablation): direction-
+        only counterpart of "orth" -- same abs()'d, summed pairwise-dot-
+        product structure, still pushed AWAY from the sketch (a penalty,
+        sign +1.0), but each row is L2-normalized first, exactly as
+        _align_loss already does for its own (oppositely-signed) use.
+
+        WHY THIS IS A DISTINCT ABLATION FROM "orth", NOT JUST A RESCALING:
+        "orth"'s raw |A_new @ A_sketch^T| is minimized not only by rotating
+        A_new's rows to be more orthogonal to the sketch, but also simply by
+        SHRINKING A_new's row norms -- a fixed nonzero angle between two
+        vectors still has an arbitrarily small dot product if either
+        vector's magnitude shrinks enough. Nothing directly opposes that
+        shrinkage (sketchlora_lora_wd=0.0 in every production config), so
+        "orth" has a built-in incentive to deflate the residual's magnitude
+        that has nothing to do with genuine angular separation -- only the
+        CE loss's own pressure to keep the residual expressive pushes back.
+        Normalizing first removes that confound: the penalty then measures
+        PURE angular overlap between A_new's and A_sketch's row directions,
+        independent of either matrix's norms, matching the textbook notion
+        of orthogonality. See sketchlora_align_mode's own docstring / the
+        module header for the "orth" vs "align" asymmetry this extends."""
+        t = self._train_adapter()
+        with ce_region("sketchlora_align/orth_unit_loss"):
+            orth = 0.0
+            for attn in self._attns():
+                for A_list in (attn.lora_A_q, attn.lora_A_v):
+                    A_new = A_list[t].weight
+                    A_sketch = A_list[SKETCH].weight.detach()
+                    A_new_n = F.normalize(A_new, dim=1)
+                    A_sketch_n = F.normalize(A_sketch, dim=1)
+                    orth = orth + torch.abs(A_new_n @ A_sketch_n.t()).sum()
+        return orth
+
+    def _orth_unit_loss_b(self):
+        """B-space counterpart of _orth_unit_loss, same column-wise
+        normalize(dim=0) + transpose convention _align_loss_b uses for B
+        (B is [dim, r] -- its COLUMNS are the directions being compared)."""
+        t = self._train_adapter()
+        with ce_region("sketchlora_align/orth_unit_loss_b"):
+            orth = 0.0
+            for attn in self._attns():
+                for B_list in (attn.lora_B_q, attn.lora_B_v):
+                    B_new = B_list[t].weight
+                    B_sketch = B_list[SKETCH].weight.detach()
+                    B_new_n = F.normalize(B_new, dim=0)
+                    B_sketch_n = F.normalize(B_sketch, dim=0)
+                    orth = orth + torch.abs(B_new_n.t() @ B_sketch_n).sum()
+        return orth
+
     def _align_loss_b(self):
         """B-space counterpart of _align_loss (2026-09-16 user design):
         L2-normalized, signed cosine similarity between the residual's B and
@@ -350,12 +403,16 @@ class Learner(SketchLoRALearner):
             reg_a, sign_a = 0.0, 1.0
         elif self.align_mode == "align":
             reg_a, sign_a = self._align_loss(), -1.0
+        elif self.align_mode == "orth_unit":
+            reg_a, sign_a = self._orth_unit_loss(), 1.0
         else:
             reg_a, sign_a = self._orth_loss(), 1.0
         if self.align_b_mode == "none":
             reg_b, sign_b = 0.0, 1.0
         elif self.align_b_mode == "align":
             reg_b, sign_b = self._align_loss_b(), -1.0
+        elif self.align_b_mode == "orth_unit":
+            reg_b, sign_b = self._orth_unit_loss_b(), 1.0
         else:
             reg_b, sign_b = self._orth_loss_b(), 1.0
         return reg_a, sign_a, reg_b, sign_b
@@ -472,6 +529,7 @@ class Learner(SketchLoRALearner):
                 run_boundary(getattr(self, "_ce_boundary_ctrl", None), "sketchlora_compress",
                             self._compress)
             self._maybe_extract_drift_sketch()
+            self._maybe_save_adapter_snapshot()
             net = self._network.module if hasattr(self._network, "module") else self._network
             net.default_task = SKETCH
         if self.classifier_alignment:

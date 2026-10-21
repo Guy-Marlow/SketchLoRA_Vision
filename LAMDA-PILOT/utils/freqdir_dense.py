@@ -43,6 +43,26 @@ svd_rank (every fold after the first, in fixed-rank mode), indices
 [svd_rank:composite_rank] are real, accurately-recovered singular values,
 not noise, so the smallest of them is a genuine "rent" charge.
 
+2026-10-14 RE-DERIVATION (ell vs k): briefly "fixed" to read delta from
+position svd_rank instead of S.min() (i.e. treating composite_rank as a
+Fast-FrequentDirections 2*ell buffer with ell=svd_rank), on the reasoning
+that Fast-FD's Algorithm 3.1 drives positions [ell, 2ell) to zero via
+delta=sigma_ell^2. That reasoning doesn't hold here: the FD paper's bound is
+stated for ANY k < ell --
+  ||A-pi_{B_k}(A)||_F^2 <= (1 + k/(ell-k)) ||A-A_k||_F^2
+-- where B is the full ell-wide maintained sketch (shrunk by ITS OWN
+boundary value sigma_ell^2, i.e. ell = the width of the candidate set being
+shrunk) and B_k is a PLAIN top-k truncation of that already-shrunk B, with
+NO further shrinking. That is exactly this module's original design:
+composite_rank plays ell (the full candidate set fd_shrink_probe receives),
+svd_rank plays k (the truncation applied after, in models/sketchlora.py,
+with no additional shrinking). S.min() over the full S[:composite_rank]
+window IS sigma_ell^2 for that window -- the "fix" instead moved delta to
+position k, which only matches the narrower special case ell=k (Fast-FD's
+own buffer-doubling recipe for maintaining a sketch whose OUTPUT width is
+ell), not the general k<ell bound this design was always relying on.
+Reverted; S.min() restored.
+
 fd_shrink_probe itself is decomposition-method-agnostic -- it just needs "a
 candidate spectrum, not yet truncated to final rank," whatever produced it.
 Does NOT truncate -- so callers can still read the shrunk value one past the
@@ -58,6 +78,16 @@ def fd_shrink_probe(S):
     S must be sorted descending and untruncated (the full candidate set --
     e.g. a randomized-SVD probe's spectrum restricted to the composite's
     true-rank bound -- not already sliced to a target rank).
+
+    S plays "ell" (the full FD-maintained sketch width) in Liberty 2013 /
+    Ghashami et al. SICOMP 2016's notation -- this shrinks the WHOLE
+    candidate set by sigma_ell^2 = S.min()**2, exactly Algorithm 2.1/3.1's
+    own-width shrink. Callers that then truncate the result to some k <
+    S.numel() (as models/sketchlora.py's freqdir_dense branch does, to
+    svd_rank) get the paper's general k<ell bound
+    (||A-pi_{B_k}(A)||_F^2 <= (1+k/(ell-k))||A-A_k||_F^2) on that
+    truncation for free -- no further shrinking needed or wanted at the k
+    boundary.
 
     Returns (S_shrunk, stats) -- S_shrunk is the same length as S, still
     descending (subtracting a constant from every squared value preserves

@@ -88,6 +88,7 @@ from utils.countsketch import countsketch_compress
 from utils.admission import floor_admission_merge
 from utils.freqdir import freqdir_input_factor, freqdir_output_factor
 from utils.freqdir_dense import fd_shrink_probe
+from utils.adapter_snapshot import save_adapter_snapshot
 # *** UNTESTED as of 2026-08-03 *** -- measured-CE region tagging
 # (docs/ce_profiling_implementation_plan.md sec 4.1, sec 5 Step 2). ce_region()
 # is a no-op unless a profiling session is active (utils/ce_profiler.py), so
@@ -131,7 +132,8 @@ class Learner(LoRALearner):
         # behaviour above.
         self.merge_op = args.get("merge_op", "randsvd")
         assert self.merge_op in ("randsvd", "exactsvd", "countsketch", "naive_sum",
-                                  "nocompress", "reduce_merge", "freqdir", "freqdir_dense")
+                                  "nocompress", "reduce_merge", "freqdir", "freqdir_dense",
+                                  "qrsvd")
         # -- "random rank selection" ablation (2026-09-02 user design). Default
         # "top" is the original, unmodified behavior: factors_from_probe keeps
         # the r_hat_t directions with the LARGEST singular values (S is sorted
@@ -466,6 +468,13 @@ class Learner(LoRALearner):
         self.embed_drift_dir = args.get("embed_drift_dir", None)
         if self.embed_drift_dir is not None:
             os.makedirs(self.embed_drift_dir, exist_ok=True)
+        # -- low-rank adapter factor persistence (olora_sketch_fd_divergence
+        # campaign, 2026-10-21): saves the SKETCH slot's current (B, A) per
+        # module at every boundary, right after _compress() -- see
+        # utils/adapter_snapshot.py and _maybe_save_adapter_snapshot below.
+        self.adapter_snapshot_dir = args.get("adapter_snapshot_dir", None)
+        if self.adapter_snapshot_dir is not None:
+            os.makedirs(self.adapter_snapshot_dir, exist_ok=True)
         self._task_class_ranges = {}   # task idx -> (known, total) class bounds
         self.cs_rank = args.get("cs_rank", self.svd_rank)
         self.cs_seed = args.get("cs_seed", args["seed"] if not isinstance(args.get("seed"), list)
@@ -1067,6 +1076,26 @@ class Learner(LoRALearner):
             self._save_drift_group("sketch_task{}_boundary{}.npz".format(r, n), feats, labels,
                                     task=r, boundary=n, kind="sketch")
 
+    def _maybe_save_adapter_snapshot(self):
+        """olora_sketch_fd_divergence campaign: persist the SKETCH slot's
+        current (B, A) per (block, proj) module, right after _compress() --
+        same call-site timing as _maybe_extract_drift_sketch (both read the
+        POST-compression state), so the snapshot and the "sketch_taskN_
+        boundaryN" feature dump at a given boundary describe the identical
+        adapter state. merge_op-agnostic: works unchanged for randsvd
+        (SketchLoRA) and freqdir_dense (FD Sum), since both write their
+        result into the same SKETCH slot before this runs."""
+        if self.adapter_snapshot_dir is None:
+            return
+        n = self._cur_task
+        layer_proj_to_BA = {}
+        for li, attn in enumerate(self._attns()):
+            for proj, (A_list, B_list) in (("q", (attn.lora_A_q, attn.lora_B_q)),
+                                            ("v", (attn.lora_A_v, attn.lora_B_v))):
+                layer_proj_to_BA[(li, proj)] = (B_list[SKETCH].weight, A_list[SKETCH].weight)
+        save_adapter_snapshot(self.adapter_snapshot_dir, "sketch_boundary{}.pt".format(n),
+                               layer_proj_to_BA, boundary=n, merge_op=self.merge_op)
+
     # -- NCM classifier (2026-08-31), in the style of EASE ------------------
     # NOTE: NOT hooked via an incremental_train override -- models/lora.py's
     # own incremental_train calls self._train(self.train_loader) itself,
@@ -1217,6 +1246,7 @@ class Learner(LoRALearner):
                 run_boundary(getattr(self, "_ce_boundary_ctrl", None), "sketchlora_compress",
                             self._compress)
             self._maybe_extract_drift_sketch()
+            self._maybe_save_adapter_snapshot()
             # Eval (CIL's bare net(inputs), routed via LoRAVitNet.default_task -- see
             # utils/inc_net.py's _resolve) runs after this returns, before after_task().
             # _compress() just reset every residual slot to (kaiming A, zero B) -- a
@@ -1335,6 +1365,17 @@ class Learner(LoRALearner):
         - ``randsvd`` (default): randomized SVD via ``utils.randsvd.rand_svd``.
         - ``exactsvd``: full ``torch.linalg.svd`` + truncate (same rank-selection logic as
           randsvd, exact instead of approximate reconstruction).
+        - ``qrsvd``: mathematically identical answer to ``exactsvd`` (same rank-selection
+          logic, same U/S/Vh up to sign/ordering within tied singular values), computed
+          differently: QR-factorize the concatenated sketch+residual factors (``[d, total_r]``
+          and ``[total_r, d]``, ``total_r`` = sketch width + residual widths, generally
+          ``<< d``) instead of forming/decomposing the dense ``[d, d]`` delta_W. ``B_cat =
+          Q_B R_B``, ``A_cat^T = Q_A R_A``; the tiny ``[total_r, total_r]`` matrix
+          ``R_B @ R_A^T`` is SVD'd exactly, then lifted back through ``Q_B``/``Q_A`` --
+          delta_W's true SVD, never approximated, at ``O(d * total_r^2)`` instead of
+          ``O(d^2 * total_r)``. delta_W is still formed here for the sketch_diag
+          reconstruction-error measurement (so this is a correctness/comparison
+          implementation, not yet the fully dense-matrix-free version).
         - ``countsketch``: ``utils.countsketch.countsketch_compress`` -- hashes the concatenated
           factors' rank dimension down to ``cs_rank`` buckets; does NOT form an optimal
           low-rank projection (a random signed merge of components instead).
@@ -1388,7 +1429,7 @@ class Learner(LoRALearner):
         # -- see __init__'s docstring on the flag.
         skip_compression = (not self._sketch_populated) and len(residual_slots) == 1 \
             and not self.retain_reduce_task0
-        full_svd_needed = (not skip_compression) and self.merge_op in ("exactsvd", "nocompress")
+        full_svd_needed = (not skip_compression) and self.merge_op in ("exactsvd", "nocompress", "qrsvd")
         # freqdir explicitly excluded even though sketch_diag/fd_shrinkage are
         # both already guaranteed off for it (asserted/auto-disabled in
         # __init__) -- kept explicit here too so this can never silently
@@ -1665,8 +1706,21 @@ class Learner(LoRALearner):
                     # svd_rank (every fold after the first, in fixed-rank
                     # mode), indices [svd_rank:composite_rank] are real,
                     # accurately-recovered singular values -- not noise -- so
-                    # S[:composite_rank].min() is now a genuine "rent" charge
-                    # instead of ~0.
+                    # the smallest of them is a genuine "rent" charge instead
+                    # of ~0.
+                    #
+                    # 2026-10-14: briefly "fixed" to read delta from position
+                    # svd_rank instead of S.min(), on the reasoning that this
+                    # is Fast-FD's Algorithm 3.1 with a 2*ell buffer (ell=
+                    # svd_rank). Reverted -- see utils/freqdir_dense.py's
+                    # docstring: the FD paper's bound holds for any k < ell
+                    # with B_k a PLAIN top-k truncation of the ell-wide
+                    # shrunk B, no further shrinking. composite_rank plays
+                    # ell here (S_real is the full candidate set
+                    # fd_shrink_probe shrinks by its own boundary value),
+                    # svd_rank plays k (the truncation below, applied after
+                    # fd_shrink_probe returns, with no extra shrink needed at
+                    # that boundary) -- S.min() was already correct.
                     with ce_region("sketchlora/fold_merge_freqdir_dense"):
                         prev_rank = A_s.shape[0] if self._sketch_populated else 0
                         residual_total = sum(A_list[slot].weight.shape[0] for slot in residual_slots)
@@ -1752,7 +1806,25 @@ class Learner(LoRALearner):
                 residual_total = sum(A_list[slot].weight.shape[0] for slot in residual_slots)
                 composite_rank = prev_rank + residual_total
                 with ce_region("sketchlora/fold_rank_select"):
-                    if full_svd_needed:
+                    if self.merge_op == "qrsvd" and full_svd_needed:
+                        # Exact SVD of delta_W = B_cat @ A_cat via the concatenated
+                        # factors' QR decompositions, never decomposing the dense
+                        # [d,d] delta_W itself (though it's still FORMED above, for
+                        # the sketch_diag reconstruction-error check below -- this
+                        # branch only replaces how U/S/Vh get computed). See
+                        # _compress's docstring for the derivation.
+                        with ce_region("sketchlora/fold_merge_qrsvd"):
+                            B_cat = torch.cat([B_s] + [B_list[slot].weight for slot in residual_slots],
+                                              dim=1).float()                       # [d, total_r]
+                            A_cat = torch.cat([A_s] + [A_list[slot].weight for slot in residual_slots],
+                                              dim=0).float()                       # [total_r, d]
+                            Q_B, R_B = torch.linalg.qr(B_cat)                       # [d,tr],[tr,tr]
+                            Q_A, R_A = torch.linalg.qr(A_cat.t())                   # [d,tr],[tr,tr]
+                            M_small = R_B @ R_A.t()                                # [tr, tr], tiny
+                            U_small, S, Vh_small = torch.linalg.svd(M_small)
+                            U = Q_B @ U_small                                       # [d, tr], exact
+                            Vh = Vh_small @ Q_A.t()                                 # [tr, d], exact
+                    elif full_svd_needed:
                         U, S, Vh = torch.linalg.svd(delta_W.float())          # reused for diag + recon
                     elif self.merge_op == "randsvd" and need_svdvals:
                         # fixed-rank randsvd (energy_target is None) still needs

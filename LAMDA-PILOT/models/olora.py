@@ -31,13 +31,17 @@ ce_profiling_methodology memory for the fuller investigation.
 """
 
 import logging
+import os
+
 import numpy as np
 import torch
 from torch import optim
 from torch.nn import functional as F
+from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from models.lora import Learner as LoRALearner
+from models.lora import num_workers
 from models.bank_cap_mixin import BankCapMixin
 from utils.toolkit import tensor2numpy
 # *** UNTESTED as of 2026-08-03 *** -- measured-CE region tagging
@@ -45,6 +49,8 @@ from utils.toolkit import tensor2numpy
 # session is active (utils/ce_profiler.py).
 from utils.ce_profiler import ce_region, run_boundary, run_step_narrow
 from utils.ce2_profiler import ce2_boundary
+from utils.embed_drift import extract_features, save_feature_group
+from utils.adapter_snapshot import save_adapter_snapshot
 
 
 class Learner(BankCapMixin, LoRALearner):
@@ -72,6 +78,19 @@ class Learner(BankCapMixin, LoRALearner):
         # cannot tell apart. See scripts/olora_mechanism_ablation_imagenetr20t.slurm.
         self.train_merge = bool(args.get("lora_train_merge", True))
         self._olora_pinned_slot = None
+        # -- olora_sketch_fd_divergence campaign (2026-10-21 user design):
+        # reference-adapter feature dumps + low-rank factor snapshots, mirroring
+        # models/sketchlora.py's own embed_drift_dir/adapter_snapshot_dir
+        # mechanism (see utils/embed_drift.py, utils/adapter_snapshot.py).
+        # O-LoRA has no compression boundary -- "boundary" here means "this
+        # task's training just finished," called from the end of _train().
+        self.embed_drift_dir = args.get("embed_drift_dir", None)
+        if self.embed_drift_dir is not None:
+            os.makedirs(self.embed_drift_dir, exist_ok=True)
+        self.adapter_snapshot_dir = args.get("adapter_snapshot_dir", None)
+        if self.adapter_snapshot_dir is not None:
+            os.makedirs(self.adapter_snapshot_dir, exist_ok=True)
+        self._task_class_ranges = {}   # task idx -> (known, total) class bounds
 
     # -- Bank-cap: which LoRA slot to train/route on the current task -----
     # Overrides models/lora.py's base `return self._cur_task`. The base
@@ -303,6 +322,56 @@ class Learner(BankCapMixin, LoRALearner):
     # read every step. Falls back to models/lora.py::persistent_state(), which
     # already sums every currently-allocated slot's A+B+head -- exactly the
     # right accounting once nothing gets folded away.
+    # -- olora_sketch_fd_divergence campaign: reference-adapter instrumentation --
+    def _drift_test_loader(self, task_idx):
+        """Identical to models/sketchlora.py's own helper of the same name --
+        duplicated rather than imported since it closes over self.data_manager/
+        self.batch_size, not a free function."""
+        known, total = self._task_class_ranges[task_idx]
+        dataset = self.data_manager.get_dataset(np.arange(known, total), source="test", mode="test")
+        return DataLoader(dataset, batch_size=self.batch_size, shuffle=False, num_workers=num_workers)
+
+    def _maybe_extract_drift_cumulative(self):
+        """O-LoRA's counterpart of SketchLoRA's _maybe_extract_drift_sketch:
+        every task r <= current task's test images, through O-LoRA's CURRENT
+        merged adapter (all slots 0..current summed, same forward training
+        itself used -- _forward_task's own merge=self.train_merge
+        convention). No "exact vs sketch" distinction here -- O-LoRA never
+        compresses, so there is only ever one state per boundary."""
+        if self.embed_drift_dir is None:
+            return
+        net = self._network.module if hasattr(self._network, "module") else self._network
+        n = self._cur_task
+        t = self._train_adapter()
+        for r in range(n + 1):
+            loader = self._drift_test_loader(r)
+            feats, labels = extract_features(
+                net, loader, lambda net_, x: net_(x, task=t, merge=self.train_merge), self._device)
+            save_feature_group(self.embed_drift_dir, "olora_task{}_boundary{}.npz".format(r, n),
+                                feats, labels, task=r, boundary=n, kind="olora")
+
+    def _maybe_save_adapter_snapshot(self):
+        """Persist O-LoRA's FULL concatenated adapter -- every slot 0..current
+        task's (B, A), concatenated along the rank axis per (block, proj)
+        module -- exactly the "much higher-rank concatenated factors" the
+        divergence comparison needs as its reference. Mirrors
+        _refresh_orth_cache's own concatenation pattern (torch.cat over
+        range(t+1) here, vs range(t) there, since that cache deliberately
+        excludes the CURRENT slot and this snapshot must include it)."""
+        if self.adapter_snapshot_dir is None:
+            return
+        n = self._cur_task
+        t = self._train_adapter()
+        layer_proj_to_BA = {}
+        for li, attn in enumerate(self._network.attn_modules()):
+            for proj, (A_list, B_list) in (("q", (attn.lora_A_q, attn.lora_B_q)),
+                                            ("v", (attn.lora_A_v, attn.lora_B_v))):
+                B_cat = torch.cat([B_list[s].weight for s in range(t + 1)], dim=1)
+                A_cat = torch.cat([A_list[s].weight for s in range(t + 1)], dim=0)
+                layer_proj_to_BA[(li, proj)] = (B_cat, A_cat)
+        save_adapter_snapshot(self.adapter_snapshot_dir, "olora_boundary{}.pt".format(n),
+                               layer_proj_to_BA, boundary=n, n_slots=t + 1)
+
     def _train(self, train_loader):
         # oracle-mode boundary bookkeeping (docs/ce_step_boundary_isolation_plan.md
         # sec 7): trainer.py has no visibility inside incremental_train(), so this
@@ -322,6 +391,7 @@ class Learner(BankCapMixin, LoRALearner):
             optimizer, T_max=self.epochs, eta_min=self.min_lr) if self.lr_anneal else None
 
         lo, hi = self._ce_slice()
+        self._task_class_ranges[self._cur_task] = (lo, hi)
         prog_bar = tqdm(range(self.epochs))
         for _, epoch in enumerate(prog_bar):
             self._network.train()
@@ -367,3 +437,17 @@ class Learner(BankCapMixin, LoRALearner):
                     orth_run / len(train_loader), train_acc))
         logging.info("[O-LoRA] Task {} done. Acc {:.2f}, final Orth {:.3f}".format(
             self._cur_task, train_acc, orth_run / len(train_loader)))
+
+        # olora_sketch_fd_divergence campaign: reference-adapter dump, run
+        # AFTER this task's training completes -- O-LoRA has no separate
+        # compression step, so "end of this task's training" is the one and
+        # only state worth snapshotting per boundary (matches the cadence
+        # SketchLoRA/FD Sum snapshot at: once per task). Deliberately NOT
+        # wrapped in ce2_boundary/run_boundary -- matches models/sketchlora.py's
+        # own _maybe_extract_drift_exact/_maybe_extract_drift_sketch, which
+        # sit outside that wrapper too (only the actual compress/train step
+        # is CE-measured; this instrumentation is a no-op unless the new
+        # embed_drift_dir/adapter_snapshot_dir keys are set, which no existing
+        # CE-profiled campaign does).
+        self._maybe_extract_drift_cumulative()
+        self._maybe_save_adapter_snapshot()
