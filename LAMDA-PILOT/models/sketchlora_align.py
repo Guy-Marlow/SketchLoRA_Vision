@@ -417,6 +417,25 @@ class Learner(SketchLoRALearner):
             reg_b, sign_b = self._orth_loss_b(), 1.0
         return reg_a, sign_a, reg_b, sign_b
 
+    def _stream_extra_loss(self, lo, hi):
+        """StreamMixin hook (models/stream_mixin.py's own _stream_train_epoch
+        calls this every chunk; default base-class implementation returns a
+        bare 0.0, "(O-LoRA orthogonality)" per its own docstring -- O-LoRA
+        overrides it, this class never did). CONFIRMED MISSING 2026-10-29:
+        without this override, running model_name="sketchlora_align" under
+        boundary_mode="sample" silently trained with NO orthogonality/align
+        penalty at all -- the oracle path's own regularizer lives entirely in
+        this class's duplicate _train_core loop (see that method's own
+        docstring on why it's a full duplicate, not a shared hook), which
+        streaming mode never calls. Same byte-for-byte combination formula as
+        _train_core's own `w_a*sign_a*reg_a + w_b*sign_b*reg_b` term (lo/hi
+        args unused -- the regularizer compares adapter WEIGHTS, not logits,
+        so it doesn't depend on the chunk's own class range)."""
+        reg_a, sign_a, reg_b, sign_b = self._reg_terms()
+        w_a = self._current_align_weight()
+        w_b = self.align_weight_b if self.align_weight_b is not None else w_a
+        return w_a * sign_a * reg_a + w_b * sign_b * reg_b
+
     def _train_core(self, train_loader):
         """models/lora.py::Learner._train's loop, plus the align-to-sketch
         term. Duplicated rather than shared (same reason models/olora.py,

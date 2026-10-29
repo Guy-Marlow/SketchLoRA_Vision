@@ -14,10 +14,16 @@ genuinely simulates a memory-constrained data stream the model is unaware of:
     order (mixing that task's own classes together -- an "arrival order," not
     the ordinary per-epoch minibatch shuffle), concatenated task-by-task.
   * That sequence is partitioned into fixed-size chunks of exactly
-    ``stream_budget_mb`` worth of images (224x224x3 bytes/image). A chunk that
-    only partially overlaps a task carries the task's remaining images forward
-    into the very next chunk -- no image is ever shown twice, and none are
-    skipped.
+    ``stream_chunk_samples`` images (2026-10-29: a direct raw sample count --
+    the project's standing param for this now, set it to whatever chunk size
+    "r" you want tested; ``stream_budget_mb`` still works too, converted via
+    the same 224x224x3 bytes/image accounting as utils/budget_stream.py, kept
+    only for existing configs that already use it -- new configs should use
+    stream_chunk_samples directly, it's the literal quantity the mechanism
+    actually operates on, not a size estimate that has to be reverse-engineered
+    back into an image count). A chunk that only partially overlaps a task
+    carries the task's remaining images forward into the very next chunk -- no
+    image is ever shown twice, and none are skipped.
   * A chunk trains for the method's own ``epochs`` epochs (repeated passes over
     that FIXED chunk are normal and don't consume additional budget -- the
     budget counts distinct images once, not per-epoch exposure).
@@ -70,8 +76,9 @@ def _stream_checkpoint_write(args, results, tag="stream", partial=True):
     os.makedirs("run_logs", exist_ok=True)
     with open(out, "w") as f:
         json.dump({"args_subset": {k: args.get(k) for k in
-                    ("model_name", "dataset", "init_cls", "increment", "stream_budget_mb",
-                     "n_lora_blocks", "init_lr", "svd_energy_target", "lamda_1", "lamb", "lame")},
+                    ("model_name", "dataset", "init_cls", "increment", "stream_chunk_samples",
+                     "stream_budget_mb", "n_lora_blocks", "init_lr", "svd_energy_target",
+                     "lamda_1", "lamb", "lame")},
                     "results": results, "partial": partial}, f, indent=2)
 
 # uint8 model-input accounting: 224x224x3, the same "memory budget" convention
@@ -248,8 +255,27 @@ class StreamMixin:
         _n_run = min(_n_run, nb_tasks)
         if _n_run < nb_tasks:
             logging.info("[stream] stop_after_tasks={} (of {} total)".format(_n_run, nb_tasks))
-        stream_budget_mb = float(args["stream_budget_mb"])   # required, no silent default
-        budget_images = max(1, round(stream_budget_mb * 1024 * 1024 / BYTES_PER_IMAGE))
+        # 2026-10-29: stream_chunk_samples (a direct raw image/sample count,
+        # "r") is now the preferred way to set the chunk size -- the literal
+        # quantity stream_run() actually slices by, not an MB estimate that
+        # gets converted back into one. stream_budget_mb is still accepted
+        # (for existing pre-2026-10-29 configs, e.g. exps/omni1k_streamcompare/
+        # *.json) and converted the same way as before if stream_chunk_samples
+        # isn't set. Exactly one of the two must be present -- no silent
+        # default, same contract as the old stream_budget_mb-only version.
+        chunk_samples_arg = args.get("stream_chunk_samples")
+        stream_budget_mb_arg = args.get("stream_budget_mb")
+        assert (chunk_samples_arg is not None) != (stream_budget_mb_arg is not None), \
+            "boundary_mode='sample' needs exactly one of stream_chunk_samples (preferred, " \
+            "a direct image count) or stream_budget_mb (legacy, converted via the same " \
+            "224x224x3 bytes/image accounting as utils/budget_stream.py) -- got " \
+            "stream_chunk_samples={}, stream_budget_mb={}".format(chunk_samples_arg, stream_budget_mb_arg)
+        if chunk_samples_arg is not None:
+            budget_images = max(1, int(chunk_samples_arg))
+            stream_budget_mb = None
+        else:
+            stream_budget_mb = float(stream_budget_mb_arg)
+            budget_images = max(1, round(stream_budget_mb * 1024 * 1024 / BYTES_PER_IMAGE))
         # Opt-in (default off, preserves existing per-completed-task eval behavior for
         # any caller relying on the full accuracy-vs-chunk curve): skip the CIL eval that
         # would otherwise fire every time a chunk completes one or more real tasks, and
@@ -288,9 +314,10 @@ class StreamMixin:
         chunk_bounds = list(range(0, total_images, budget_images)) + [total_images]
         chunks = [(chunk_bounds[i], chunk_bounds[i + 1]) for i in range(len(chunk_bounds) - 1)
                   if chunk_bounds[i + 1] > chunk_bounds[i]]
-        logging.info("[stream] unique-image budget {} images ({}MB); {} total images, "
-                     "{} tasks -> {} chunks".format(
-                         budget_images, stream_budget_mb, total_images, _n_run, len(chunks)))
+        budget_desc = "{} images (direct sample count)".format(budget_images) if stream_budget_mb is None \
+            else "{} images ({}MB)".format(budget_images, stream_budget_mb)
+        logging.info("[stream] unique-image chunk size {}; {} total images, "
+                     "{} tasks -> {} chunks".format(budget_desc, total_images, _n_run, len(chunks)))
 
         self._known_classes = 0
         self._total_classes = 0
