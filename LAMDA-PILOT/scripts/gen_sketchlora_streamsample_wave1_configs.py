@@ -24,13 +24,15 @@ sketchlora_align_sample_stream_test.json, 2026-10-29) that:
      test's own SketchDiag log lines, whose "task N" counter climbs once
      PER CHUNK (0->20 over 21 chunks), not once per real task.
 
-Base configs are the exact winning-LR configs from this session's top-1%
-sketchlora_align LR sweep (scripts/sketchlora_top1_lr_sweep.py):
-  - imagenetr: 2e-3 (clear peak, 69.51% T1%, decisive over the whole 7e-4..
-    3e-3 grid)
-  - cifar224: 9e-4 (the sweep was cut short on explicit user instruction
-    before finishing the grid; 8e-4/9e-4 were tied at this point -- 9e-4
-    taken as the last/best-so-far value, not a fully decided optimum)
+Base configs are this session's top-1% sketchlora_align LR-sweep configs
+(scripts/sketchlora_top1_lr_sweep.py) -- same backbone/lora_rank/svd_rank/
+batch_size/weight_decay as the master-table wave1 configs, just generated
+by a different script -- EXCEPT init_lr, which is overridden back to
+exps/sketchlora_orth_wave1_datasets/'s own 1e-3 for both datasets
+(2026-10-30 user instruction: don't introduce an LR difference as a second
+variable on top of the streaming-vs-oracle comparison this campaign is
+actually testing; the top-1%-tuned winners, 2e-3/imagenetr and 9e-4/
+cifar224, were a separate, unrelated tuning effort and not reused here).
 Both stripped of stop_after_tasks (that LR search truncated to 10/5 tasks
 for speed; this campaign runs the FULL regime -- 20 tasks/imagenetr,
 10 tasks/cifar224, matching exps/sketchlora_orth_wave1_datasets/'s own
@@ -64,6 +66,12 @@ SOURCE_CONFIGS = {
     "cifar224": "exps/sketchlora_top1_lr_sweep/cifar224/9e-4_s1993.json",
 }
 
+# 2026-10-30: use the SAME init_lr as the master-table wave1 configs
+# (exps/sketchlora_orth_wave1_datasets/{imagenetr,cifar224}_s1993.json, both
+# 1e-3) rather than each dataset's own top-1%-tuned winner -- avoids
+# introducing a second variable alongside the streaming-vs-oracle comparison.
+WAVE1_INIT_LR = 0.001
+
 # keys from the LR-sweep source configs that don't belong in a full-regime
 # streaming config -- stripped unconditionally before adding the streaming
 # keys below.
@@ -83,6 +91,7 @@ def main():
             for seed in SEEDS:
                 cfg = dict(base)
                 cfg["seed"] = [seed]
+                cfg["init_lr"] = WAVE1_INIT_LR
                 cfg["boundary_mode"] = "sample"
                 cfg["stream_chunk_samples"] = chunk
                 cfg["final_metrics"] = False
