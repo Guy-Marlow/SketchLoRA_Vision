@@ -56,6 +56,10 @@ def get_model(model_name, args):
         from models.seqlora_orth import Learner
     elif name == 'noadapt':
         from models.noadapt import Learner
+    elif name == 'slao':
+        from models.slao import Learner
+    elif name == 'sdlora':
+        from models.sdlora import Learner
     elif name == 'olora':
         from models.olora import Learner
     elif name == 'inflora':

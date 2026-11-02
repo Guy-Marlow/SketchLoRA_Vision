@@ -273,6 +273,31 @@ def get_backbone(args, pretrained=False):
         else:
             raise NotImplementedError("Unknown type {}".format(name))
         return model
+    # SD-LoRA (backbone/vit_sdlora.py) -- ported 2026-10-27, see models/sdlora.py
+    # and scratchpad/analysis_sdlora.md for the full design rationale. Same
+    # growable-slot/preallocation convention as the plain '_lora' branch below
+    # (LoRAVitNet is reused unchanged as this backbone's Net wrapper -- it only
+    # ever calls through to whatever the backbone itself exposes, and
+    # VisionTransformerSDLoRA exposes the same forward/freeze_to_task/
+    # add_task_slot/attn_modules surface as the plain VisionTransformer).
+    elif '_sdlora' in name:
+        from backbone import vit_sdlora
+        n_tasks = args.get("lora_n_slots", 1)
+        lora_rank = args.get("lora_rank", 10)
+        lora_alpha = args.get("lora_alpha", None)
+        n_lora_blocks = args.get("n_lora_blocks", None)
+        if name == "vit_base_patch16_224_sdlora":
+            model = vit_sdlora.vit_base_patch16_224_sdlora(
+                n_tasks=n_tasks, lora_rank=lora_rank, lora_alpha=lora_alpha,
+                n_lora_blocks=n_lora_blocks, num_classes=0, drop_path_rate=0.0)
+        elif name == "vit_base_patch16_224_in21k_sdlora":
+            model = vit_sdlora.vit_base_patch16_224_in21k_sdlora(
+                n_tasks=n_tasks, lora_rank=lora_rank, lora_alpha=lora_alpha,
+                n_lora_blocks=n_lora_blocks, num_classes=0, drop_path_rate=0.0)
+        else:
+            raise NotImplementedError("Unknown type {}".format(name))
+        model.out_dim = 768
+        return model
     # Baseline per-task LoRA (q,v) backbone -- see backbone/vit_lora.py
     elif '_lora' in name:
         from backbone import vit_lora
@@ -1679,8 +1704,15 @@ class LoRAVitNet(BaseNet):
         self.backbone.freeze_to_task(task, train_a=train_a)
 
     # -- dynamic slot growth passthrough (boundary-agnostic streaming only) --
-    def add_task_slot(self):
-        self.backbone.add_task_slot()
+    # `rank` is SD-LoRA-RR-only (backbone/vit_sdlora.py's VisionTransformerSDLoRA.
+    # add_task_slot(rank=...)) -- every other backbone's own add_task_slot()
+    # takes no args, so the default (rank=None -> no-arg call) leaves every
+    # other method byte-for-byte unaffected.
+    def add_task_slot(self, rank=None):
+        if rank is not None:
+            self.backbone.add_task_slot(rank=rank)
+        else:
+            self.backbone.add_task_slot()
 
     # -- frozen-slot folding passthrough (opt-in, plan doc §6 item 2) ----
     def enable_frozen_folding(self):
