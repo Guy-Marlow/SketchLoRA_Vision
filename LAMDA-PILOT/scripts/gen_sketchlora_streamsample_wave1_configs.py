@@ -44,15 +44,15 @@ ever reached, confirmed by direct code reading, not assumption).
 Originally 3 chunk sizes (500/1000/1500 images) x 2 datasets (imagenetr/
 cifar224) x 3 seeds = 18 runs. EXTENDED 2026-11-02 (explicit user request,
 after analyzing the first 18 runs -- see Documents/
-sketchlora_streamsample_wave1_cifar100_accuracy.png): imagenetr is left
-UNCHANGED at its original 3 chunk sizes (not part of this request); cifar224
-gains chunk 2000/2500; omnibenchmark1k is added as a THIRD dataset at all 5
-chunk sizes (500/1000/1500/2000/2500) -- never run under this campaign
-before. Confirmed with the user: don't re-run cifar224's existing 500/1000/
-1500 (already complete and analyzed) just to reach the new grid uniformly --
-regenerating them here is harmless (byte-identical to what's already on
-disk, same source/formula/LR, so the SLURM script's own resumability check
-still skips them) rather than something this generator needs to special-case.
+sketchlora_streamsample_wave1_cifar100_accuracy.png): cifar224 gains chunk
+2000/2500; omnibenchmark1k is added as a THIRD dataset at all 5 chunk sizes
+(500/1000/1500/2000/2500) -- never run under this campaign before.
+FURTHER EXTENDED same day (second request): imagenetr also gains chunk
+2000/2500, so all three datasets now share the identical 5-size grid.
+Regenerating cifar224/imagenetr's existing 500/1000/1500 configs is
+harmless -- byte-identical to what's already on disk (same source/formula/
+LR), so the SLURM script's own resumability check still skips the already-
+completed runs; this generator doesn't need to special-case them.
 
 omnibenchmark1k has NO existing qrsvd+orth streaming-convention source
 config to copy from (exps/wave1_final/sketchlora_omnibenchmark1k_s1993.json
@@ -79,10 +79,10 @@ import os
 OUT_DIR = "exps/sketchlora_streamsample_wave1"
 SEEDS = [1993, 1996, 1999]
 
-# per-dataset chunk-size grid -- imagenetr untouched, cifar224/omnibenchmark1k
-# extended per the 2026-11-02 request.
+# per-dataset chunk-size grid -- all three now share the same 5 sizes as of
+# the second 2026-11-02 extension (imagenetr initially excluded, then added).
 DATASET_CHUNK_SIZES = {
-    "imagenetr": [500, 1000, 1500],
+    "imagenetr": [500, 1000, 1500, 2000, 2500],
     "cifar224": [500, 1000, 1500, 2000, 2500],
     "omnibenchmark1k": [500, 1000, 1500, 2000, 2500],
 }

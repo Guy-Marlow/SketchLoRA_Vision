@@ -27,12 +27,10 @@
 # NO orthogonality penalty) is genuinely wired in and active from the 2nd
 # chunk onward.
 #
-# 2026-11-02 EXTENDED (separate request from the SLAO/SD-LoRA oracle
+# 2026-11-02 EXTENDED, twice (separate request from the SLAO/SD-LoRA oracle
 # campaign below -- this one is SketchLoRA-only, testing how SketchLoRA
 # itself performs under the stream-sample setting, NOT a comparison that
 # runs SLAO/SD-LoRA under streaming at all):
-#   - imagenetr: UNCHANGED, still only chunk 500/1000/1500 (already
-#     complete as of 2026-10-31, not re-touched by this extension)
 #   - cifar224: chunk 500/1000/1500 (already complete) PLUS NEW chunk
 #     2000/2500
 #   - omnibenchmark1k: entirely NEW, all 5 chunk sizes (500/1000/1500/
@@ -41,8 +39,12 @@
 #     could not be confirmed locally (data not downloaded on this
 #     machine) before these configs were built -- treat the wall-time
 #     estimate below as a rough floor, not a measurement.
-# Total: 9 (imagenetr, unchanged) + 15 (cifar224, 5 sizes x 3 seeds) + 15
-# (omnibenchmark1k, 5 sizes x 3 seeds) = 39 runs.
+#   - imagenetr: initially left at its original chunk 500/1000/1500
+#     (already complete as of 2026-10-31), then ALSO extended to
+#     2000/2500 per a follow-up request the same day -- all three
+#     datasets now share the identical 5-size grid.
+# Total: 15 (imagenetr, 5 sizes x 3 seeds) + 15 (cifar224, 5 sizes x 3
+# seeds) + 15 (omnibenchmark1k, 5 sizes x 3 seeds) = 45 runs.
 # init_lr=1e-3 on ALL THREE datasets (2026-10-30: matches exps/
 # sketchlora_orth_wave1_datasets/'s own master-table LR convention, not
 # any dataset's top-1%-tuned LR-sweep winner -- avoids introducing a
@@ -142,7 +144,7 @@ run_one() {
   echo "==== DONE  ${tag} $(date) ===="
 }
 
-echo "==== ${CAMPAIGN} start: 39 runs (imagenetr 3 sizes + cifar224/omnibenchmark1k 5 sizes each, x 3 seeds) $(date) ===="
+echo "==== ${CAMPAIGN} start: 45 runs (imagenetr/cifar224/omnibenchmark1k, 5 sizes each, x 3 seeds) $(date) ===="
 
 # dataset-major, cheapest-and-most-complete first (imagenetr -> cifar224 ->
 # omnibenchmark1k, the latter entirely unmeasured and likely the most
@@ -150,10 +152,10 @@ echo "==== ${CAMPAIGN} start: 39 runs (imagenetr 3 sizes + cifar224/omnibenchmar
 # dataset (smallest-chunk/most-chunks runs first, so a wall-clock cutoff
 # still yields a complete small-chunk picture rather than large-chunk runs
 # finishing while small-chunk ones are left totally unstarted), seed-minor.
-# Per-dataset chunk-size list (NOT uniform -- imagenetr intentionally
-# excludes 2000/2500, see header comment).
+# All three datasets now share the identical 5-size grid (imagenetr was
+# extended to match cifar224/omnibenchmark1k after a follow-up request).
 declare -A CHUNKS_FOR
-CHUNKS_FOR[imagenetr]="500 1000 1500"
+CHUNKS_FOR[imagenetr]="500 1000 1500 2000 2500"
 CHUNKS_FOR[cifar224]="500 1000 1500 2000 2500"
 CHUNKS_FOR[omnibenchmark1k]="500 1000 1500 2000 2500"
 
