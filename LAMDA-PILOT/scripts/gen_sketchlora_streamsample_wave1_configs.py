@@ -41,12 +41,31 @@ final_metrics (inert under boundary_mode="sample" anyway -- trainer.py
 returns from _run_stream before the final_metrics/MetricsLogger block is
 ever reached, confirmed by direct code reading, not assumption).
 
-3 chunk sizes (500/1000/1500 images) x 2 datasets x 3 seeds = 18 runs.
-Chunk sizes chosen per explicit user instruction (2026-10-29), at a scale
-large enough to produce a real experiment (dozens of chunks per run, not
-the smoke test's throwaway 200-sample/21-chunk scale): imagenetr's ~26-27k
-full-regime images give ~52/27/18 chunks at 500/1000/1500; cifar224's 50k
-give ~100/50/33.
+Originally 3 chunk sizes (500/1000/1500 images) x 2 datasets (imagenetr/
+cifar224) x 3 seeds = 18 runs. EXTENDED 2026-11-02 (explicit user request,
+after analyzing the first 18 runs -- see Documents/
+sketchlora_streamsample_wave1_cifar100_accuracy.png): imagenetr is left
+UNCHANGED at its original 3 chunk sizes (not part of this request); cifar224
+gains chunk 2000/2500; omnibenchmark1k is added as a THIRD dataset at all 5
+chunk sizes (500/1000/1500/2000/2500) -- never run under this campaign
+before. Confirmed with the user: don't re-run cifar224's existing 500/1000/
+1500 (already complete and analyzed) just to reach the new grid uniformly --
+regenerating them here is harmless (byte-identical to what's already on
+disk, same source/formula/LR, so the SLURM script's own resumability check
+still skips them) rather than something this generator needs to special-case.
+
+omnibenchmark1k has NO existing qrsvd+orth streaming-convention source
+config to copy from (exps/wave1_final/sketchlora_omnibenchmark1k_s1993.json
+is base "sketchlora" with ADAPTIVE admission -- a different variant, not
+canonical SketchLoRA) -- built inline instead (OMNIBENCHMARK1K_BASE),
+matching the same field set as the imagenetr/cifar224 source configs
+exactly, same init_lr=0.001 (confirmed matching exps/wave1_final/
+sketchlora_omnibenchmark1k_s1993.json's own init_lr, so this isn't a new LR
+decision). No stop_after_tasks -- full regime, same "no cap" convention as
+imagenetr/cifar224 -- NOTE: omnibenchmark1k is a 100-task dataset (~10x
+cifar224's task count); its full-regime image count could not be confirmed
+locally (data not downloaded on this machine) before building these
+configs -- walltime in the .slurm script is a rough estimate, not measured.
 
 sketchlora_diag_dir is set to a campaign-dedicated directory -- cross-
 campaign sketch_diag collisions are a known, previously-fixed bug class in
@@ -59,7 +78,14 @@ import os
 
 OUT_DIR = "exps/sketchlora_streamsample_wave1"
 SEEDS = [1993, 1996, 1999]
-CHUNK_SIZES = [500, 1000, 1500]
+
+# per-dataset chunk-size grid -- imagenetr untouched, cifar224/omnibenchmark1k
+# extended per the 2026-11-02 request.
+DATASET_CHUNK_SIZES = {
+    "imagenetr": [500, 1000, 1500],
+    "cifar224": [500, 1000, 1500, 2000, 2500],
+    "omnibenchmark1k": [500, 1000, 1500, 2000, 2500],
+}
 
 SOURCE_CONFIGS = {
     "imagenetr": "exps/sketchlora_top1_lr_sweep/imagenetr/2e-3_s1993.json",
@@ -77,17 +103,60 @@ WAVE1_INIT_LR = 0.001
 # keys below.
 STRIP_KEYS = ("stop_after_tasks", "final_metrics", "sketchlora_diag_dir", "prefix")
 
+# 2026-11-02: no qrsvd+orth streaming-convention source config exists for
+# omnibenchmark1k (see module docstring) -- built directly to match the
+# exact same field set as the imagenetr/cifar224 source configs after their
+# own STRIP_KEYS pass.
+OMNIBENCHMARK1K_BASE = {
+    "dataset": "omnibenchmark1k",
+    "memory_size": 0,
+    "memory_per_class": 0,
+    "fixed_memory": False,
+    "shuffle": True,
+    "init_cls": 10,
+    "increment": 10,
+    "scenario": "cil",
+    "pretrained": True,
+    "print_forget": True,
+    "tuned_epoch": 20,
+    "batch_size": 48,
+    "weight_decay": 0.0005,
+    "min_lr": 0.0,
+    "model_name": "sketchlora_align",
+    "backbone_type": "vit_base_patch16_224_lora",
+    "lora_rank": 10,
+    "lora_alpha": None,
+    "lora_merge": True,
+    "lora_train_merge": True,
+    "svd_rank": 10,
+    "svd_oversampling": 10,
+    "lora_n_slots": 2,
+    "sketch_diag": True,
+    "sketchlora_lora_wd": 0.0,
+    "sketchlora_align_mode": "orth",
+    "sketchlora_align_weight": 0.5,
+    "merge_op": "qrsvd",
+    "device": ["0"],
+}
+
+
+def load_base(dataset):
+    if dataset in SOURCE_CONFIGS:
+        base = json.load(open(SOURCE_CONFIGS[dataset]))
+        for key in STRIP_KEYS:
+            base.pop(key, None)
+        return base
+    return dict(OMNIBENCHMARK1K_BASE)
+
 
 def main():
     written = []
-    for dataset, src_path in SOURCE_CONFIGS.items():
+    for dataset, chunk_sizes in DATASET_CHUNK_SIZES.items():
         out_dir = os.path.join(OUT_DIR, dataset)
         os.makedirs(out_dir, exist_ok=True)
-        base = json.load(open(src_path))
-        for key in STRIP_KEYS:
-            base.pop(key, None)
+        base = load_base(dataset)
 
-        for chunk in CHUNK_SIZES:
+        for chunk in chunk_sizes:
             for seed in SEEDS:
                 cfg = dict(base)
                 cfg["seed"] = [seed]
