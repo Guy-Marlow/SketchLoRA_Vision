@@ -100,8 +100,21 @@ echo "==== pre-flight OK, CUDA_VISIBLE_DEVICES=0 $(date) ===="
 
 run_one() {
   local config="$1"
+  local dataset
   local tag
-  tag="$(basename "$config" .json)"
+  # 2026-11-02 BUG FIX: tag used to be just the config's own basename
+  # (e.g. "chunk500_s1993"), which collides across the two datasets --
+  # exps/sketchlora_streamsample_wave1/{imagenetr,cifar224}/chunk500_s1993.json
+  # both produced "chunk500_s1993.out" in the SAME flat $OUT_ROOT, so
+  # cifar224's run (started after every imagenetr run per the dataset-major
+  # loop below) silently overwrote imagenetr's .out text for every matching
+  # chunk/seed pair. Confirmed on the actual 2026-10-31 cluster run: all 9
+  # imagenetr .out files were destroyed this way (only cifar224's content
+  # survived). The runs' own structured JSON results were NOT affected --
+  # _run_stream's own filename is built from args["prefix"], which already
+  # includes the dataset -- only this script's raw-log naming was broken.
+  dataset="$(basename "$(dirname "$config")")"
+  tag="${dataset}_$(basename "$config" .json)"
   local outfile="${OUT_ROOT}/${tag}.out"
 
   if python scripts/_stream_run_done.py "$config" 2>/dev/null; then
