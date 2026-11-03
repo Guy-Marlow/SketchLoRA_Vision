@@ -29,8 +29,26 @@ campaign runs the FULL regime) -- final_metrics/print_forget left ON
 (unlike the LR search itself, which also had both on; this is a production
 run, matching exps/wave1_final/'s own final_metrics=true convention).
 
-init_cls=10/increment=10 on every dataset, matching exps/wave1_final/'s own
-5-dataset grid.
+BUG FIX (2026-11-04, user-caught): this previously hardcoded init_cls=10/
+increment=10 for EVERY dataset, with a docstring claim that this matched
+"exps/wave1_final/'s own 5-dataset grid" -- that claim was never actually
+checked against the real files and was false. wave1_final (and the master-
+table main5 campaign, which agrees with it) uses PER-DATASET splits, not a
+uniform 10/10: confirmed directly from exps/wave1_final/sketchlora_{ds}_
+s1993.json for all five --
+  imagenetr: 10/10 (20 tasks)   cifar224: 10/10 (10 tasks)
+  sun397:    37/40 (10 tasks)   food101:  6/5 (20 tasks)
+  omnibenchmark1k: 10/10 (20 tasks)
+Only cifar224/imagenetr/omnibenchmark1k happen to genuinely be 10/10, so the
+old hardcoded value was silently wrong for sun397 and food101 specifically
+-- those two datasets' already-run SLAO/SD-LoRA results (food101: all 3
+seeds; sun397: 1 seed) used a DIFFERENT task split than SketchLoRA's own
+convention and are not directly comparable task-index for task-index.
+Those need to be regenerated with the fix below and re-run.
+
+Per-dataset init_cls/increment now read directly from the matching
+exps/wave1_final/sketchlora_{dataset}_s1993.json file at generation time
+(not hardcoded a second time here) so this can't drift out of sync again.
 
 5 datasets x 2 methods x 3 seeds = 30 runs.
 """
@@ -40,6 +58,7 @@ import os
 OUT_DIR = "exps/slao_sdlora_wave1_datasets"
 SEEDS = [1993, 1996, 1999]
 DATASETS = ["imagenetr", "cifar224", "sun397", "food101", "omnibenchmark1k"]
+WAVE1_FINAL_REF = "exps/wave1_final/sketchlora_{dataset}_s1993.json"
 
 SOURCE_CONFIGS = {
     "slao": "exps/slao_lr_tune_cifar224/slao_lr_tune_cifar224_1e-3_s1993.json",
@@ -78,12 +97,13 @@ def main():
         os.makedirs(out_dir, exist_ok=True)
 
         for dataset in DATASETS:
+            ref = json.load(open(WAVE1_FINAL_REF.format(dataset=dataset)))
             for seed in SEEDS:
                 cfg = dict(base)
                 cfg["dataset"] = dataset
                 cfg["seed"] = [seed]
-                cfg["init_cls"] = 10
-                cfg["increment"] = 10
+                cfg["init_cls"] = ref["init_cls"]
+                cfg["increment"] = ref["increment"]
                 cfg["init_lr"] = LR_BY_DATASET[method][dataset]
                 cfg["prefix"] = "slao_sdlora_wave1_datasets_{}_{}_s{}".format(method, dataset, seed)
                 path = os.path.join(out_dir, "{}_s{}.json".format(dataset, seed))
