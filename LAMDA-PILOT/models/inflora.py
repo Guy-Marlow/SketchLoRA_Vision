@@ -13,10 +13,16 @@ onto the shared LoRA scaffold.  Per task t:
      affect the inputs of previous tasks -> "interference free".
   3. After training, recompute ``cur_matrix`` and grow the DualGPM feature
      memory ``feature_list`` / projection matrices ``feature_mat``.
+  4. Fold task t's trained (A,B) directly into q_proj/v_proj's own weight, in
+     place (``_fold_into_base``, 2026-11-03 -- replaces an earlier design that
+     accumulated into a separate dense ``frozen_delta`` buffer; see that
+     method's own docstring). Exact, zero approximation -- a pure refactor of
+     where the running sum lives, not a new algorithm.
 
 LoRA is on the query and value projections (our shared convention; the original
-uses key/value).  Inference reuses the merged-sum (CIL) / task-routed (TIL)
-evaluation of the baseline ``LoRAVitNet`` + ``TILLearner``.
+uses key/value). Inference uses the merged-sum (CIL) forward of the baseline
+``LoRAVitNet``. TIL is never evaluated in this project (standing instruction)
+and is not a design consideration anywhere in this file.
 """
 
 import logging
@@ -41,15 +47,39 @@ class Learner(BankCapMixin, LoRALearner):
     def __init__(self, args):
         super().__init__(args)
         self._bank_cap_init(args)
-        # InfLoRA's frozen slots are never modified once trained (A is set once
-        # analytically, B is trained once, neither touched again) -- safe to fold
-        # into a dense delta for O(1) merged forward (plan doc §6 item 2).
-        self._network.enable_frozen_folding()
+        # 2026-11-03 CHANGE (user-directed): fold directly into q_proj/v_proj's own
+        # weight, in place, instead of accumulating into the separate frozen_delta
+        # buffer. frozen_delta_bytes alone was ~56.6MB (24 modules x [768,768] x
+        # float32) -- a real, avoidable cost, since InfLoRA never needs the pre-
+        # fold base weight back (TIL is never evaluated in this project -- not a
+        # consideration here at all -- and InfLoRA's own CIL path already reads
+        # the full merged/accumulated state, never an individual past slot).
+        # q_proj/v_proj are pre-existing base-weight tensors every backbone
+        # instance already allocates regardless -- folding into them adds ZERO
+        # new memory, vs. frozen_delta's own full-price separate buffer.
+        # Deliberately NOT calling enable_frozen_folding() -- frozen_delta_q/v
+        # remain allocated (shared backbone infra every Attention_LoRA instance
+        # has unconditionally) but stay permanently zero/unused here; see
+        # _fold_into_base() below for the actual fold. This is InfLoRA-ONLY --
+        # the shared backbone class (backbone/vit_lora.py) is untouched, so
+        # every other method built on it (O-LoRA, SeqLoRA, TreeLoRA, HideLoRA,
+        # ...) is completely unaffected.
         self.rank = args.get("lora_rank", 10)
         self.lamb = args.get("lamb", 0.95)        # DualGPM threshold lower bound
         self.lame = args.get("lame", 1.0)         # DualGPM threshold upper bound
         self.total_sessions = args["nb_tasks"]
-        self.train_merge = True                   # accumulated forward (sum 0..t)
+        # merge=False, not True: q_proj/v_proj now carry every PAST task's folded
+        # contribution directly, so forward only needs to ADD the current (not-
+        # yet-folded) task's own small (A,B) term on top -- exactly what merge=
+        # False's single-slot routing already computes (see backbone/vit_lora.py::
+        # _lora_delta's `if not merge: return B_list[task](A_list[task](x))`
+        # branch). merge=True would WRONGLY re-sum already-folded-and-freed past
+        # slots on top of a base weight that already includes them.
+        self.train_merge = False
+        self._network.merge = False               # network-level default, read by
+                                                    # the bare self._network(inputs)
+                                                    # call models/base.py::_eval_cnn
+                                                    # uses for every CIL eval
         self.feature_list = []                    # per-layer orthonormal bases (np)
         self.project_type = []                    # 'remove' | 'retain' per layer
         self.feature_mat = []                     # per-layer projection matrices
@@ -59,18 +89,30 @@ class Learner(BankCapMixin, LoRALearner):
     # override and fell back to utils.metrics_logger.default_persistent_state(),
     # which was measuring the wrong thing entirely: it sums named_parameters(),
     # which (a) INCLUDED the (now-freed) dead per-task lora_A/lora_B bank, and
-    # (b) EXCLUDED frozen_delta_q/frozen_delta_v entirely, since those are
-    # register_buffer, not nn.Parameter, so named_parameters() never saw them.
-    # This override counts what InfLoRA's algorithm actually needs to persist:
-    # the folded delta (bounded, O(d^2) per block), the DualGPM bases that seed
-    # future tasks' analytic A, and the current (not-yet-folded) task's own live
-    # slot -- matching exactly what free_folded_slots() leaves allocated.
+    # (b) EXCLUDED frozen_delta_q/frozen_delta_v entirely (back when that was
+    # still this method's fold target), since those are register_buffer, not
+    # nn.Parameter, so named_parameters() never saw them.
+    # UPDATED 2026-11-03: the fold target itself changed -- folding now goes
+    # directly into q_proj/v_proj (see __init__ and _fold_into_base), which are
+    # pre-existing base-weight tensors every backbone instance already
+    # allocates regardless, so that accumulation now costs ZERO additional
+    # persistent memory (not "bounded O(d^2)," genuinely not counted at all).
+    # This override counts what InfLoRA's algorithm actually needs BEYOND the
+    # shared base model: the DualGPM bases that seed future tasks' analytic A,
+    # the current (not-yet-folded) task's own live slot, and fc -- matching
+    # exactly what free_folded_slots() leaves allocated.
     def persistent_state(self):
+        # 2026-11-03: frozen_delta is no longer this method's accumulation target
+        # (see __init__'s comment) -- folding goes directly into q_proj/v_proj,
+        # pre-existing base-weight tensors every backbone instance already
+        # allocates regardless, so it costs ZERO additional persistent memory.
+        # frozen_delta_q/v stay allocated (shared backbone infra) but are
+        # permanently unused here, so they're correctly EXCLUDED from this
+        # count -- matching this project's "count what the algorithm actually
+        # needs" convention (same reasoning sketchlora's own persistent_state
+        # docstring uses), not what happens to still be sitting in memory as
+        # dead, never-written shared infrastructure.
         net = self._network.module if hasattr(self._network, "module") else self._network
-        frozen_delta_bytes = 0
-        for attn in net.attn_modules():
-            frozen_delta_bytes += attn.frozen_delta_q.numel() * attn.frozen_delta_q.element_size()
-            frozen_delta_bytes += attn.frozen_delta_v.numel() * attn.frozen_delta_v.element_size()
         cur_slot_bytes = 0
         for attn in net.attn_modules():
             for mlist in (attn.lora_A_q, attn.lora_B_q, attn.lora_A_v, attn.lora_B_v):
@@ -87,38 +129,26 @@ class Learner(BankCapMixin, LoRALearner):
         for m in self.feature_mat:
             dualgpm_bytes += m.numel() * m.element_size()
         fc_bytes = sum(p.numel() * p.element_size() for p in net.fc.parameters()) if net.fc is not None else 0
-        total_bytes = frozen_delta_bytes + cur_slot_bytes + dualgpm_bytes + fc_bytes
+        total_bytes = cur_slot_bytes + dualgpm_bytes + fc_bytes
         return {"params": int(total_bytes // 4), "bytes": int(total_bytes),
-                "breakdown": {"frozen_delta": frozen_delta_bytes, "current_slot": cur_slot_bytes,
+                "breakdown": {"frozen_delta": 0, "current_slot": cur_slot_bytes,
                              "dualgpm_bases": dualgpm_bytes, "fc": fc_bytes}}
 
     def _bank_bytes(self):
-        """BankCapMixin hook: frozen_delta (fixed-size once it exists, never
-        grows) + the DualGPM bases/projectors (feature_list/feature_mat --
-        InfLoRA's only genuinely growing structure). Excludes current_slot
-        (the live, not-yet-folded task's own slot -- transient, folded away
-        next task regardless of the cap, same "never count the live slot"
-        convention as every other method) and fc (always exempt)."""
-        net = self._network.module if hasattr(self._network, "module") else self._network
-        frozen_delta_bytes = 0
-        for attn in net.attn_modules():
-            frozen_delta_bytes += attn.frozen_delta_q.numel() * attn.frozen_delta_q.element_size()
-            frozen_delta_bytes += attn.frozen_delta_v.numel() * attn.frozen_delta_v.element_size()
+        """BankCapMixin hook: the DualGPM bases/projectors (feature_list/
+        feature_mat -- InfLoRA's only genuinely growing structure). frozen_delta
+        is no longer this method's fold target (2026-11-03, folds into q_proj/
+        v_proj directly instead -- see __init__) so it's correctly excluded, not
+        just zero. Excludes current_slot (the live, not-yet-folded task's own
+        slot -- transient, folded away next task regardless of the cap, same
+        "never count the live slot" convention as every other method) and fc
+        (always exempt)."""
         dualgpm_bytes = 0
         for f in self.feature_list:
             dualgpm_bytes += f.numel() * f.element_size()
         for m in self.feature_mat:
             dualgpm_bytes += m.numel() * m.element_size()
-        return frozen_delta_bytes + dualgpm_bytes
-
-    # -- TIL eval must use InfLoRA's *merged* adapter -------------------
-    # Like O-LoRA, InfLoRA trains and infers with the merged sum (merge=True).
-    # The inherited TIL routing (slot t alone, merge=False) mismatches training
-    # and depresses TIL; override to evaluate the merged adapter (masking to the
-    # task's class slice still happens in _eval_til).
-    def _forward_task(self, inputs, task):
-        net = self._network.module if hasattr(self._network, "module") else self._network
-        return net(inputs, task=self._cur_task, merge=True)
+        return dualgpm_bytes
 
     # -- sample-boundary streaming hooks (reuse _init_lora_A / _update_dualgpm) --
     # One DualGPM slot per CHUNK; at each chunk start A is set analytically from the
@@ -152,13 +182,10 @@ class Learner(BankCapMixin, LoRALearner):
             self._network.add_task_slot()
         self._cur_task = self._stream_chunk      # _init_lora_A / DualGPM read _cur_task as slot
         self._network.freeze_to_task(self._stream_chunk, train_a=False)
-        # FLAGGED CHANGE (2026-07-21): freeze_to_task just folded chunk-1's slot into
-        # frozen_delta -- free its now-fully-redundant weight memory (see
-        # Attention_LoRA.free_folded_slot's docstring; InfLoRA-specific, safe here).
-        # *** UNTESTED as of 2026-08-03 *** -- plan sec 4.3: tagged "for
-        # completeness" per the plan -- expected negligible (nn.Identity()
-        # replacement, no tensor compute), included so the ledger shows it was
-        # considered rather than silently absent.
+        # Same 2026-11-03 change as incremental_train's own call site -- direct
+        # fold into q_proj/v_proj instead of frozen_delta (now permanently inert).
+        with ce_region("inflora/fold_into_base"):
+            self._fold_into_base(self._stream_chunk - 1)
         with ce_region("inflora/free_folded_slots"):
             self._network.free_folded_slots(self._stream_chunk - 1)
         for p in self._network.fc.parameters():
@@ -238,16 +265,19 @@ class Learner(BankCapMixin, LoRALearner):
 
         # only B (+ head) trainable; A is set analytically below
         self._network.freeze_to_task(self._cur_task, train_a=False)
-        # FLAGGED CHANGE (2026-07-21): freeze_to_task just folded task-1's slot into
-        # frozen_delta -- free its now-fully-redundant weight memory (see
-        # Attention_LoRA.free_folded_slot's docstring; InfLoRA-specific, safe here;
-        # NOT applied to O-LoRA/TreeLoRA/HideLoRA, which also opt into folding but
-        # may still need individual past slots -- O-LoRA's orthogonality penalty
-        # genuinely reads every past lora_A forever).
-        # *** UNTESTED as of 2026-08-03 *** -- same tag as _stream_begin_chunk's
-        # call, for the oracle (non-bounded-memory) per-task path; CE profiling
-        # is currently only wired into bounded_memory_mixin.py, so this is a
-        # no-op today, kept for consistency if that ever changes.
+        # freeze_to_task's OWN folding (into frozen_delta) is now permanently
+        # inert (enable_frozen_folding() is never called -- see __init__) --
+        # this call is kept purely for its freeze/unfreeze trainability-toggle
+        # side effect. The real fold happens here instead: directly into
+        # q_proj/v_proj's own weight (2026-11-03, see _fold_into_base's own
+        # docstring), then the now-fully-redundant slot's weight memory is
+        # freed exactly as before (Attention_LoRA.free_folded_slot's docstring;
+        # InfLoRA-specific, safe here; NOT applied to O-LoRA/TreeLoRA/HideLoRA,
+        # which also opt into folding but may still need individual past slots
+        # -- O-LoRA's orthogonality penalty genuinely reads every past lora_A
+        # forever).
+        with ce_region("inflora/fold_into_base"):
+            self._fold_into_base(self._cur_task - 1)
         with ce_region("inflora/free_folded_slots"):
             self._network.free_folded_slots(self._cur_task - 1)
         for p in self._network.fc.parameters():
@@ -306,6 +336,48 @@ class Learner(BankCapMixin, LoRALearner):
             with ce2_boundary(self):
                 run_boundary(_ctrl, "inflora_dualgpm", lambda: self._update_dualgpm(self.train_loader))
 
+    @torch.no_grad()
+    def _fold_into_base(self, task):
+        """2026-11-03 (user-directed): fold `task`'s trained (A,B) directly into
+        q_proj/v_proj's own weight, IN PLACE -- replaces frozen_delta's separate
+        [dim,dim] accumulator entirely for InfLoRA. Mathematically exact, same
+        as frozen_delta's own `+=` (this is a pure refactor of WHERE the exact
+        sum lives, not a new approximation -- unlike InfLoRA-Sketch's rank-
+        capped merge, there is zero reconstruction error here).
+
+        Safe because: (1) InfLoRA's own algorithm never reads a folded slot
+        again once absorbed (confirmed by free_folded_slots already being
+        called right after this, in both call sites) -- nothing needs the
+        pre-fold q_proj/v_proj back. (2) TIL is never evaluated in this
+        project (standing instruction) -- the "recover the un-merged, task-
+        specific base" use case this would otherwise block does not apply
+        here, full stop; this was NOT a design constraint. (3) Each training
+        process loads and owns a single, private backbone instance for its
+        entire run (every main.py invocation is its own process, one method/
+        seed each) -- nothing else reads or depends on q_proj/v_proj staying
+        at their original pretrained values for the rest of this process's
+        lifetime, and nothing in this codebase writes adapted weights back
+        into a shared pretrained-checkpoint source another run would load.
+
+        No-op for task < 0 (task 0 has nothing to fold yet), matching
+        Attention_LoRA.fold_frozen_slots's own guard.
+        """
+        if task < 0:
+            return
+        net = self._network.module if hasattr(self._network, "module") else self._network
+        for attn in net.attn_modules():
+            # attn.lora_scaling = (lora_alpha or lora_rank) / lora_rank (backbone/vit_lora.py)
+            # -- always exactly 1.0 under every config this project actually uses
+            # (lora_alpha is null everywhere), but _lora_delta's OWN forward applies
+            # this scaling AFTER summing, so frozen_delta's own (unscaled-at-
+            # accumulation-time) raw B@A sum only comes out correctly scaled at
+            # forward time -- folding the raw product in here without the same
+            # factor would silently mis-scale the moment lora_alpha is ever set to
+            # something other than lora_rank. Applying it explicitly rather than
+            # relying on that coincidence.
+            attn.q_proj.weight.data += attn.lora_scaling * (attn.lora_B_q[task].weight @ attn.lora_A_q[task].weight)
+            attn.v_proj.weight.data += attn.lora_scaling * (attn.lora_B_v[task].weight @ attn.lora_A_v[task].weight)
+
     # -- (1)+(2) analytic init of the down-projection A -----------------
     @torch.no_grad()
     def _init_lora_A(self, train_loader):
@@ -320,9 +392,15 @@ class Learner(BankCapMixin, LoRALearner):
         # backbone/vit_lora.py::_accumulate_cov's bmm(x^T,x) via
         # set_collect(True) above (tagged separately inside that method as
         # "inflora/covariance_accumulate").
+        # merge=False, not True (2026-11-03): q_proj/v_proj already carry every
+        # PAST task's folded contribution directly now (see __init__) -- this
+        # task's own slot is freshly allocated (kaiming A, zero B) and hasn't
+        # trained yet, so its own forward term is exactly zero regardless, but
+        # merge=True would additionally (and now wrongly) try to re-read
+        # frozen_delta, which stays permanently zero/unused under this design.
         with ce_region("inflora/init_lora_A_forward"):
             for _, inputs, _t in train_loader:
-                net(inputs.to(self._device), task=self._cur_task, merge=True)
+                net(inputs.to(self._device), task=self._cur_task, merge=False)
         net.set_collect(False)
 
         # *** UNTESTED as of 2026-08-03 *** -- plan sec 4.3 "init_lora_A_svd":
@@ -374,9 +452,15 @@ class Learner(BankCapMixin, LoRALearner):
         # *** UNTESTED as of 2026-08-03 *** -- plan sec 4.3 "update_dualgpm_forward":
         # the SECOND full extra forward pass this cycle (measured counterpart
         # of the 2026-08-03 base-forward-cost fix).
+        # merge=False, not True (2026-11-03) -- same reasoning as _init_lora_A's
+        # own call above, except this one runs AFTER _train, so this task's own
+        # slot now holds its just-trained B -- merge=False correctly sums
+        # q_proj/v_proj's already-folded past + this task's own trained term,
+        # matching exactly what merge=True (reading frozen_delta + the live
+        # slot) used to give under the old design.
         with ce_region("inflora/update_dualgpm_forward"):
             for _, inputs, _t in train_loader:
-                net(inputs.to(self._device), task=self._cur_task, merge=True)
+                net(inputs.to(self._device), task=self._cur_task, merge=False)
         net.set_collect(False)
 
         mat_list = [attn.cur_matrix.clone() for attn in net.attn_modules()]

@@ -298,6 +298,28 @@ def get_backbone(args, pretrained=False):
             raise NotImplementedError("Unknown type {}".format(name))
         model.out_dim = 768
         return model
+    # LoRA Subtraction (k,v) backbone -- see backbone/vit_lorasub.py. Must be
+    # checked BEFORE the generic '_lora' branch below: "vit_base_patch16_224_
+    # lorasub" contains "_lora" as a substring, so the broader check would
+    # otherwise swallow it and try (and fail) to build it from vit_lora.py.
+    elif '_lorasub' in name:
+        from backbone import vit_lorasub
+        n_tasks = args.get("lora_n_slots", 1)
+        lora_rank = args.get("lora_rank", 10)
+        lora_alpha = args.get("lora_alpha", None)
+        n_lora_blocks = args.get("n_lora_blocks", None)
+        if name == "vit_base_patch16_224_lorasub":
+            model = vit_lorasub.vit_base_patch16_224_lorasub(
+                n_tasks=n_tasks, lora_rank=lora_rank, lora_alpha=lora_alpha,
+                n_lora_blocks=n_lora_blocks, num_classes=0, drop_path_rate=0.0)
+        elif name == "vit_base_patch16_224_in21k_lorasub":
+            model = vit_lorasub.vit_base_patch16_224_in21k_lorasub(
+                n_tasks=n_tasks, lora_rank=lora_rank, lora_alpha=lora_alpha,
+                n_lora_blocks=n_lora_blocks, num_classes=0, drop_path_rate=0.0)
+        else:
+            raise NotImplementedError("Unknown type {}".format(name))
+        model.out_dim = 768
+        return model
     # Baseline per-task LoRA (q,v) backbone -- see backbone/vit_lora.py
     elif '_lora' in name:
         from backbone import vit_lora
@@ -375,6 +397,37 @@ def get_backbone(args, pretrained=False):
     # stdlib `types.SimpleNamespace` (identical attribute-access semantics, no new
     # dependency). "specfic_pos" (not "specific_pos") is the reference's own key
     # name, kept verbatim since backbone/vit_cllora.py reads that exact attribute.
+    # CL-LoRA-Sketch (backbone/vit_cllora_sketch.py) -- checked BEFORE the
+    # plain '_cllora' branch below, since that one is a substring match that
+    # would otherwise incorrectly swallow this name too (it ends up in its
+    # own else:-raise either way, but this ordering avoids that misroute).
+    elif '_cllora_sketch' in name:
+        from types import SimpleNamespace
+        from backbone import vit_cllora_sketch
+        ffn_num = args["ffn_num"]
+        tuning_config = SimpleNamespace(
+            use_distillation=args["use_distillation"],
+            msa=args["msa"],
+            specfic_pos=args["specfic_pos"],
+            general_pos=args["general_pos"],
+            svd_rank=args.get("svd_rank", ffn_num),
+            use_block_weight_scaling=args.get("use_block_weight_scaling", True),
+            orth_a_side=args.get("orth_a_side", False),
+            ffn_adapter_init_option="lora",
+            ffn_adapter_scalar="0.1",
+            ffn_adapter_layernorm_option="none",
+            ffn_num=ffn_num,
+            d_model=768,
+            _device=args["device"][0],
+        )
+        if name == "vit_base_patch16_224_cllora_sketch":
+            model = vit_cllora_sketch.vit_base_patch16_224_cllora_sketch(tuning_config=tuning_config)
+        elif name == "vit_base_patch16_224_in21k_cllora_sketch":
+            model = vit_cllora_sketch.vit_base_patch16_224_in21k_cllora_sketch(tuning_config=tuning_config)
+        else:
+            raise NotImplementedError("Unknown type {}".format(name))
+        model.out_dim = 768
+        return model
     elif '_cllora' in name:
         from types import SimpleNamespace
         from backbone import vit_cllora
@@ -1368,6 +1421,40 @@ class OurNet(BaseNet):
                 print(name, param.numel())
 
 
+class OurNetSketch(OurNet):
+    """Network wrapper for CL-LoRA-Sketch (backbone/vit_cllora_sketch.py,
+    models/cllora_sketch.py). Only two things differ from OurNet:
+
+    CLASSIFIER CHOICE (2026-11-04 user decision): CL-LoRA-Sketch's specific-
+    pos layers no longer produce a growing per-task feature list (a single
+    live sketch replaces the per-task frozen adapter bank), so there is
+    exactly ONE feature block in total, not N. `feature_dim` is therefore
+    CONSTANT (`self.out_dim`), and `forward`'s test branch uses a single
+    plain cosine match (`self.fc(x_input)`, CosineLinearFeature's own
+    ordinary `forward` -- unmodified, already exists in backbone/linears.py)
+    instead of `forward_diagonal`'s block-diagonal per-task scoring, which
+    assumes one feature chunk per task and would silently only ever score
+    task 0's classes once the per-task list stops growing. `use_init_ptm`
+    (OurNet's optional extra raw-backbone feature block) is not supported by
+    this variant -- it would need its own second classifier block, which is
+    out of scope here.
+    """
+    @property
+    def feature_dim(self):
+        return self.out_dim
+
+    def forward(self, x, test=False):
+        if not test:
+            x = self.backbone.forward(x, False)
+            out = self.proxy_fc(x)
+            out.update({"features": x})
+            return out
+        x_input = self.backbone.forward(x, True)
+        out = self.fc(x_input)
+        out.update({"features": x_input})
+        return out
+
+
 class SLCANet(BaseNet):
 
     def __init__(self, args, pretrained=True, fc_with_ln=False):
@@ -1733,3 +1820,10 @@ class LoRAVitNet(BaseNet):
 
     def attn_modules(self):
         return self.backbone.attn_modules()
+
+    # -- "subtraction" probe-mode passthrough (LoRA Subtraction only; a
+    # harmless no-op surface for every other backbone, which simply never
+    # calls it -- same precedent as enable_frozen_folding/free_folded_slots
+    # above, backbone-specific features passed through this shared wrapper) --
+    def set_subtract_mode(self, flag):
+        self.backbone.set_subtract_mode(flag)

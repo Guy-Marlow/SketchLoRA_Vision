@@ -51,6 +51,7 @@ from utils.ce_profiler import ce_region, run_boundary, run_step_narrow
 from utils.ce2_profiler import ce2_boundary
 from utils.embed_drift import extract_features, save_feature_group
 from utils.adapter_snapshot import save_adapter_snapshot
+from utils.rank_diagnostics import log_bank_effective_rank
 
 
 class Learner(BankCapMixin, LoRALearner):
@@ -91,6 +92,11 @@ class Learner(BankCapMixin, LoRALearner):
         if self.adapter_snapshot_dir is not None:
             os.makedirs(self.adapter_snapshot_dir, exist_ok=True)
         self._task_class_ranges = {}   # task idx -> (known, total) class bounds
+        # 2026-11-05 user request: summed-bank effective-rank diagnostic
+        # (utils/rank_diagnostics.py) -- opt-in, off unless a campaign
+        # explicitly asks for it. See _log_bank_effective_rank() below.
+        self.log_bank_rank = bool(args.get("log_bank_rank", False))
+        self.bank_rank_energy_target = args.get("bank_rank_energy_target", 0.99)
 
     # -- Bank-cap: which LoRA slot to train/route on the current task -----
     # Overrides models/lora.py's base `return self._cur_task`. The base
@@ -372,6 +378,28 @@ class Learner(BankCapMixin, LoRALearner):
         save_adapter_snapshot(self.adapter_snapshot_dir, "olora_boundary{}.pt".format(n),
                                layer_proj_to_BA, boundary=n, n_slots=t + 1)
 
+    @torch.no_grad()
+    def _log_bank_effective_rank(self):
+        """2026-11-05 user request: the summed bank's TRUE combined rank
+        (not each slot's own fixed lora_rank). Same B_cat/A_cat construction
+        as _maybe_save_adapter_snapshot above (every slot 0..current task's
+        factors concatenated along the rank axis per block/proj) -- here
+        multiplied out into the dense [dim,dim] delta = B_cat @ A_cat =
+        sum_{s<=t} B_s @ A_s (the exact uncompressed update merge=True's
+        forward applies), then SVD'd for its effective rank. No-op unless
+        log_bank_rank is set."""
+        if not self.log_bank_rank:
+            return
+        t = self._train_adapter()
+        deltas = {}
+        for li, attn in enumerate(self._network.attn_modules()):
+            for proj, (A_list, B_list) in (("q", (attn.lora_A_q, attn.lora_B_q)),
+                                            ("v", (attn.lora_A_v, attn.lora_B_v))):
+                B_cat = torch.cat([B_list[s].weight for s in range(t + 1)], dim=1).float()
+                A_cat = torch.cat([A_list[s].weight for s in range(t + 1)], dim=0).float()
+                deltas[(li, proj)] = B_cat @ A_cat
+        log_bank_effective_rank("O-LoRA", self._cur_task, deltas, self.bank_rank_energy_target)
+
     def _train(self, train_loader):
         # oracle-mode boundary bookkeeping (docs/ce_step_boundary_isolation_plan.md
         # sec 7): trainer.py has no visibility inside incremental_train(), so this
@@ -451,3 +479,4 @@ class Learner(BankCapMixin, LoRALearner):
         # CE-profiled campaign does).
         self._maybe_extract_drift_cumulative()
         self._maybe_save_adapter_snapshot()
+        self._log_bank_effective_rank()
