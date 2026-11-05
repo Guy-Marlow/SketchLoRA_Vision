@@ -58,22 +58,22 @@ from torch import optim
 from torch.nn import functional as F
 from torch.utils.data import DataLoader
 
-# 2026-11-02: 8->4 (see models/lora.py's identical earlier change for the
-# original rationale). Combined with persistent_workers=True on every loader
-# that's iterated more than once over its own lifetime (the per-chunk
-# training loaders below, reused across tuned_epoch epochs) -- without it,
-# PyTorch respawns the ENTIRE worker pool at the start of every epoch
-# iteration, not just once per chunk; on Windows (spawn-based multiprocessing,
-# no fork()) this is genuinely slow (whole-module reimport per worker) and
-# was confirmed to dominate stream_run()'s wall-clock time on this machine
-# (8.5 min between chunk boundaries, 4-5x more than the ~2 min the actual
-# forward/backward compute needs for a 500-image chunk) -- see
-# feedback_windows_dataloader_respawn_bottleneck memory. Likely far less
-# severe on the Linux cluster (fork() is a cheap copy-on-write clone, not a
-# full reimport) -- the cluster's own earlier fix (raising --cpus-per-task)
-# addressed a different problem, core contention among live workers, not
-# this respawn cost.
-num_workers = 4
+# 2026-11-02: was dropped 8->4 to relieve a WINDOWS-specific DataLoader-
+# worker-respawn cost (spawn-based multiprocessing with no fork() means
+# PyTorch reimports the whole module per worker at the start of every epoch
+# unless persistent_workers=True catches it -- confirmed dominating
+# stream_run()'s wall-clock time on this local machine, 8.5 min between
+# chunk boundaries vs. ~2 min of actual compute for a 500-image chunk; see
+# feedback_windows_dataloader_respawn_bottleneck memory). REVERTED to 8
+# (2026-11-06, user-confirmed): on the actual H200 cluster (Linux, fork()-
+# based multiprocessing, no respawn cost to relieve in the first place) the
+# lower worker count was instead just starving data loading throughput and
+# running noticeably slower -- exactly the "likely far less severe on the
+# Linux cluster" this comment already predicted before being proven right.
+# Matches models/lora.py's own num_workers=8 (oracle-mode path), which was
+# never actually dropped to 4 despite an earlier, now-corrected stale
+# comment claiming otherwise.
+num_workers = 8
 
 
 def _stream_checkpoint_write(args, results, tag="stream", partial=True):
