@@ -112,6 +112,51 @@ def _train(args):
         _run_stream(model, data_manager, args, method_name="legacy_epoch_clock_run", tag="legacy")
         return
 
+    # Loss-plateau adapter boundaries (2026-10-30, ported from Online-LoRA's own
+    # distribution-shift detection -- see models/stream_mixin.py::plateau_run()'s
+    # docstring for the mechanism). SketchLoRA-specific extension of the SAME fixed-
+    # permutation stream "sample" above builds (models/stream_mixin.py::
+    # _build_stream_order, shared by both) -- the chunk boundary itself is decided by
+    # a loss-plateau detector instead of a fixed stream_chunk_samples count. The
+    # model_name restriction is asserted inside plateau_run() itself, not here.
+    if args.get("boundary_mode") == "loss_plateau":
+        _run_stream(model, data_manager, args, method_name="plateau_run", tag="plateau")
+        return
+
+    # Spectral-plateau adapter boundaries (2026-11-02): same segment lifecycle and
+    # hysteresis state machine as loss_plateau directly above, sibling driver (models/
+    # stream_mixin.py::spectral_plateau_run()) -- the detector fires on a periodic probe
+    # of one adapter's own discarded-singular-value energy (default: layer 12's V
+    # projection, the cleanest single-module boundary signal found in the CIFAR-100
+    # streamsample diagnostics) instead of training loss. Model_name/lazy_merge_mode/
+    # svd_period/merge_op restrictions are asserted inside spectral_plateau_run() itself.
+    if args.get("boundary_mode") == "spectral_plateau":
+        _run_stream(model, data_manager, args, method_name="spectral_plateau_run", tag="spectral_plateau")
+        return
+
+    # Offset-consolidation (2026-11-04, "Offset-consolidation protocol (E2).md"):
+    # folds at a configurable epoch cadence/phase (offset_k/offset_phi) instead
+    # of at every task boundary -- see models/stream_mixin.py::
+    # offset_consolidation_run's own docstring for the mechanism. Mechanism
+    # only; the source document's experimental "arms"/seed-sweep design is not
+    # implemented here.
+    if args.get("boundary_mode") == "offset_consolidation":
+        _run_stream(model, data_manager, args, method_name="offset_consolidation_run", tag="offset")
+        return
+
+    # Buffered loss-plateau adapter boundaries (2026-11-03): a SEPARATE codepath from
+    # loss_plateau above, not a modification of it -- replaces plateau_run()'s deferred
+    # retroactive-epoch design (which created an eval-timing mismatch and effectively
+    # naive single-pass SGD for long stretches -- see models/stream_mixin.py::
+    # buffered_plateau_run()'s own docstring for the full derivation) with continuous,
+    # bounded hard-exemplar replay modeled directly on Online_LoRA_Ref/Disjoint's own
+    # training loop. plateau_run()/loss_plateau above is left completely untouched by
+    # this addition. Model_name/lazy_merge_mode/svd_period restrictions are asserted
+    # inside buffered_plateau_run() itself.
+    if args.get("boundary_mode") == "loss_plateau_buffer":
+        _run_stream(model, data_manager, args, method_name="buffered_plateau_run", tag="plateau_buffer")
+        return
+
     # Plan C (impl_plan_7.25.2026/plan_C_task_agnostic.md) bounded-working-memory
     # boundary-free streaming -- a SEPARATE codepath from "sample"/"sample_legacy"
     # above (models/bounded_memory_mixin.py, not models/stream_mixin.py). Real
@@ -567,7 +612,8 @@ def _run_stream(model, data_manager, args, method_name="stream_run", tag="stream
         import json as _json
         _json.dump({"args_subset": {k: args.get(k) for k in
                     ("model_name", "dataset", "init_cls", "increment", "stream_budget_mb",
-                     "n_lora_blocks", "init_lr", "svd_energy_target", "lamda_1", "lamb", "lame")},
+                     "n_lora_blocks", "init_lr", "svd_energy_target", "lamda_1", "lamb", "lame",
+                     "offset_k", "offset_phi")},
                     "results": results, "partial": False}, f, indent=2)
     print("[{}] wrote".format(tag), out)
 
