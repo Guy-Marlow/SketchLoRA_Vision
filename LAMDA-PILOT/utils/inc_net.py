@@ -273,6 +273,36 @@ def get_backbone(args, pretrained=False):
         else:
             raise NotImplementedError("Unknown type {}".format(name))
         return model
+    # SD-LoRA + Sketch (backbone/vit_sdlora_sketch.py) -- 2026-11-06, see
+    # models/sdlora_sketch.py for the full design. Must be checked BEFORE the
+    # plain '_sdlora' branch below: "vit_base_patch16_224_sdlora_sketch"
+    # contains "_sdlora" as a substring, so the broader check would otherwise
+    # swallow it and try (and fail) to build it from vit_sdlora.py. Unlike
+    # every other backbone here, this one is a FIXED-SIZE method (one sketch
+    # + one reused new-adapter slot per block, never growing) -- LoRAVitNet
+    # is still reused unchanged as the Net wrapper (it only calls through to
+    # whatever the backbone exposes, and VisionTransformerSDLoRASketch
+    # exposes the same forward/freeze_to_task/attn_modules surface, with
+    # add_task_slot deliberately raising -- see that file).
+    elif '_sdlora_sketch' in name:
+        from backbone import vit_sdlora_sketch
+        lora_rank = args.get("lora_rank", 10)
+        lora_alpha = args.get("lora_alpha", None)
+        n_lora_blocks = args.get("n_lora_blocks", None)
+        svd_rank = args.get("svd_rank", lora_rank)
+        freeze_rescale = bool(args.get("sdsketch_freeze_rescale", False))
+        if name == "vit_base_patch16_224_sdlora_sketch":
+            model = vit_sdlora_sketch.vit_base_patch16_224_sdlora_sketch(
+                lora_rank=lora_rank, lora_alpha=lora_alpha, n_lora_blocks=n_lora_blocks,
+                svd_rank=svd_rank, freeze_rescale=freeze_rescale, num_classes=0, drop_path_rate=0.0)
+        elif name == "vit_base_patch16_224_in21k_sdlora_sketch":
+            model = vit_sdlora_sketch.vit_base_patch16_224_in21k_sdlora_sketch(
+                lora_rank=lora_rank, lora_alpha=lora_alpha, n_lora_blocks=n_lora_blocks,
+                svd_rank=svd_rank, freeze_rescale=freeze_rescale, num_classes=0, drop_path_rate=0.0)
+        else:
+            raise NotImplementedError("Unknown type {}".format(name))
+        model.out_dim = 768
+        return model
     # SD-LoRA (backbone/vit_sdlora.py) -- ported 2026-10-27, see models/sdlora.py
     # and scratchpad/analysis_sdlora.md for the full design rationale. Same
     # growable-slot/preallocation convention as the plain '_lora' branch below
@@ -1827,3 +1857,11 @@ class LoRAVitNet(BaseNet):
     # above, backbone-specific features passed through this shared wrapper) --
     def set_subtract_mode(self, flag):
         self.backbone.set_subtract_mode(flag)
+
+    # -- SD-LoRA-Sketch task-boundary fold passthrough (models/
+    # sdlora_sketch.py only; backbone/vit_sdlora_sketch.py::
+    # VisionTransformerSDLoRASketch.fold() has no counterpart on any other
+    # backbone, same precedent as the other backbone-specific passthroughs
+    # above) --
+    def fold(self):
+        return self.backbone.fold()
