@@ -9,29 +9,37 @@
 #SBATCH --error=/data/gmar762/research/continuous_learning/svd_sketching_vision/LAMDA-PILOT/run_logs/bank_rank_wave1/slurm_%j.err
 #
 # Bank-effective-rank comparison campaign (2026-11-06 user request):
-# InfLoRA-Bank, O-LoRA, and LoRA-Subtraction (growing-bank variant), each on
-# its own vanilla/settled hyperparameters, across all 5 master-table
-# datasets (CIFAR-100-10t, ImageNet-R-20t, OmniBenchmark-1k-100t,
-# SUN397-10t, Food-101-20t), 3 seeds each (1993/1996/1999) = 45 runs.
+# O-LoRA and LoRA-Subtraction (growing-bank variant), each on its own
+# vanilla/settled hyperparameters, across all 5 master-table datasets
+# (CIFAR-100-10t, ImageNet-R-20t, OmniBenchmark-1k-100t, SUN397-10t,
+# Food-101-20t), 3 seeds each (1993/1996/1999) = 30 runs.
+#
+# InfLoRA-Bank (originally a 3rd method here) was EXCLUDED 2026-11-06, per
+# instruction, after the already-running 45-run version of this job showed
+# InfLoRA-Bank's own 15 runs were far more expensive than expected -- its
+# growing per-task bank makes its merged forward pass real dense-matmul
+# work that gets slower every task (not an artifact), and just its first 2
+# of 5 datasets (cifar224: 3 seeds at ~1h07m each; food101: 3 seeds at
+# ~2h20m each, confirmed from that job's own SLURM log) had already
+# consumed ~7h with 3 of 5 datasets and both other methods still to go --
+# on pace to badly overrun a single 96h submission. See
+# scripts/gen_bank_rank_wave1_configs.py's own docstring for the full
+# writeup.
 #
 # Every config also sets log_bank_rank=true (utils/rank_diagnostics.py) --
 # the summed-bank effective-rank diagnostic (singular values needed for 99%
-# spectral energy of the cumulative per-task adapter update). All three
-# methods' mechanics (training, memory accounting, this new rank
-# diagnostic) were smoke-tested locally before this campaign was built --
-# see the conversation record. NOT included: the sketch variants
-# (InfLoRA-Sketch, LoRA-Subtraction-Sketch) -- this campaign is specifically
-# about the GROWING-BANK methods' own summed-update rank, which isn't a
-# meaningful question for a method whose bank is already rank-capped by
-# construction (see models/lorasub_sketch.py's own deliberate no-op
-# override of _log_bank_effective_rank).
+# spectral energy of the cumulative per-task adapter update). Both methods'
+# mechanics (training, memory accounting, this rank diagnostic) were
+# smoke-tested locally before this campaign was built -- see the
+# conversation record. NOT included: the sketch variants (InfLoRA-Sketch,
+# LoRA-Subtraction-Sketch) -- this campaign is specifically about the
+# GROWING-BANK methods' own summed-update rank, which isn't a meaningful
+# question for a method whose bank is already rank-capped by construction
+# (see models/lorasub_sketch.py's own deliberate no-op override of
+# _log_bank_effective_rank).
 #
 # HYPERPARAMETERS (full detail in scripts/gen_bank_rank_wave1_configs.py's
 # own docstring):
-#   InfLoRA-Bank: identical to the existing master-table exps/wave1_final/
-#     inflora_<dataset>_s1993.json configs (model_name swapped only --
-#     InfLoRA-Bank is mathematically identical to plain InfLoRA except
-#     where a trained task's B lives afterward).
 #   O-LoRA: identical to the existing master-table exps/
 #     wave1_final_completion/olora_<dataset>_s1993.json configs.
 #   LoRA-Subtraction: this session's own just-settled per-dataset LRs
@@ -54,12 +62,11 @@
 # other campaign script in this project (this cluster has exactly one GPU
 # available).
 #
-# 96h wall time: 45 full-length runs (including OmniBenchmark-1k-100t x3
-# methods x3 seeds = 9 of the most expensive runs in this set) is a
-# substantial campaign; almost certainly will NOT finish in one submission
-# -- relies on the RESUMABLE design above to make partial progress across
-# repeated resubmissions, same as every other long campaign here, not a
-# bug, expected.
+# 96h wall time kept as-is despite dropping a method -- OmniBenchmark-1k-
+# 100t x2 methods x3 seeds = 6 runs are still the most expensive runs in
+# this set and neither method's cost on it has been measured yet; the
+# margin is intentional, not a sign this is expected to need a second
+# submission (unlike the original 45-run version this replaces).
 #
 # A retry's plain `>` would silently overwrite a prior failed attempt's
 # log -- run_one() below backs up any existing outfile first (same
@@ -117,7 +124,7 @@ run_one() {
   local tag
   tag="$(basename "$config" .json)"
   local subdir
-  subdir="$(dirname "$config" | sed "s#^${CONFIG_DIR}/##")"   # e.g. inflora_bank/cifar224
+  subdir="$(dirname "$config" | sed "s#^${CONFIG_DIR}/##")"   # e.g. olora/cifar224
   local outdir="${OUT_DIR}/${subdir}"
   mkdir -p "$outdir"
   local outfile="${outdir}/${tag}.out"
@@ -136,15 +143,15 @@ run_one() {
 }
 
 # Run order: cheapest-feeling method first within each dataset isn't
-# knowable ahead of time (all three are full-length oracle runs of similar
+# knowable ahead of time (both are full-length oracle runs of similar
 # cost), so just go method-major, dataset-minor, `sort` keeping seed order
 # deterministic within each. OmniBenchmark-1k left to run wherever it falls
 # alphabetically within each method (no special-casing -- unlike some
 # other campaigns here, there's no reason to defer it, since every run in
 # this set is already full-length).
-echo "==== ${CAMPAIGN} start: 45 runs, single GPU $(date) ===="
+echo "==== ${CAMPAIGN} start: 30 runs, single GPU $(date) ===="
 
-for method in inflora_bank olora lorasub; do
+for method in olora lorasub; do
   for dataset in cifar224 food101 imagenetr omnibenchmark1k sun397; do
     while IFS= read -r config; do
       run_one "$config"

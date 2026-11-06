@@ -1,30 +1,31 @@
 """Bank-effective-rank comparison campaign (2026-11-06 user request):
-InfLoRA-Bank, O-LoRA, and LoRA-Subtraction (growing-bank variant), each on
-its own vanilla/settled hyperparameters, across all 5 master-table datasets
+O-LoRA and LoRA-Subtraction (growing-bank variant), each on its own
+vanilla/settled hyperparameters, across all 5 master-table datasets
 (CIFAR-100-10t, ImageNet-R-20t, OmniBenchmark-1k-100t, SUN397-10t,
-Food-101-20t), 3 seeds each (1993/1996/1999) -- 3 methods x 5 datasets x 3
-seeds = 45 runs. Every config also sets log_bank_rank=true (utils/
+Food-101-20t), 3 seeds each (1993/1996/1999) -- 2 methods x 5 datasets x 3
+seeds = 30 runs. Every config also sets log_bank_rank=true (utils/
 rank_diagnostics.py, added this session) -- the summed-bank effective-rank
 diagnostic (singular values needed for 99% spectral energy of the
 cumulative per-task adapter update), the whole point of this campaign:
 comparing how high that rank climbs across methods with different (or no)
 cross-task interference-avoidance mechanisms. Verified via a smoke test on
-all three methods before this generator was written (see the conversation
-record) -- InfLoRA-Bank and O-LoRA both climb close to their own linear
-ceiling, LoRA-Subtraction stays almost flat near its single-task rank.
+both methods before this generator was written (see the conversation
+record) -- O-LoRA climbs close to its own linear ceiling, LoRA-Subtraction
+stays almost flat near its single-task rank.
+
+InfLoRA-Bank (model_name=inflora_bank) was EXCLUDED 2026-11-06 (originally
+a 3rd method in this campaign) -- its growing per-task bank's merged
+forward pass gets markedly more expensive every task (real dense-matmul
+work, not an artifact -- same finding as the project's earlier "CE
+frozen-fold investigation"), so each of its own 15 runs (5 datasets x 3
+seeds) ran far longer than anticipated and would have put the whole 45-run
+campaign well past the single 96h submission the user wants this to fit
+in (confirmed against the actual SLURM log of the already-running job: its
+first 2 of 5 datasets alone, cifar224 (3 seeds, ~1h07m each) + food101 (3
+seeds, ~2h20m each), already consumed ~7h). Cutting it to these 2 methods
+is what makes "finishes in one submission" achievable.
 
 HYPERPARAMETERS, per method:
-
-InfLoRA-Bank (model_name=inflora_bank): identical to the existing
-exps/wave1_final/inflora_<dataset>_s1993.json configs (the master-table
-source for plain InfLoRA -- model_name swapped, everything else byte-
-identical, since InfLoRA-Bank is mathematically identical to plain InfLoRA
-except where a trained task's B lives afterward -- see models/
-inflora_bank.py's own module docstring) -- lora_rank=10, lamb=0.95,
-lame=1.0, tuned_epoch=20, batch_size=48, weight_decay=0.0005, min_lr=0.0,
-lora_merge=true. init_lr is per-dataset: 0.0005 everywhere except
-imagenetr (0.001) -- read directly off those committed configs, not
-re-derived.
 
 O-LoRA (model_name=olora): identical to the existing exps/
 wave1_final_completion/olora_<dataset>_s1993.json configs -- init_lr=0.001
@@ -77,28 +78,10 @@ COMMON = dict(
     device=["0"], log_bank_rank=True, bank_rank_energy_target=0.99,
 )
 
-INFLORA_BANK_LR = {
-    "cifar224": 0.0005, "imagenetr": 0.001, "omnibenchmark1k": 0.0005,
-    "sun397": 0.0005, "food101": 0.0005,
-}
-
 LORASUB_LR = {
     "cifar224": 0.001, "imagenetr": 0.003, "omnibenchmark1k": 0.003,
     "sun397": 0.003, "food101": 0.003,
 }
-
-
-def inflora_bank_cfg(ds_name, seed):
-    cfg = dict(COMMON)
-    cfg.update(DATASETS[ds_name])
-    cfg.update(
-        seed=[seed], weight_decay=0.0005,
-        model_name="inflora_bank", backbone_type="vit_base_patch16_224_lora",
-        lora_merge=True, lamb=0.95, lame=1.0,
-        init_lr=INFLORA_BANK_LR[ds_name],
-        prefix="bank_rank_wave1_inflora_bank_{}_s{}".format(ds_name, seed),
-    )
-    return cfg
 
 
 def olora_cfg(ds_name, seed):
@@ -129,7 +112,6 @@ def lorasub_cfg(ds_name, seed):
 
 
 BUILDERS = {
-    "inflora_bank": inflora_bank_cfg,
     "olora": olora_cfg,
     "lorasub": lorasub_cfg,
 }
