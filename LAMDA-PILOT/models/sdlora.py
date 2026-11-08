@@ -97,10 +97,12 @@ port correctly rather than guess at it.
 import logging
 
 import numpy as np
+import torch
 from torch import nn
 from torch.utils.data import DataLoader
 
 from models.lora import Learner as LoRALearner, num_workers
+from utils.rank_diagnostics import log_bank_effective_rank
 
 
 class Learner(LoRALearner):
@@ -122,6 +124,12 @@ class Learner(LoRALearner):
         self.rank_schedule = args.get("sdlora_rank_schedule", None)
         if self.rank_schedule is not None:
             self.rank_schedule = sorted(self.rank_schedule, key=lambda pair: pair[0])
+        # 2026-11-09 user request: same opt-in summed-bank effective-rank
+        # diagnostic as O-LoRA/LoRA-Subtraction (utils/rank_diagnostics.py),
+        # see _log_bank_effective_rank below for why this needs its OWN
+        # delta construction rather than reusing theirs.
+        self.log_bank_rank = bool(args.get("log_bank_rank", False))
+        self.bank_rank_energy_target = args.get("bank_rank_energy_target", 0.99)
 
     def _rank_for_task(self, cur_task):
         if not self.rank_schedule:
@@ -180,6 +188,43 @@ class Learner(LoRALearner):
         scales = [round(s.item(), 4) for s in net.backbone.task_scales]
         logging.info("[SD-LoRA] task {} done. task_scales so far (m_0..m_{}): {}".format(
             self._cur_task, self._cur_task, scales))
+        self._log_bank_effective_rank()
+
+    @torch.no_grad()
+    def _log_bank_effective_rank(self):
+        """2026-11-09 user request -- same diagnostic as O-LoRA/LoRA-
+        Subtraction (utils/rank_diagnostics.py), but SD-LoRA's merge is NOT
+        a plain sum of B_s@A_s, so it cannot reuse their B_cat@A_cat
+        construction. backbone/vit_sdlora.py::Attention_LoRA_SDLoRA.
+        _lora_delta (confirmed directly against SD-LoRA-Ref/backbone/
+        lora.py's own forward, lines 182-191 -- scaling_factor_prev[i] is a
+        plain ParameterWrapper, i.e. x * scale, nothing more) applies:
+
+            delta = m_t * B_t@A_t
+                  + sum_{s<t} m_s * (B_s@A_s) / (||B_s||_F * ||A_s||_F)
+
+        i.e. every past task's raw contribution is Frobenius-normalized by
+        its OWN factors before being rescaled by its shared global scalar,
+        and the current task's term is left unnormalized -- reusing a plain
+        B_cat@A_cat here would silently measure the wrong matrix (the UN-
+        normalized sum SD-LoRA's forward never actually applies). No-op
+        unless log_bank_rank is set."""
+        if not self.log_bank_rank:
+            return
+        net = self._network.module if hasattr(self._network, "module") else self._network
+        t = self._train_adapter()
+        scales = net.backbone.task_scales
+        deltas = {}
+        for li, attn in enumerate(net.attn_modules()):
+            for proj, (A_list, B_list) in (("q", (attn.lora_A_q, attn.lora_B_q)),
+                                            ("v", (attn.lora_A_v, attn.lora_B_v))):
+                delta = scales[t] * (B_list[t].weight @ A_list[t].weight)
+                for s in range(t):
+                    B_s, A_s = B_list[s].weight, A_list[s].weight
+                    norm = torch.linalg.norm(B_s) * torch.linalg.norm(A_s)
+                    delta = delta + scales[s] * (B_s @ A_s) / norm
+                deltas[(li, proj)] = delta
+        log_bank_effective_rank("SD-LoRA", self._cur_task, deltas, self.bank_rank_energy_target)
 
     # persistent state: extends models/lora.py's base (direction bank: every
     # allocated task's A/B, q/v, all blocks -- already correct via the

@@ -11,6 +11,7 @@ from models.base import BaseLearner
 from models.bank_cap_mixin import BankCapMixin
 from utils.toolkit import tensor2numpy
 from utils.ce2_profiler import ce2_boundary
+from utils.rank_diagnostics import log_bank_effective_rank
 import random
 
 # 2026-08-10: 8->4, see models/lora.py's identical change for rationale.
@@ -74,6 +75,15 @@ class Learner(BankCapMixin, BaseLearner):
             self.alpha = 1
             self.beta = 1
 
+        # 2026-11-09 user request: same opt-in summed-bank effective-rank
+        # diagnostic as O-LoRA/LoRA-Subtraction/SD-LoRA (utils/
+        # rank_diagnostics.py), applied to the per-task specific_pos
+        # adapters (see _log_bank_effective_rank below for why this is a
+        # hypothetical "what would the combined bank's rank be" question,
+        # not a reconstruction of what CL-LoRA's own forward computes).
+        self.log_bank_rank = bool(args.get("log_bank_rank", False))
+        self.bank_rank_energy_target = args.get("bank_rank_energy_target", 0.99)
+
     def after_task(self):
         self._known_classes = self._total_classes
         self._network.freeze()
@@ -92,6 +102,53 @@ class Learner(BankCapMixin, BaseLearner):
         admit = self._bank_admit(candidate_bytes)
         with ce2_boundary(self):
             self._network.backbone.add_adapter_to_list(admit=admit)
+        self._log_bank_effective_rank()
+
+    @torch.no_grad()
+    def _log_bank_effective_rank(self):
+        """2026-11-09 user request -- same diagnostic as O-LoRA/LoRA-
+        Subtraction/SD-LoRA (utils/rank_diagnostics.py), applied to CL-LoRA's
+        per-task adapter bank on the specific_pos blocks (the last 6 by this
+        project's own convention, backbone/vit_cllora.py's specfic_pos).
+
+        CL-LoRA does NOT merge/sum its per-task adapters at inference --
+        it runs a SEPARATE full forward pass per past task (backbone/
+        vit_cllora.py::forward_test's `for i in range(len(adapter_list))`
+        loop) and uses prototype/cosine matching, not an additive bank, to
+        decide which task's features to trust (see this project's own
+        CL-LoRA-Sketch design notes). So there is no dense delta CL-LoRA's
+        own forward actually computes here -- this builds the same
+        HYPOTHETICAL "if every past task's adapter were folded into one
+        dense update" matrix the other methods' diagnostic measures, purely
+        as an information/capacity proxy to compare against SketchLoRA's
+        fixed-rank bound, not a reconstruction of CL-LoRA's real mechanism.
+
+        Each specific_pos slot's adapter_list[t][i] is an nn.ModuleList of 3
+        sub-adapters (Q, K, V; K is nn.Identity under this project's
+        msa=[1,0,1] convention and excluded). Adapter_lora.forward is
+        lora_A(lora_B(x)) -- a bottleneck down-then-up composition
+        (backbone/vit_cllora.py:91-93) -- so its effective weight-space delta
+        (W such that delta(x) = x @ W.T) is W = lora_A.weight @ lora_B.weight,
+        exactly analogous to a standard LoRA (A,B) factor pair. No-op unless
+        log_bank_rank is set."""
+        if not self.log_bank_rank:
+            return
+        net = self._network.module if hasattr(self._network, "module") else self._network
+        backbone = net.backbone
+        deltas = {}
+        for li in range(len(backbone.specfic_pos)):
+            for proj, idx in (("q", 0), ("v", 2)):
+                delta = None
+                for task_adapters in backbone.adapter_list:
+                    a = task_adapters[li][idx]
+                    if isinstance(a, nn.Identity):
+                        continue
+                    w = a.lora_A.weight @ a.lora_B.weight
+                    delta = w if delta is None else delta + w
+                if delta is not None:
+                    deltas[(li, proj)] = delta
+        if deltas:
+            log_bank_effective_rank("CL-LoRA", self._cur_task, deltas, self.bank_rank_energy_target)
 
     def _bank_admit_candidate_bytes(self):
         """Cheap upfront estimate of this task's combined adapter_list +
