@@ -62,6 +62,8 @@ def get_model(model_name, args):
         from models.sdlora import Learner
     elif name == 'sdlora_sketch':
         from models.sdlora_sketch import Learner
+    elif name == 'sdlora_sketch_foldfirst':
+        from models.sdlora_sketch_foldfirst import Learner
     elif name == 'olora':
         from models.olora import Learner
     elif name == 'inflora':
@@ -74,6 +76,8 @@ def get_model(model_name, args):
         from models.lorasub import Learner
     elif name == 'lorasub_sketch':
         from models.lorasub_sketch import Learner
+    elif name == 'lorasub_sketch_foldfirst':
+        from models.lorasub_sketch_foldfirst import Learner
     elif name == 'sketchlora':
         from models.sketchlora import Learner
     elif name == 'sketchlora_align':
@@ -90,6 +94,8 @@ def get_model(model_name, args):
         from models.cllora import Learner
     elif name == 'cllora_sketch':
         from models.cllora_sketch import Learner
+    elif name == 'cllora_sketch_foldfirst':
+        from models.cllora_sketch_foldfirst import Learner
     elif name == 'rainbowprompt':
         from models.rainbowprompt import Learner
     elif name == 'progprompt':
