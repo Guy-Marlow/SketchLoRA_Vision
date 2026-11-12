@@ -7,38 +7,44 @@ no bank-rank logging -- not applicable to a fixed-size structure).
 5 datasets (CIFAR-100-10t, ImageNet-R-20t, OmniBenchmark-1k-100t,
 SUN397-10t, Food-101-20t) x 3 seeds (1993/1996/1999) x 3 methods = 45 runs.
 
-Every config is built by importing and calling the EXACT settled builder
-function from the campaign that already established that method's
-hyperparameters -- byte-identical configs, not re-derived values, same
-"split/reorganized for submission reasons" convention already used by
-scripts/gen_sketch_foldfirst_wave1_sdlora_cllora_configs.py. `prefix` is
-therefore deliberately LEFT UNCHANGED from each source campaign's own
-convention (not re-tagged with this campaign's name) -- this is genuinely
-the same logical runs, just re-submitted together in a specific order, so
-the run_logs/final/<model>/metrics_<tag>.json identity (and therefore
-scripts/_bankcap_run_done.py's resumability check) stays tied to whichever
-of these three sub-campaigns a run logically belongs to:
+Every config's HYPERPARAMETERS are built by importing and calling the EXACT
+settled builder function from the campaign that already established that
+method's settings -- byte-identical values, not re-derived. `prefix` is
+handled differently per method, though:
 
   - cllora_sketch_foldfirst -- scripts/gen_sketch_foldfirst_wave1_configs.py
     ::cllora_sketch_foldfirst_cfg (the "v3" design: orth_a_side=true,
-    use_block_weight_scaling=false, sketchlora_align_weight=0.75). This is
-    the variant that crashed with KeyError('use_distillation') before this
-    session's fix (scripts/gen_sketch_foldfirst_wave1_configs.py's
+    use_block_weight_scaling=false, sketchlora_align_weight=0.75), prefix
+    LEFT UNCHANGED from that source campaign (same "split/reorganized for
+    submission reasons" convention scripts/gen_sketch_foldfirst_wave1_
+    sdlora_cllora_configs.py already uses) -- safe here because every prior
+    attempt under that tag crashed with KeyError('use_distillation') before
+    this session's fix (scripts/gen_sketch_foldfirst_wave1_configs.py's
     CLLORA_COMMON was missing use_distillation/alpha/beta, both now added
-    and verified) -- importing the now-fixed function here guarantees this
-    campaign uses the corrected configs, not a second copy that could drift.
+    and verified), so no metrics file was ever written under it and there
+    is no stale "done" data it could collide with.
   - lorasub -- scripts/gen_bank_rank_wave1_configs.py::lorasub_cfg
     (init_lr: cifar224=1e-3, everything else=3e-3; weight_decay=0.0;
     svd_thres=0.99, use_proto_repulsion=true, proto_repulsion_weight=0.2,
-    proto_margin=2.0; log_bank_rank=true, bank_rank_energy_target=0.99).
-    Depends on backbone/vit_lorasub.py + models/lorasub.py's DRS-probe/
-    init/prototype fixes, smoke-validated and committed this session
-    (commit 8800724).
+    proto_margin=2.0; log_bank_rank=true, bank_rank_energy_target=0.99),
+    prefix OVERRIDDEN to a fresh cllora_lorasub_wave1-specific tag (see
+    _lorasub_cfg_fresh below) -- NOT safe to reuse bank_rank_wave1's own
+    prefix: all 15 of ITS runs already completed (status=="done", dated
+    2026-11-11) BEFORE this session's DRS-probe/init/prototype fix to
+    models/lorasub.py's _update_protos/_proto_repulsion_loss (commit
+    8800724 -- changes how prototype vectors are computed, a term added to
+    the training loss every batch from task 1 onward whenever
+    use_proto_repulsion=true). Reusing that prefix would let scripts/
+    _bankcap_run_done.py's resumability check skip these as already-done
+    and silently report stale, pre-fix numbers as if they validated the
+    fixed code -- the exact bug found and fixed 2026-11-12.
   - lorasub_sketch -- scripts/gen_lorasub_sdlora_sketch_wave1_configs.py
     ::lorasub_sketch_cfg (same per-dataset init_lr as plain lorasub above,
     lora_n_slots=2, svd_rank=10, merge_op="qrsvd"; no log_bank_rank -- a
-    fixed 2-slot sketch has no growing bank to measure). Depends on
-    models/lorasub_sketch.py's own fixes, same commit.
+    fixed 2-slot sketch has no growing bank to measure), prefix OVERRIDDEN
+    the same way and for the same reason -- lorasub_sdlora_sketch_wave1's
+    own 15 runs are equally stale relative to models/lorasub_sketch.py's
+    own fixes in the same commit.
 
 Per-dataset splits (init_cls/increment), identical across all three
 methods and to every other wave1-style campaign in this project:
@@ -59,10 +65,38 @@ OUT_BASE = "exps/cllora_lorasub_wave1"
 SEEDS = [1993, 1996, 1999]
 DATASETS = ["cifar224", "food101", "imagenetr", "omnibenchmark1k", "sun397"]
 
+
+# lorasub/lorasub_sketch get FRESH prefixes here, unlike
+# cllora_sketch_foldfirst_cfg above -- the already-"done" bank_rank_wave1_
+# lorasub_*/lorasub_sdlora_sketch_wave1_lorasub_sketch_* metrics (dated
+# 2026-11-11) were produced BEFORE this session's DRS-probe/init/prototype
+# fix to models/lorasub.py's _update_protos/_proto_repulsion_loss (commit
+# 8800724 -- changes how prototype vectors are computed, a term added to
+# the training loss every batch from task 1 onward whenever
+# use_proto_repulsion=true, which every settled config here requires).
+# Reusing the OLD prefix would let scripts/_bankcap_run_done.py's
+# resumability check skip these as already-done and silently report
+# stale, pre-fix numbers as if they validated the fixed code -- exactly
+# the bug found 2026-11-12. cllora_sketch_foldfirst_cfg's prefix is left
+# unchanged from its own source campaign: every prior attempt under that
+# tag crashed before writing a metrics file, so there is no stale "done"
+# data it could collide with.
+def _lorasub_cfg_fresh(ds_name, seed):
+    cfg = lorasub_cfg(ds_name, seed)
+    cfg["prefix"] = "cllora_lorasub_wave1_lorasub_{}_s{}".format(ds_name, seed)
+    return cfg
+
+
+def _lorasub_sketch_cfg_fresh(ds_name, seed):
+    cfg = lorasub_sketch_cfg(ds_name, seed)
+    cfg["prefix"] = "cllora_lorasub_wave1_lorasub_sketch_{}_s{}".format(ds_name, seed)
+    return cfg
+
+
 BUILDERS = {
     "cllora_sketch_foldfirst": cllora_sketch_foldfirst_cfg,
-    "lorasub": lorasub_cfg,
-    "lorasub_sketch": lorasub_sketch_cfg,
+    "lorasub": _lorasub_cfg_fresh,
+    "lorasub_sketch": _lorasub_sketch_cfg_fresh,
 }
 
 
