@@ -190,8 +190,15 @@ class Learner(LoRASubLearner):
                     A_list[SKETCH].weight.data.copy_(A_new)
                     B_list[SKETCH].weight.data.copy_(B_new)
 
+                # Matches backbone/vit_lorasub.py's constructor/add_task_slot
+                # init convention exactly (fixed 2026-11, see that file):
+                # sparse_ with sparsity=1-1/dim, NOT an exact zero -- this
+                # reset runs after EVERY fold (every task past task 0) and
+                # bypasses the backbone's own init helpers entirely, so it
+                # needed its own fix, not just the constructor's.
                 nn.init.kaiming_uniform_(A_list[RESIDUAL].weight, a=math.sqrt(5))
-                nn.init.zeros_(B_list[RESIDUAL].weight)
+                kr = 1.0 / attn.dim
+                nn.init.sparse_(B_list[RESIDUAL].weight, sparsity=(1 - kr))
 
         logging.info("[LoRA-Sub-Sketch] fold at task {}: retained_energy mean={:.4f} min={:.4f}".format(
             self._cur_task, sum(retained_energies) / len(retained_energies), min(retained_energies)))

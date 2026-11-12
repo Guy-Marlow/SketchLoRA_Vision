@@ -280,23 +280,32 @@ class Learner(LoRALearner):
     # -- prototype repulsion (see module docstring) ----------------------
     @torch.no_grad()
     def _update_protos(self, train_loader):
-        """Store a unit-norm mean feature per class for the JUST-FINISHED
-        task, using the final trained adapter state. Called at the end of
-        _train(), after the epoch loop -- these become available for the
-        NEXT task's repulsion term, never this task's own (current-task
-        samples aren't pushed away from their own classes)."""
+        """Store the RAW (un-normalized) mean feature per class for the
+        JUST-FINISHED task, using the final trained adapter state. Called at
+        the end of _train(), after the epoch loop -- these become available
+        for the NEXT task's repulsion term, never this task's own
+        (current-task samples aren't pushed away from their own classes).
+
+        Matches LoRA_Subtraction_Ref/methods/lorasub_drs.py::_build_protos
+        exactly: `class_mean = np.mean(vectors, axis=0)` over RAW feature
+        vectors, normalized only lazily at use time (see where
+        protos_tensor is built in _train(), below) -- NOT normalizing each
+        sample before averaging. A prior version of this file normalized
+        every sample first, then averaged, then normalized the mean again;
+        when per-sample feature norms vary within a class, that changes
+        which samples dominate the resulting direction relative to the
+        reference's plain-mean-then-normalize-once convention. Fixed
+        2026-11 to match."""
         net = self._network
         net.eval()
         adapter = self._train_adapter()
         feats_by_class = defaultdict(list)
         for _, inputs, targets in train_loader:
-            feats = net.extract_vector(inputs.to(self._device), task=adapter, merge=True)
-            feats = F.normalize(feats, dim=-1).cpu()
+            feats = net.extract_vector(inputs.to(self._device), task=adapter, merge=True).cpu()
             for f, y in zip(feats, targets):
                 feats_by_class[int(y.item())].append(f)
         for cls, flist in feats_by_class.items():
-            proto = torch.stack(flist, dim=0).mean(dim=0)
-            self._protos[cls] = F.normalize(proto, dim=0)
+            self._protos[cls] = torch.stack(flist, dim=0).mean(dim=0)
 
     def _proto_repulsion_loss(self, features, protos_tensor):
         """features: [B, D] (raw, un-normalized, straight from the
@@ -357,8 +366,12 @@ class Learner(LoRALearner):
         # Past-task prototypes for THIS task's repulsion term -- fixed for
         # the whole task (built once here, not re-read from self._protos
         # every batch). None/empty at task 0 (nothing to repel from yet).
+        # self._protos holds RAW means (see _update_protos) -- normalized
+        # here, once, at use time, matching the reference's own
+        # eval_task()/_build_protos lazy-normalization convention.
         use_proto = self.use_proto_repulsion and task > 0 and len(self._protos) > 0
-        protos_tensor = torch.stack(list(self._protos.values()), dim=0).to(self._device) if use_proto else None
+        protos_tensor = (F.normalize(torch.stack(list(self._protos.values()), dim=0), dim=-1).to(self._device)
+                          if use_proto else None)
 
         lo, hi = self._ce_slice()
         prog_bar = tqdm(range(self.epochs))

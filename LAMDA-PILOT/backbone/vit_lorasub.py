@@ -18,25 +18,37 @@
 # ---------------------------------
 # LoRA_Subtraction_Ref/methods/lorasub_drs.py builds the input-covariance
 # statistics used for its gradient-projection subspace (see
-# models/lorasub.py's _ProjectedAdam) from a "cleaned" feature distribution:
-# a special probe forward pass computes k/v normally, then explicitly
-# SUBTRACTS the sum of every PAST task's own frozen (B_k[t]@A_k[t]) / v
-# analog back out, before attention runs and before the residual stream
-# carries the result into later blocks (see that file's
-# Attention_LoRA.forward, `get_cur_x=True` branch).
+# models/lorasub.py's _ProjectedAdam) from a probe forward pass
+# (LoRA_Subtraction_Ref/models/vit_lora.py Attention_LoRA.forward,
+# `get_cur_x=True` branch). In that branch, k/v are NEVER given the normal
+# additive adapter sum in the first place (the addition only happens in the
+# mutually-exclusive `else` branch) -- instead k is computed directly as
+# `k_proj(x) - sum_{t<task} B_k[t]@A_k[t]@x` (PAST tasks' deltas only,
+# subtracted straight from the frozen base; the current task's own
+# not-yet-trained slot never enters this sum at all).
 #
-# Here, that probe is `self._subtract_mode = True`: it skips adding ANY
-# LoRA delta to k/v at all, for every block, using only the frozen
-# k_proj/v_proj. This is not a simplification that changes behavior -- it
-# is the EXACT same computation as the reference's explicit subtraction,
-# given this project's (and the reference's own add_task_slot-equivalent)
-# zero-B-init convention: the probe always runs BEFORE the current task's
-# own slot has been trained, so delta_current(x) == 0 identically, and the
-# reference's `k - sum_{t<task} delta_t(x)` reduces to
-# `(k_proj(x) + sum_{t<=task} delta_t(x)) - sum_{t<task} delta_t(x))
-#   == k_proj(x) + delta_current(x) == k_proj(x)`.
-# So "probe = pure frozen-base forward" is a direct algebraic consequence
-# of zero-B-init, not a departure from the reference's design.
+# 2026-11 CORRECTION: an earlier version of this file set
+# `self._subtract_mode = True` to mean "skip ALL LoRA deltas entirely,
+# every block" (k=k_proj(x), v=v_proj(x)), on the theory that this equals
+# the reference's subtraction given zero-B-init. That reasoning was wrong:
+# it assumed the reference's k already had the adapter sum ADDED before the
+# subtraction (so subtracting "cancels" down to the current-task-only
+# term, which is ~0 at init) -- but the reference's if/else means no
+# addition ever happens on this path, so there is nothing to cancel. The
+# reference's probe computes "base MINUS past deltas", not "base alone".
+#
+# This distinction is NOT inert: cur_matrix/_accumulate_cov is computed
+# from the block's own input x, captured before this block's own
+# subtraction runs, so a block's OWN probe output never affects its OWN
+# covariance -- but the probe's output (attention computed from the
+# subtracted k/v) feeds the residual stream (see Block.forward,
+# `x = x + attn(norm1(x))`), becoming the NEXT block's input. So "subtract
+# past deltas" (reference) and "disable adapters entirely" (this file's old
+# behavior) agree only at the very first transformer block (nothing
+# upstream has diverged yet) and compound into genuinely different
+# covariance statistics for every block after that. Fixed: `_subtract_mode`
+# now reproduces the reference's actual `k_proj(x) - sum_{t<task}` formula
+# exactly (see `_lora_delta_sum`/forward below), at every block.
 # --------------------------------------------------------
 
 import math
@@ -77,11 +89,20 @@ class Attention_LoRASub(nn.Module):
         self.lora_B_k = nn.ModuleList([nn.Linear(lora_rank, dim, bias=False) for _ in range(n_tasks)])
         self.lora_A_v = nn.ModuleList([nn.Linear(dim, lora_rank, bias=False) for _ in range(n_tasks)])
         self.lora_B_v = nn.ModuleList([nn.Linear(lora_rank, dim, bias=False) for _ in range(n_tasks)])
+        # B init matches LoRA_Subtraction_Ref/models/vit_lora.py::
+        # Attention_LoRA.init_param exactly: sparse_ with sparsity=1-1/dim
+        # (i.e. ~1/dim of each column's entries nonzero, N(0, 0.01^2)), NOT
+        # an exact zero -- a prior version of this file used zeros_ here,
+        # an unauthorized deviation from the reference's own init (fixed
+        # 2026-11). Confirmed inert for the DRS covariance probe itself
+        # (see _accumulate_cov -- unaffected by B's value), but kept
+        # faithful to the reference's actual initialization everywhere else.
+        kr = 1.0 / dim
         for t in range(n_tasks):
             nn.init.kaiming_uniform_(self.lora_A_k[t].weight, a=math.sqrt(5))
             nn.init.kaiming_uniform_(self.lora_A_v[t].weight, a=math.sqrt(5))
-            nn.init.zeros_(self.lora_B_k[t].weight)
-            nn.init.zeros_(self.lora_B_v[t].weight)
+            nn.init.sparse_(self.lora_B_k[t].weight, sparsity=(1 - kr))
+            nn.init.sparse_(self.lora_B_v[t].weight, sparsity=(1 - kr))
 
         # routing state (set via set_task before each forward)
         self._task = -1
@@ -95,9 +116,13 @@ class Attention_LoRASub(nn.Module):
         self.n_cur_matrix = 0
 
         # ---- "subtraction" probe mode (LoRA Subtraction's namesake trick) ----
-        # When True, forward skips BOTH LoRA deltas entirely (k=k_proj(x),
-        # v=v_proj(x)) -- see this module's docstring for why that equals the
-        # reference's explicit per-task subtraction.
+        # When True, forward computes k = k_proj(x) - Sum_{s<task} delta_s(x)
+        # (PAST tasks' deltas only, subtracted from the frozen base) -- this
+        # is NOT the same as disabling adapters entirely (an earlier version
+        # of this file wrongly treated the two as equivalent -- see this
+        # module's docstring, "2026-11 correction", for why they differ from
+        # the second transformer block onward, once the residual stream has
+        # carried one block's subtracted output into the next block's input).
         self._subtract_mode = False
 
         # ---- frozen-slot folding (opt-in, unused by either LoRA-Subtraction
@@ -122,8 +147,9 @@ class Attention_LoRASub(nn.Module):
         new_B_v = nn.Linear(self.lora_rank, self.dim, bias=False).to(device=device, dtype=dtype)
         nn.init.kaiming_uniform_(new_A_k.weight, a=math.sqrt(5))
         nn.init.kaiming_uniform_(new_A_v.weight, a=math.sqrt(5))
-        nn.init.zeros_(new_B_k.weight)
-        nn.init.zeros_(new_B_v.weight)
+        kr = 1.0 / self.dim
+        nn.init.sparse_(new_B_k.weight, sparsity=(1 - kr))
+        nn.init.sparse_(new_B_v.weight, sparsity=(1 - kr))
         self.lora_A_k.append(new_A_k)
         self.lora_B_k.append(new_B_k)
         self.lora_A_v.append(new_A_v)
@@ -170,6 +196,18 @@ class Attention_LoRASub(nn.Module):
         self.cur_matrix = (self.cur_matrix * self.n_cur_matrix + cov) / (self.n_cur_matrix + n)
         self.n_cur_matrix += n
 
+    def _lora_delta_sum(self, x, A_list, B_list, upto):
+        """Sum_{t=0}^{upto-1} B_t(A_t(x)) * lora_scaling. Shared helper: the
+        normal merge=True forward uses upto=task+1 (every task through the
+        current one); the subtraction probe uses upto=task (PAST tasks
+        only, excluding the one about to be trained) -- matches
+        LoRA_Subtraction_Ref/models/vit_lora.py Attention_LoRA.forward's
+        `weight_k_old`/`weight_v_old` (range(task)) exactly."""
+        delta = 0.0
+        for t in range(upto):
+            delta = delta + B_list[t](A_list[t](x))
+        return delta * self.lora_scaling
+
     def _lora_delta(self, x, A_list, B_list, frozen_delta):
         task, merge = self._task, self._merge
         if task < 0:
@@ -184,10 +222,7 @@ class Attention_LoRASub(nn.Module):
             if task > self._folded_upto:
                 delta = delta + B_list[task](A_list[task](x))
             return delta * self.lora_scaling
-        delta = 0.0
-        for t in range(task + 1):
-            delta = delta + B_list[t](A_list[t](x))
-        return delta * self.lora_scaling
+        return self._lora_delta_sum(x, A_list, B_list, task + 1)
 
     def _shape(self, tensor, seq_len, bsz):
         return tensor.view(bsz, seq_len, self.num_heads, self.head_dim).transpose(1, 2).contiguous()
@@ -199,10 +234,17 @@ class Attention_LoRASub(nn.Module):
 
         q = self.q_proj(x)
         if self._subtract_mode:
-            # LoRA Subtraction's probe pass: pure frozen-base k/v, no adapter
-            # contribution at all (past or current) -- see module docstring.
-            k = self.k_proj(x)
-            v = self.v_proj(x)
+            # LoRA Subtraction's probe pass: frozen base MINUS every PAST
+            # task's trained delta (task itself excluded -- see
+            # _lora_delta_sum's docstring). NOT the same as disabling
+            # adapters entirely; see module docstring for why.
+            task = self._task
+            if task > 0:
+                k = self.k_proj(x) - self._lora_delta_sum(x, self.lora_A_k, self.lora_B_k, task)
+                v = self.v_proj(x) - self._lora_delta_sum(x, self.lora_A_v, self.lora_B_v, task)
+            else:
+                k = self.k_proj(x)
+                v = self.v_proj(x)
         else:
             k = self.k_proj(x) + self._lora_delta(x, self.lora_A_k, self.lora_B_k, self.frozen_delta_k)
             v = self.v_proj(x) + self._lora_delta(x, self.lora_A_v, self.lora_B_v, self.frozen_delta_v)
