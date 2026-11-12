@@ -350,6 +350,34 @@ def get_backbone(args, pretrained=False):
             raise NotImplementedError("Unknown type {}".format(name))
         model.out_dim = 768
         return model
+    # Batch-incremental + KL-drift-detection setting (q,v) -- see
+    # backbone/vit_sketchlora_batchinc.py and models/sketchlora_batchinc.py.
+    # Checked before the generic '_lora' branch below defensively (same
+    # convention as the '_sdlora_sketch'/'_lorasub' guards above), even
+    # though "sketchlora_batchinc" does not actually contain the literal
+    # substring "_lora" (no underscore directly precedes "lora" in
+    # "sketchlora"). Unlike every other backbone here, this one takes no
+    # n_tasks/lora_n_slots at construction -- it always starts with exactly
+    # one live slot and grows via its own add_task_slot(), driven by the
+    # KL detector or the fixed-interval clock, never by task count.
+    elif '_sketchlora_batchinc' in name:
+        from backbone import vit_sketchlora_batchinc
+        lora_rank = args.get("lora_rank", 10)
+        lora_alpha = args.get("lora_alpha", None)
+        svd_rank = args.get("svd_rank", lora_rank)
+        pending_cap = args.get("batchinc_pending_cap", 4)
+        if name == "vit_base_patch16_224_sketchlora_batchinc":
+            model = vit_sketchlora_batchinc.vit_base_patch16_224_sketchlora_batchinc(
+                lora_rank=lora_rank, lora_alpha=lora_alpha, svd_rank=svd_rank,
+                pending_cap=pending_cap, num_classes=0, drop_path_rate=0.0)
+        elif name == "vit_base_patch16_224_in21k_sketchlora_batchinc":
+            model = vit_sketchlora_batchinc.vit_base_patch16_224_in21k_sketchlora_batchinc(
+                lora_rank=lora_rank, lora_alpha=lora_alpha, svd_rank=svd_rank,
+                pending_cap=pending_cap, num_classes=0, drop_path_rate=0.0)
+        else:
+            raise NotImplementedError("Unknown type {}".format(name))
+        model.out_dim = 768
+        return model
     # Baseline per-task LoRA (q,v) backbone -- see backbone/vit_lora.py
     elif '_lora' in name:
         from backbone import vit_lora

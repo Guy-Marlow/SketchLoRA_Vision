@@ -157,6 +157,21 @@ def _train(args):
         _run_stream(model, data_manager, args, method_name="buffered_plateau_run", tag="plateau_buffer")
         return
 
+    # Batch-incremental + KL-drift-detection setting (2026-11-11, see
+    # models/sketchlora_batchinc.py's own module docstring for the full
+    # design) -- a SEPARATE, isolated codepath, not a modification of any
+    # mode above. Decouples adapter spawning (driven by a KL-divergence
+    # drift detector on frozen-backbone features, or a fixed-interval
+    # clock in the no-detector ablation, see batchinc_fixed_interval_only)
+    # from sketch consolidation (its own independent schedule/cap clock).
+    # Reuses _run_stream's own generic reporting/checkpoint-writing logic
+    # below unchanged -- kl_batch_inc_run lives directly on the Learner,
+    # not on a shared mixin, but _run_stream only ever calls
+    # getattr(model, method_name)(...), so this needs no change there.
+    if args.get("boundary_mode") == "kl_batch_inc":
+        _run_stream(model, data_manager, args, method_name="kl_batch_inc_run", tag="kl_batch_inc")
+        return
+
     # Plan C (impl_plan_7.25.2026/plan_C_task_agnostic.md) bounded-working-memory
     # boundary-free streaming -- a SEPARATE codepath from "sample"/"sample_legacy"
     # above (models/bounded_memory_mixin.py, not models/stream_mixin.py). Real

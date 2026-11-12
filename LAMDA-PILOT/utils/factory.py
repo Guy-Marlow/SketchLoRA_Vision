@@ -78,6 +78,8 @@ def get_model(model_name, args):
         from models.lorasub_sketch import Learner
     elif name == 'lorasub_sketch_foldfirst':
         from models.lorasub_sketch_foldfirst import Learner
+    elif name == 'sketchlora_batchinc':
+        from models.sketchlora_batchinc import Learner
     elif name == 'sketchlora':
         from models.sketchlora import Learner
     elif name == 'sketchlora_align':
