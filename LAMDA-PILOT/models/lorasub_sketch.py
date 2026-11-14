@@ -12,6 +12,22 @@ resulting small matrix, truncate to svd_rank -- the TRUE SVD of the merged
 delta, computed without ever forming the dense [dim,dim] delta except
 transiently for the retained-energy diagnostic.
 
+FOLD TIMING (merged in 2026-11-13 from the former models/
+lorasub_sketch_foldfirst.py, which is now the sole implementation): the
+QR-SVD fold runs at the END of THIS task's own incremental_train, right
+after self._train() returns, unconditionally including task 0 -- matching
+models/sketchlora.py's own cadence (its _train() calls self._compress()
+before returning). This runs BEFORE eval_task() sees this task's state,
+unlike the prior (start-of-NEXT-task) timing, which left eval reading the
+network's own merge=True CIL forward summing SKETCH (folded history
+through task t-1) + RESIDUAL (task t's own just-trained, full-rank,
+not-yet-truncated adapter) -- a strictly more informative, unbounded
+representation than persistent_state() counts as the actual bank -- and
+structurally never folded the FINAL task's RESIDUAL at all (there was no
+"next" incremental_train call to trigger it). No eval-routing change is
+needed: _sketch_fold() already resets RESIDUAL to (kaiming A, zero B), so
+the network's merge=True CIL sum degenerates to SKETCH alone immediately.
+
 This is DIFFERENT from O-LoRA's bounded-bank story, which needs an
 explicit orthogonality LOSS term between tasks to keep interference down.
 The QR-SVD fold handles overlapping directions numerically (it is an exact
@@ -112,11 +128,7 @@ class Learner(LoRASubLearner):
         logging.info("[LoRA-Sub-Sketch] Learning on {}-{}".format(self._known_classes, self._total_classes))
 
         # No add_task_slot() -- fixed 2-slot architecture, unlike
-        # models/lorasub.py's growing bank. Fold the PREVIOUS task's fully
-        # trained RESIDUAL into SKETCH first, then reset RESIDUAL fresh.
-        if self._cur_task > 0:
-            self._sketch_fold()
-
+        # models/lorasub.py's growing bank.
         self._network.freeze_to_task(RESIDUAL)  # train_a=True default: both A,B train
         for p in self._network.fc.parameters():
             p.requires_grad = True
@@ -140,6 +152,12 @@ class Learner(LoRASubLearner):
         self._train(self.train_loader)
         if len(self._multiple_gpus) > 1:
             self._network = self._network.module
+
+        # Fold THIS task's just-trained RESIDUAL into SKETCH now, before
+        # eval_task() runs -- unconditionally, every task including task 0
+        # (task 0's call is exactly the first-fold transplant branch inside
+        # _sketch_fold()).
+        self._sketch_fold()
 
     @torch.no_grad()
     def _sketch_fold(self):
